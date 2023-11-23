@@ -1,0 +1,6 @@
+{
+  "apiEndpoint": "https://example.com/api",
+  "themeColor": "#3498db",
+  "defaultLanguage": "en",
+  "maxRetries": 3
+}

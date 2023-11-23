@@ -1,0 +1,30 @@
+.highlighted-word {
+    position: relative;
+    transition: background-color 1s ease; /* Animate background color */
+    /* Other styles as needed */
+}
+
+.highlighted-word::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 0;
+    height: 1px;
+    background: rgba(255, 0, 0, 0.64);
+    transition: width 1s ease; /* Animate width property */
+}
+
+.highlighted-word.animate-border::after {
+    width: 100%; /* Full width to trigger the animation */
+}
+
+/* Initial background color */
+.highlighted-word {
+    background-color: transparent; /* No background color initially */
+}
+
+/* Animate to this background color upon insertion */
+.highlighted-word.animate-background {
+    background-color: rgba(255, 0, 0, 0.22); /* Light yellow background */
+}

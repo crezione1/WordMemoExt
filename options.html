@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Settings</title>
+    <style>
+        @keyframes fadeInOut {
+            0% {opacity: 0;}
+            50% {opacity: 1;}
+            100% {opacity: 0;}
+        }
+        #savedMessage {
+            color: #333333;
+            animation-name: fadeInOut;
+            animation-timing-function: ease-in-out;
+            animation-duration: 3s; /* Adjust duration as needed */
+        }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+            font-size: 18px; /* Increased font size */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* Full viewport height */
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .description {
+            margin: 15px 0 30px 0;
+        }
+        h2 {
+            color: #333;
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        select, button {
+            padding: 8px 12px; /* Increased padding for better appearance */
+            margin-top: 5px;
+            font-size: 16px; /* Increased font size for dropdowns and button */
+            border-radius: 3px;
+            border: 2px solid #007BFF;
+        }
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border-radius: 3px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Word Saver</h2>
+    <div class="description">Assists you in effortlessly recalling words through repetition.</div>
+    <label>
+        Translate To:
+        <select id="translateTo">
+            <!--align with deepL supported languages-->
+            <option value="en">English</option>
+            <option value="UK">Ukrainian</option>
+            <option value="fr">French</option>
+            <option value="it">Italian</option>
+            <option value="spanish">Spanish</option>
+            <option value="german">German</option>
+            <option value="japanese">Japanese</option>
+            <option value="mandarin">Mandarin</option>
+        </select>
+    </label>
+
+    <label>
+        Animation:
+        <select id="animationToggle">
+            <option value="true">On</option>
+            <option value="false">Off</option>
+        </select>
+    </label>
+
+    <label>
+        Sentence Counter:
+        <select id="sentenceCounter">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+        </select>
+    </label>
+
+    <button id="save">Save</button>
+    <span id="savedMessage" style="display: none;">Saved</span>
+</div>
+
+<!-- Link the options.js here to handle the saving and loading of settings -->
+ <script src="options.js"></script>
+</body>
+</html>
