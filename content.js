@@ -232,12 +232,16 @@ async function highlightWords() {
 // async function getTranslation(word) {
 //     // checkLocalDb()
 //     let translateTo = 'ua';
-//     return fetch(`${API_URL}/translation?text=${word}&targetLanguage=${translateTo}`, {
-//         method: 'GET',
+//     return fetch(`${API_URL}/translate`, {
+//         method: 'POST',
 //         headers: {
-//             'Authorization': 'Bearer ' + token,
+//             'Authorization': 'Bearer ' + apiToken,
 //             'Accept': 'application/json, application/xml, text/plain, text/html, */*',
 //             'Content-Type': 'application/json'
+//         },
+//         body : {
+//             word: word,
+//             translateTo: translateTo
 //         }
 //     })
 // }

@@ -24,7 +24,8 @@ function startOAuthFlow(telegramName) {
     let clientId = `893654526349-8vbu5ql30musnpecetk9ntigefjk81et.apps.googleusercontent.com`;
     let responseType = `code`;
     let scope = `openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile`;
-    let redirectUri = `https://bpnckmnjnpoohfnodnhjpehocneckmmc.chromiumapp.org/`;
+    //redirectUri for Anastasiia, should be changed to id of the chrome extension on the store after publishing
+    let redirectUri = `https://dkecpnpaaifjhhehhdkpaohapiniagod.chromiumapp.org/`;
 
     chrome.identity.launchWebAuthFlow({
         'url': `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=${responseType}&scope=${scope}&redirect_uri=${redirectUri}`,
@@ -41,15 +42,15 @@ function startOAuthFlow(telegramName) {
             },
             body: JSON.stringify({code: authCode.replace('%2F', '/'), telegramName: telegramName})
         })
-            .then(response => response.text())
-            .then(jwt => {
-                console.log(jwt)
-                chrome.storage.local.set({token: jwt}, function () {
-                    console.log('Token is set to ' + jwt);
-                });
-                let telegramBotUrl = "https://web.telegram.org/k/#@WordMemoBot";
-                chrome.tabs.create({url: telegramBotUrl});
+        .then(response => response.text())
+        .then(jwt => {
+            console.log(jwt)
+            chrome.storage.local.set({token: jwt}, function () {
+                console.log('Token is set to ' + jwt);
             });
+            let telegramBotUrl = "https://web.telegram.org/k/#@WordMemoBot";
+            chrome.tabs.create({url: telegramBotUrl});
+        });
     });
 }
 chrome.runtime.onInstalled.addListener(function(details) {
