@@ -87,8 +87,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     function isTokenValid(token) {
-        if (!token)
-            {return false
+        if (!token) {
+            return false
         }
         // TODO should be validated on backend
         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('expirationDate', expirationDate)
         console.log('currentDate', currentDate)
         console.log('currentDate > expirationDate', currentDate > expirationDate)
-        return currentDate > expirationDate;
+        return currentDate < expirationDate;
     }
 
 });
