@@ -2,23 +2,29 @@ const ENV = 'prod';
 
 const config = {
     dev: {
-        API_URL: 'http://localhost:8080'
+        API_URL: 'http://localhost:8080',
     },
     prod: {
-        API_URL: 'https://sea-lion-app-ut382.ondigitalocean.app'
-    }
+        API_URL: 'https://sea-lion-app-ut382.ondigitalocean.app',
+    },
 };
 
 const API_URL = config[ENV].API_URL;
 
 let settings = {};
 (function loadSettings() {
-   return chrome.storage.local.get(['translateTo', 'animationToggle', 'sentenceCounter'], function(items) {
-       settings['languageCode'] = items.translateTo;
-       settings['animationToggle'] = items.animationToggle === 'true';
-       settings['sentenceCounter'] = items.sentenceCounter;
-    });
+    return chrome.storage.local.get(
+        ['translateTo', 'animationToggle', 'sentenceCounter'],
+        function (items) {
+            settings['languageCode'] = items.translateTo;
+            settings['animationToggle'] = items.animationToggle === 'true';
+            settings['sentenceCounter'] = items.sentenceCounter;
+        }
+    );
 })();
+
+let originalTextContent = [];
+
 // document.addEventListener('click', function(event) {
 //     let targetElement = event.target; // Starting point
 //     console.log("AAAAAAAAAAAAAA")
@@ -33,18 +39,17 @@ let settings = {};
 // });
 
 document.addEventListener('keydown', function (event) {
-    console.log(chrome)
+    console.log(chrome);
     if (event.ctrlKey && event.shiftKey && event.code === 'KeyS') {
         const selectedText = window.getSelection().toString().trim();
         if (selectedText) {
             runLogic(selectedText);
             console.log(`Saved: ${selectedText}`);
         }
-
     }
 });
 
-document.addEventListener('mousedown', function(event) {
+document.addEventListener('mousedown', function (event) {
     if (event.target.tagName !== 'BUTTON') {
         const existingButton = document.getElementById('add new word');
         if (existingButton) {
@@ -55,12 +60,12 @@ document.addEventListener('mousedown', function(event) {
     }
 });
 
-document.addEventListener('mouseup', function(event) {
+document.addEventListener('mouseup', function (event) {
     if (event.target.tagName !== 'BUTTON') {
         const selectedText = window.getSelection().toString().trim();
         if (selectedText) {
             const button = document.createElement('div');
-            button.id = "add new word"
+            button.id = 'add new word';
             button.innerText = '+';
             button.style.width = '20px';
             button.style.height = '20px';
@@ -78,9 +83,9 @@ document.addEventListener('mouseup', function(event) {
                 alert('Button clicked!');
                 window.getSelection().empty();
                 window.getSelection().removeAllRanges();
-                button.remove()
+                button.remove();
                 // add logic for saving the word
-            })
+            });
             // button.onclick = function () {
             //     alert('Button clicked!');
             //     window.getSelection().empty();
@@ -95,36 +100,41 @@ document.addEventListener('mouseup', function(event) {
 
 async function runLogic(selectedText) {
     saveWordToDictionary(selectedText)
-        .then(_ => {
-            animateWordToToolbar()
+        .then((_) => {
+            animateWordToToolbar();
         })
-        .catch(error => {
-        console.log('error', error)
-        console.log('error.code', error.code)
-        if (error.code === 403) {
-            console.log('please login')
-        } else {
-            console.log('some error happened')
-        }
-    });
+        .catch((error) => {
+            console.log('error', error);
+            console.log('error.code', error.code);
+            if (error.code === 403) {
+                console.log('please login');
+            } else {
+                console.log('some error happened');
+            }
+        });
+}
+
+async function getToken() {
+    const result = await chrome.storage.local.get(['token']);
+    return result.token;
 }
 
 async function saveWordToDictionary(word) {
-    chrome.storage.local.get(['token'], function (result) {
-        console.log(chrome.storage.local.get(['token']))
-        let token = result.token;
-        console.log('result', result)
-        console.log('result.token', token)
-        fetch(`${API_URL}/api/word/${word}`, {
+    try {
+        const token = await getToken();
+
+        await fetch(`${API_URL}/api/word/${word}`, {
             method: 'POST',
             body: JSON.stringify(settings),
             headers: {
-                'Authorization': 'Bearer ' + token,
-                'Accept': 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json'
-            }
-        })
-    });
+                Authorization: 'Bearer ' + token,
+                Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                'Content-Type': 'application/json',
+            },
+        });
+    } catch (error) {
+        console.error('Error saving word:', error);
+    }
 }
 
 function animateWordToToolbar() {
@@ -144,7 +154,7 @@ function animateWordToToolbar() {
     floatingWord.style.transition = 'top 0.5s linear, left 0.5s linear';
 
     document.body.appendChild(floatingWord);
-    window.getSelection().removeAllRanges()
+    window.getSelection().removeAllRanges();
     // Animate the word towards the top-right corner (where the extension icon usually is)
     setTimeout(() => {
         floatingWord.style.left = '95%';
@@ -156,20 +166,30 @@ function animateWordToToolbar() {
     }, 550);
 }
 
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    console.log("Received selected text:", request.text);
-    runLogic(request.text);
-    sendResponse({status: "success"});
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    if (request.action === 'saveWordToDictionary') {
+        console.log('Received selected text:', request.text);
+        runLogic(request.text);
+        sendResponse({ status: 'success' });
+    }
 });
+
+// Highlighting/clearing highlighting saved words
+
+function clearHighlighting() {
+    originalTextContent.forEach(([parentNode, innerHTML]) => {
+        parentNode.innerHTML = innerHTML;
+    });
+
+    originalTextContent = [];
+}
 
 function replaceTextNode(node, targetWords, translations) {
     const words = node.nodeValue.split(' ');
     const parentNode = node.parentNode;
     let documentFragment = document.createDocumentFragment();
 
-    words.forEach(word => {
-        let wordNode = document.createTextNode(word + ' ');
-
+    words.forEach((word) => {
         if (targetWords.includes(word.toLowerCase())) {
             const highlightedSpan = document.createElement('span');
             highlightedSpan.classList.add('highlighted-word');
@@ -183,15 +203,19 @@ function replaceTextNode(node, targetWords, translations) {
                 highlightedSpan.classList.add('animate-background');
             }, 10);
 
-            const translationText = '[' + translations[word.toLowerCase()] + '] ';
+            const translationText =
+                '[' + translations[word.toLowerCase()] + '] ';
             const translationNode = document.createElement('span');
             translationNode.style.color = '#d0d0d0';
             translationNode.textContent = translationText;
             documentFragment.appendChild(translationNode);
         } else {
+            const wordNode = document.createTextNode(word + ' ');
             documentFragment.appendChild(wordNode);
         }
     });
+
+    originalTextContent.push([parentNode, parentNode.innerHTML]);
 
     parentNode.replaceChild(documentFragment, node);
 }
@@ -210,55 +234,44 @@ function findTextNodes(element) {
 
 async function highlightWords() {
     const translationsDto = await getAllTranslations();
-    const translations = translationsDto.map(t => {
+    const translations = translationsDto.map((t) => {
         let key = t.word.toLowerCase();
-        return {[key]: t.translation};
+        return { [key]: t.translation };
     });
 
-    const targetWords = translationsDto.map(t => t.word.toLowerCase());
+    const targetWords = translationsDto.map((t) => t.word.toLowerCase());
     const textNodes = findTextNodes(document.body);
 
-    const trans = translations.reduce(function(result, item) {
+    const trans = translations.reduce(function (result, item) {
         var key = Object.keys(item)[0]; //first property: a, b, c
         result[key] = item[key];
         return result;
     }, {});
-    textNodes.forEach(node => {
-        if (targetWords.some(targetWord => node.nodeValue.toLowerCase().includes(targetWord))) {
+
+    textNodes.forEach((node) => {
+        if (
+            targetWords.some((targetWord) =>
+                node.nodeValue.toLowerCase().includes(targetWord)
+            )
+        ) {
             replaceTextNode(node, targetWords, trans);
         }
     });
 }
-// async function getTranslation(word) {
-//     // checkLocalDb()
-//     let translateTo = 'ua';
-//     return fetch(`${API_URL}/translate`, {
-//         method: 'POST',
-//         headers: {
-//             'Authorization': 'Bearer ' + apiToken,
-//             'Accept': 'application/json, application/xml, text/plain, text/html, */*',
-//             'Content-Type': 'application/json'
-//         },
-//         body : {
-//             word: word,
-//             translateTo: translateTo
-//         }
-//     })
-// }
 
 async function getAllTranslations() {
     let translations = {};
     try {
-        const result = await chrome.storage.local.get(['token']);
-        const token = result.token;
+        const token = await getToken();
+
         const response = await fetch(`${API_URL}/translations`, {
             method: 'POST',
             body: JSON.stringify(settings), // Make sure 'settings' is an object that can be stringified
             headers: {
-                'Authorization': 'Bearer ' + token,
-                'Accept': 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json'
-            }
+                Authorization: 'Bearer ' + token,
+                Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                'Content-Type': 'application/json',
+            },
         });
 
         if (!response.ok) {
@@ -269,9 +282,36 @@ async function getAllTranslations() {
     } catch (error) {
         console.error('Error fetching translations:', error);
     }
-    console.log(translations);
+    // console.log(translations);
     return translations;
 }
 
-highlightWords();
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'extensionStateChanged') {
+        const enabled = request.enabled;
 
+        handleExtensionStateChange(enabled);
+    }
+});
+
+function handleExtensionStateChange(enabled) {
+    if (enabled) {
+        highlightWords();
+        console.log('Extension is enabled for this site.');
+    } else {
+        clearHighlighting();
+        console.log('Extension is disabled for this site.');
+    }
+}
+
+function checkInitialExtensionState() {
+    chrome.runtime.sendMessage(
+        { action: 'checkExtensionState' },
+        function (response) {
+            const enabled = response.enabled;
+            handleExtensionStateChange(enabled);
+        }
+    );
+}
+
+checkInitialExtensionState();
