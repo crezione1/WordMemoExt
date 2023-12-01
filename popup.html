@@ -1,54 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Saver</title>
-    <link rel="stylesheet" href="css/font-awesome.min.css">
-    <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-<div class="container">
-    <header>
-        <h1>Word Saver</h1>
-        <div class="tabs">
-            <div class="tab-action" id="homeTab">
-                <img src="images/home-icon.png" alt="Home Icon" width="16" height="16">
-                <span class="tab-label">Home</span>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Word Saver</title>
+        <link rel="stylesheet" href="font-awesome/css/fontawesome.css" />
+        <link rel="stylesheet" href="font-awesome/css/solid.css" />
+        <link rel="stylesheet" href="font-awesome/css/brands.css" />
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>Word Saver</h1>
+                <div class="tabs">
+                    <div class="tab-action" id="homeTab">
+                        <i class="fa-solid fa-house"></i>
+                        <span class="tab-label">Home</span>
+                    </div>
+                    <div class="tab-action" id="settingsTab">
+                        <i class="fa-solid fa-gear"></i>
+                        <span class="tab-label">Settings</span>
+                    </div>
+                </div>
+            </header>
+
+            <div id="homeContent" class="tab-content">
+                <p>
+                    Select a word on any webpage and click the "Save Word or
+                    CTRL+SHIFT+S" button that appears to save it. and you`ll
+                    receive sentences with saved word to you telegram bot. you
+                    will be redirected to WordMemo bot, please start
+                    conversation by printing /start to finish you registration
+                </p>
+
+                <div id="login">
+                    <input
+                        type="text"
+                        id="telegramName"
+                        placeholder="Your Telegram Name"
+                    />
+                    <button id="loginBtn">
+                        <i class="fa-brands fa-google"></i>
+                        <span>Login</span>
+                    </button>
+                </div>
+                <div id="logout">
+                    <button id="logoutBtn">Logout</button>
+                </div>
+
+                <button id="settings">Settings</button>
             </div>
-            <div class="tab-action" id="settingsTab">
-                <img src="images/settings-icon.png" alt="Home Icon" width="16" height="16">
-                <span class="tab-label">Settings</span>
+
+            <div id="settingsContent" class="tab-content" style="display: none">
+                <label class="switch">
+                    <span>Enable extension for this site</span>
+                    <input type="checkbox" id="enableExtension" />
+                    <span class="slider"></span>
+                </label>
+
+                <div
+                    id="exclusionListContainer"
+                    class="exclusion-list-container"
+                >
+                    <h3>Exclusion List</h3>
+                    <ul id="exclusionList" class="exclusion-list">
+                        <button
+                            id="openSiteInputBtn"
+                            type="button"
+                            class="icon-btn icon-btn-large"
+                        >
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </ul>
+
+                    <div
+                        id="siteInputContainer"
+                        class="site-input-container"
+                        style="display: none"
+                    >
+                        <input
+                            type="text"
+                            id="siteInput"
+                            placeholder="Enter a site URL"
+                        />
+                        <button id="addSiteBtn">Add Site</button>
+                    </div>
+                </div>
             </div>
         </div>
-    </header>
-    <div id="homeContent" class="tab-content">
-        <p>
-            Select a word on any webpage and click the "Save Word or CTRL+SHIFT+S" button that appears to save it.
-            and you`ll receive sentences with saved word to you telegram bot.
-            you will be redirected to WordMemo bot, please start conversation by printing /start to finish you registration
-        </p>
-
-        <div id="login">
-            <input type="text" id="telegramName" placeholder="Your Telegram Name">
-            <button id="loginBtn">
-                <i class="fas fa fa-google"> Login</i>
-            </button>
-        </div>
-        <div id="logout">
-            <button id="logoutBtn">
-                Logout
-            </button>
-        </div>
-
-        <button id="settings">Settings</button>
-    </div>
-    <div id="settingsContent" class="tab-content" style="display: none;">
-        <!-- Settings tab content goes here -->
-        <p>Settings options go here.</p>
-    </div>
-
-</div>
-</body>
-<script src="popup.js"></script>
+    </body>
+    <script src="popup.js"></script>
 </html>

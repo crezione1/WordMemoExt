@@ -1,5 +1,9 @@
 /* Reset default margin and padding */
-body, h1, p, button, input {
+body,
+h1,
+p,
+button,
+input {
     margin: 0;
     padding: 0;
 }
@@ -13,6 +17,7 @@ body, h1, p, button, input {
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
     width: 300px; /* Adjust the container width as needed */
     margin: 0 auto; /* Center the container horizontally */
+    font-size: 14px;
 }
 
 /* Style the header */
@@ -32,7 +37,6 @@ p {
 /* Style the input field */
 input {
     padding: 10px;
-    margin: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 16px;
@@ -67,7 +71,8 @@ button:hover {
 
 /* Center the button horizontally */
 button {
-    margin: 0 auto;
+    /* margin: 0 auto; */
+    margin: 0;
 }
 
 .tabs {
@@ -85,7 +90,7 @@ button {
 }
 
 .active-tab {
-    background-color: #e0e0e0; /* or any other styling you prefer */
+    /* background-color: #e0e0e0; or any other styling you prefer */
 }
 
 .tab-action {
@@ -102,12 +107,10 @@ button {
     background-color: #68c2ff;
 }
 
-
 .tab-label {
     font-size: 14px;
     color: #333;
 }
-
 
 button {
     cursor: pointer;
@@ -117,4 +120,106 @@ header {
     border-bottom: 1px solid #333333;
 }
 
+/* The exclusion list */
 
+.exclusion-list-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.exclusion-list {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    padding: 0;
+    gap: 0.5rem;
+}
+
+.exclusion-list li {
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: white;
+    border-radius: 2rem;
+}
+
+.icon-btn {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.icon-btn-small {
+    width: 24px;
+    height: 24px;
+}
+
+.icon-btn-large {
+    width: 40px;
+    height: 40px;
+}
+
+.site-input-container {
+    margin-top: 1rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Enable extension switch */
+
+.switch {
+    position: relative;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: relative;
+    display: inline-block;
+    margin-right: 0.5rem;
+    width: 46px;
+    height: 26px;
+    background-color: #c4c4c4;
+    border-radius: 23px;
+    vertical-align: text-bottom;
+    transition: all 0.3s linear;
+}
+
+.slider:before {
+    position: absolute;
+    content: '';
+    width: 22px;
+    height: 22px;
+    top: 2px;
+    left: 2px;
+    border-radius: 50%;
+    background-color: white;
+    transition: 0.4s;
+}
+
+input:checked + .slider {
+    background-color: #2196f3;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #2196f3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
+}
