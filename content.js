@@ -17,6 +17,7 @@ let settings = {};
         ['translateTo', 'animationToggle', 'sentenceCounter'],
         function (items) {
             settings['languageCode'] = items.translateTo;
+            settings['languageFull'] = 'Ukrainian';
             settings['animationToggle'] = items.animationToggle === 'true';
             settings['sentenceCounter'] = items.sentenceCounter;
         }
@@ -25,21 +26,12 @@ let settings = {};
 
 let originalTextContent = [];
 
-// document.addEventListener('click', function(event) {
-//     let targetElement = event.target; // Starting point
-//     console.log("AAAAAAAAAAAAAA")
-//     while (targetElement != null) {
-//         if (targetElement.classList.contains('s-item')) {
-//             // Found the item card root element
-//             console.log('Item card root element:', targetElement);
-//             break;
-//         }
-//         targetElement = targetElement.parentElement; // Move up in the DOM tree
-//     }
-// });
+async function getToken() {
+    const result = await chrome.storage.local.get(['token']);
+    return result.token;
+}
 
 document.addEventListener('keydown', function (event) {
-    console.log(chrome);
     if (event.ctrlKey && event.shiftKey && event.code === 'KeyS') {
         const selectedText = window.getSelection().toString().trim();
         if (selectedText) {
@@ -98,6 +90,37 @@ document.addEventListener('mouseup', function (event) {
     }
 });
 
+async function deleteWordFromStorage(wordId) {
+    const { words } = await chrome.storage.local.get(['words']);
+    const updatedWords = words.filter((word) => word.id !== Number(wordId));
+
+    chrome.storage.local.set({ words: updatedWords });
+}
+
+document.addEventListener('click', (e) => {
+    const existingButton = document.getElementById('deleteWordBtn');
+
+    if (existingButton) existingButton.remove();
+
+    if (!e.target.dataset.wordId) return;
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = '-';
+    deleteButton.id = 'deleteWordBtn';
+
+    deleteButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        const clickedWordId = e.target.dataset.wordId;
+
+        deleteWordFromStorage(clickedWordId);
+
+        deleteButton.remove();
+    });
+
+    e.target.appendChild(deleteButton);
+});
+
 async function runLogic(selectedText) {
     saveWordToDictionary(selectedText)
         .then((_) => {
@@ -114,18 +137,13 @@ async function runLogic(selectedText) {
         });
 }
 
-async function getToken() {
-    const result = await chrome.storage.local.get(['token']);
-    return result.token;
-}
-
 async function saveWordToDictionary(word) {
     try {
         const token = await getToken();
 
-        await fetch(`${API_URL}/api/word/${word}`, {
+        await fetch(`${API_URL}/api/words`, {
             method: 'POST',
-            body: JSON.stringify(settings),
+            body: JSON.stringify({ word: word.toLowerCase(), ...settings }),
             headers: {
                 Authorization: 'Bearer ' + token,
                 Accept: 'application/json, application/xml, text/plain, text/html, */*',
@@ -187,7 +205,7 @@ function clearHighlighting() {
 function replaceTextNode(node, targetWords, translations) {
     const words = node.nodeValue.split(' ');
     const parentNode = node.parentNode;
-    let documentFragment = document.createDocumentFragment();
+    const documentFragment = document.createDocumentFragment();
 
     words.forEach((word) => {
         if (targetWords.includes(word.toLowerCase())) {
@@ -203,11 +221,15 @@ function replaceTextNode(node, targetWords, translations) {
                 highlightedSpan.classList.add('animate-background');
             }, 10);
 
-            const translationText =
-                '[' + translations[word.toLowerCase()] + '] ';
+            const translationText = `[${
+                translations[word.toLowerCase()].translation
+            }] `;
             const translationNode = document.createElement('span');
-            translationNode.style.color = '#d0d0d0';
+            translationNode.classList.add('translation');
+            translationNode.dataset.wordId =
+                translations[word.toLowerCase()].id;
             translationNode.textContent = translationText;
+
             documentFragment.appendChild(translationNode);
         } else {
             const wordNode = document.createTextNode(word + ' ');
@@ -232,19 +254,13 @@ function findTextNodes(element) {
     return nodes;
 }
 
-async function highlightWords() {
-    const translationsDto = await getAllTranslations();
-    const translations = translationsDto.map((t) => {
-        let key = t.word.toLowerCase();
-        return { [key]: t.translation };
-    });
-
-    const targetWords = translationsDto.map((t) => t.word.toLowerCase());
+async function highlightWords(words) {
+    const targetWords = words.map((t) => t.word.toLowerCase());
     const textNodes = findTextNodes(document.body);
 
-    const trans = translations.reduce(function (result, item) {
-        var key = Object.keys(item)[0]; //first property: a, b, c
-        result[key] = item[key];
+    const translations = words.reduce((result, item) => {
+        const key = item.word;
+        result[key] = item;
         return result;
     }, {});
 
@@ -254,49 +270,17 @@ async function highlightWords() {
                 node.nodeValue.toLowerCase().includes(targetWord)
             )
         ) {
-            replaceTextNode(node, targetWords, trans);
+            replaceTextNode(node, targetWords, translations);
         }
     });
 }
 
-async function getAllTranslations() {
-    let translations = {};
-    try {
-        const token = await getToken();
-
-        const response = await fetch(`${API_URL}/translations`, {
-            method: 'POST',
-            body: JSON.stringify(settings), // Make sure 'settings' is an object that can be stringified
-            headers: {
-                Authorization: 'Bearer ' + token,
-                Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        translations = await response.json();
-    } catch (error) {
-        console.error('Error fetching translations:', error);
-    }
-    // console.log(translations);
-    return translations;
-}
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'extensionStateChanged') {
-        const enabled = request.enabled;
-
-        handleExtensionStateChange(enabled);
-    }
-});
-
 function handleExtensionStateChange(enabled) {
     if (enabled) {
-        highlightWords();
+        chrome.storage.local
+            .get(['words'])
+            .then((result) => highlightWords(result.words));
+
         console.log('Extension is enabled for this site.');
     } else {
         clearHighlighting();
@@ -315,3 +299,20 @@ function checkInitialExtensionState() {
 }
 
 checkInitialExtensionState();
+
+chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'extensionStateChanged') {
+        const enabled = request.newValue;
+
+        handleExtensionStateChange(enabled);
+    }
+
+    if (request.action === 'wordsChanged') {
+        const words = request.newValue;
+
+        clearHighlighting();
+        highlightWords(words);
+
+        console.log('words were changed: ', words);
+    }
+});

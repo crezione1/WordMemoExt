@@ -91,6 +91,11 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
     }
 });
 
+async function getToken() {
+    const result = await chrome.storage.local.get(['token']);
+    return result.token;
+}
+
 // Check if extension enabled/disabled for current site
 
 async function getCurrentTab() {
@@ -98,6 +103,15 @@ async function getCurrentTab() {
     let [tab] = await chrome.tabs.query(queryOptions);
 
     return tab;
+}
+
+async function notifyAboutChanges(actionName, content) {
+    const currentTab = await getCurrentTab();
+
+    chrome.tabs.sendMessage(currentTab.id, {
+        action: actionName,
+        newValue: content,
+    });
 }
 
 function isSiteEqualToCurrentSite(url, domain) {
@@ -136,66 +150,129 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function getChangedSite(changes) {
-    const newValue = changes.excludedSites.newValue;
-    const oldValue = changes.excludedSites.oldValue;
+    const newValue = changes.newValue;
+    const oldValue = changes.oldValue;
 
-    const [changedSite] =
+    const [changedItem] =
         newValue.length > oldValue.length
-            ? newValue.filter((site) => !oldValue.includes(site))
-            : oldValue.filter((site) => !newValue.includes(site));
+            ? newValue.filter((item) => !oldValue.includes(item))
+            : oldValue.filter((item) => !newValue.includes(item));
 
-    return changedSite;
+    return changedItem;
+}
+
+async function handleExcludedSitesChange(changes) {
+    const changedSite = getChangedSite(changes);
+
+    const currentTab = await getCurrentTab();
+    const isCurrentChanged = isSiteEqualToCurrentSite(
+        currentTab.url,
+        changedSite
+    );
+
+    if (!isCurrentChanged) return;
+
+    checkIfExtensionEnabled().then((enabled) => {
+        notifyAboutChanges('extensionStateChanged', enabled);
+    });
+}
+
+// Getting all words and manipulating them
+
+async function getAllTranslations() {
+    let translations = {};
+
+    try {
+        const token = await getToken();
+
+        const response = await fetch(`${API_URL}/api/words?languageCode=UK`, {
+            method: 'GET',
+            headers: {
+                Authorization: 'Bearer ' + token,
+                Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        translations = await response.json();
+    } catch (error) {
+        console.error('Error fetching translations:', error);
+    }
+
+    return translations;
+}
+
+function saveWordsToStorage() {
+    getAllTranslations().then((words) => {
+        chrome.storage.local.set({ words });
+    });
+}
+
+saveWordsToStorage();
+
+async function deleteWordFromDictionary(wordId) {
+    try {
+        const token = await getToken();
+
+        await fetch(`${API_URL}/api/words/${wordId}`, {
+            method: 'DELETE',
+            headers: {
+                Authorization: 'Bearer ' + token,
+                Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        console.log(`word with id ${wordId} was deleted`);
+    } catch (error) {
+        console.error('Error deleting word:', error);
+    }
+}
+
+function getChangedWord(changes) {
+    const newValueIds = changes.newValue.map((word) => word.id);
+    const oldValueIds = changes.oldValue.map((word) => word.id);
+
+    const [changedItemId] =
+        newValueIds.length > oldValueIds.length
+            ? newValueIds.filter((item) => !oldValueIds.includes(item))
+            : oldValueIds.filter((item) => !newValueIds.includes(item));
+
+    const [changedItem] =
+        newValueIds.length > oldValueIds.length
+            ? changes.newValue.filter((item) => item.id === changedItemId)
+            : changes.oldValue.filter((item) => item.id === changedItemId);
+
+    return changedItem;
+}
+
+async function handleWordsChange(changes) {
+    const operation =
+        changes.newValue.length > changes.oldValue.length
+            ? 'addWord'
+            : 'deleteWord';
+
+    const changedWord = getChangedWord(changes);
+
+    await notifyAboutChanges('wordsChanged', changes.newValue);
+
+    if (operation === 'deleteWord') {
+        await deleteWordFromDictionary(changedWord.id);
+    } else {
+        console.log(`word ${changedWord} was added`);
+    }
 }
 
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
     if (namespace === 'local' && 'excludedSites' in changes) {
-        const changedSite = getChangedSite(changes);
+        await handleExcludedSitesChange(changes.excludedSites);
+    }
 
-        const currentTab = await getCurrentTab();
-        const isCurrentChanged = isSiteEqualToCurrentSite(
-            currentTab.url,
-            changedSite
-        );
-
-        if (!isCurrentChanged) return;
-
-        checkIfExtensionEnabled().then((enabled) => {
-            notifyExtensionStateChanged(enabled);
-        });
+    if (namespace === 'local' && 'words' in changes) {
+        await handleWordsChange(changes.words);
     }
 });
-
-async function notifyExtensionStateChanged(enabled) {
-    const currentTab = await getCurrentTab();
-
-    chrome.tabs.sendMessage(currentTab.id, {
-        action: 'extensionStateChanged',
-        enabled,
-    });
-}
-
-// function startOAuthFlow() {
-//     debugger
-//     const clientId = 'YOUR_OAUTH_CLIENT_ID';
-//     const redirectUri = chrome.identity.getRedirectURL('oauth2');
-//     const authUrl = `https://localhost:8080/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token`;
-//
-//     chrome.identity.launchWebAuthFlow({
-//         url: authUrl,
-//         interactive: true
-//     }, function(redirectUrl) {
-//         const token = extractTokenFromUrl(redirectUrl);
-//         if (token) {
-//             chrome.storage.local.set({token: token});
-//         } else {
-//             console.error('Failed to authenticate');
-//         }
-//     });
-// }
-//
-// function extractTokenFromUrl(url) {
-//     // Extract the token from the redirect URL
-//     const regex = /access_token=([^&]*)/;
-//     const match = regex.exec(url);
-//     return match && match[1];
-// }

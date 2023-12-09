@@ -13,10 +13,14 @@
         <div class="container">
             <header>
                 <h1>Word Saver</h1>
-                <div class="tabs">
+                <div class="tabs" id="tabs">
                     <div class="tab-action" id="homeTab">
                         <i class="fa-solid fa-house"></i>
                         <span class="tab-label">Home</span>
+                    </div>
+                    <div class="tab-action" id="dictionaryTab">
+                        <i class="fa-solid fa-book"></i>
+                        <span class="tab-label">Dictionary</span>
                     </div>
                     <div class="tab-action" id="settingsTab">
                         <i class="fa-solid fa-gear"></i>
@@ -51,6 +55,12 @@
 
                 <button id="settings">Settings</button>
             </div>
+
+            <div
+                id="dictionaryContent"
+                class="tab-content"
+                style="display: none"
+            ></div>
 
             <div id="settingsContent" class="tab-content" style="display: none">
                 <label class="switch">

@@ -1,12 +1,3 @@
-// document.getElementById('saveButton').addEventListener('click', function() {
-//     const word = document.getElementById('wordInput').value;
-//     if (word) {
-//         // Save the word to the backend or local storage.
-//         // For this prototype, we'll just display a message.
-//         document.getElementById('status').textContent = `Saved: ${word}`;
-//     }
-// });
-
 document.addEventListener('DOMContentLoaded', async function () {
     console.log('login started');
     const telegramName = document.getElementById('telegramName');
@@ -26,8 +17,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             message: 'login',
             arguments: [telegramName.value],
         });
-        console.log(chrome.runtime);
-        console.log(chrome.runtime.sendMessage);
+
         console.log('login finished');
     });
 
@@ -46,15 +36,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     //tabs
-    document.getElementById('homeTab').addEventListener('click', function () {
-        showTab('homeContent');
-    });
+    document.getElementById('tabs').addEventListener('click', (e) => {
+        const tab = e.target.closest('.tab-action');
 
-    document
-        .getElementById('settingsTab')
-        .addEventListener('click', function () {
-            showTab('settingsContent');
-        });
+        if (!tab) return;
+
+        const tabContent = tab.id.replace('Tab', 'Content');
+
+        showTab(tabContent);
+    });
 
     function showTab(tabId) {
         const contents = document.querySelectorAll('.tab-content');
@@ -66,17 +56,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         // this.classList.add('active-tab');
         activeTab.classList.add('active-tab');
     }
-    // document.querySelectorAll('.tab').forEach(tab => {
-    //     tab.addEventListener('click', function() {
-    //         // Remove active-tab class from all tabs
-    //         document.querySelectorAll('.tab').forEach(innerTab => {
-    //             innerTab.classList.remove('active-tab');
-    //         });
-    //
-    //         // Add active-tab class to the clicked tab
-    //         this.classList.add('active-tab');
-    //     });
-    // });
 
     // Show home tab by default
     showTab('homeContent');
@@ -100,12 +79,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const expirationDate = new Date(payload.exp * 1000); // Convert to milliseconds
         const currentDate = new Date();
-        console.log('expirationDate', expirationDate);
-        console.log('currentDate', currentDate);
-        console.log(
-            'currentDate < expirationDate',
-            currentDate < expirationDate
-        );
+
         return currentDate < expirationDate;
     }
 
