@@ -11,15 +11,6 @@ const config = {
 
 const API_URL = config[ENV].API_URL;
 
-(function () {
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.message === 'login') {
-            console.log(request);
-            startOAuthFlow(request.arguments[0]);
-        }
-    });
-})();
-
 function startOAuthFlow(telegramName) {
     let clientId = `893654526349-8vbu5ql30musnpecetk9ntigefjk81et.apps.googleusercontent.com`;
     let responseType = `code`;
@@ -60,36 +51,6 @@ function startOAuthFlow(telegramName) {
         }
     );
 }
-
-chrome.runtime.onInstalled.addListener(function (details) {
-    if (details.reason === 'install') {
-        // This is a first install!
-        chrome.tabs.create({ url: 'popup.html' });
-    } else if (details.reason === 'update') {
-        // This is an update. You can also handle updates here if needed.
-    }
-});
-
-chrome.runtime.onInstalled.addListener(function () {
-    chrome.contextMenus.create({
-        id: 'saveWordContextMenu',
-        title: "Save '%s'", // %s will be replaced by the selected text
-        contexts: ['selection'], // Context type
-    });
-});
-
-chrome.contextMenus.onClicked.addListener(function (info, tab) {
-    if (info.menuItemId === 'saveWordContextMenu') {
-        const selectedText = info.selectionText;
-        chrome.tabs.sendMessage(
-            tab.id,
-            { action: 'saveWordToDictionary', text: selectedText },
-            function (response) {
-                console.log(response);
-            }
-        );
-    }
-});
 
 async function getToken() {
     const result = await chrome.storage.local.get(['token']);
@@ -134,21 +95,6 @@ async function checkIfExtensionEnabled() {
     return isEnabled;
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'checkExtensionState') {
-        checkIfExtensionEnabled()
-            .then((enabled) => {
-                sendResponse({ enabled });
-            })
-            .catch((error) => {
-                console.error('Error checking extension state:', error);
-                sendResponse({ enabled: false });
-            });
-
-        return true;
-    }
-});
-
 function getChangedSite(changes) {
     const newValue = changes.newValue;
     const oldValue = changes.oldValue;
@@ -180,19 +126,24 @@ async function handleExcludedSitesChange(changes) {
 // Getting all words and manipulating them
 
 async function getAllTranslations() {
+    const { translateTo } = await chrome.storage.local.get(['translateTo']);
+
     let translations = {};
 
     try {
         const token = await getToken();
 
-        const response = await fetch(`${API_URL}/api/words?languageCode=UK`, {
-            method: 'GET',
-            headers: {
-                Authorization: 'Bearer ' + token,
-                Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json',
-            },
-        });
+        const response = await fetch(
+            `${API_URL}/api/words?languageCode=${translateTo}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: 'Bearer ' + token,
+                    Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -211,8 +162,6 @@ function saveWordsToStorage() {
         chrome.storage.local.set({ words });
     });
 }
-
-saveWordsToStorage();
 
 async function deleteWordFromDictionary(wordId) {
     try {
@@ -267,6 +216,60 @@ async function handleWordsChange(changes) {
     }
 }
 
+// Event listeners and initialization
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.message === 'login') {
+        console.log(request);
+        startOAuthFlow(request.arguments[0]);
+    }
+});
+
+chrome.runtime.onInstalled.addListener(function (details) {
+    if (details.reason === 'install') {
+        // This is a first install!
+        chrome.tabs.create({ url: 'popup.html' });
+    } else if (details.reason === 'update') {
+        // This is an update. You can also handle updates here if needed.
+    }
+});
+
+chrome.runtime.onInstalled.addListener(function () {
+    chrome.contextMenus.create({
+        id: 'saveWordContextMenu',
+        title: "Save '%s'", // %s will be replaced by the selected text
+        contexts: ['selection'], // Context type
+    });
+});
+
+chrome.contextMenus.onClicked.addListener(function (info, tab) {
+    if (info.menuItemId === 'saveWordContextMenu') {
+        const selectedText = info.selectionText;
+        chrome.tabs.sendMessage(
+            tab.id,
+            { action: 'saveWordToDictionary', text: selectedText },
+            function (response) {
+                console.log(response);
+            }
+        );
+    }
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'checkExtensionState') {
+        checkIfExtensionEnabled()
+            .then((enabled) => {
+                sendResponse({ enabled });
+            })
+            .catch((error) => {
+                console.error('Error checking extension state:', error);
+                sendResponse({ enabled: false });
+            });
+
+        return true;
+    }
+});
+
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
     if (namespace === 'local' && 'excludedSites' in changes) {
         await handleExcludedSitesChange(changes.excludedSites);
@@ -276,3 +279,5 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
         await handleWordsChange(changes.words);
     }
 });
+
+saveWordsToStorage();

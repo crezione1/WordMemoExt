@@ -12,18 +12,6 @@ const config = {
 const API_URL = config[ENV].API_URL;
 
 let settings = {};
-(function loadSettings() {
-    return chrome.storage.local.get(
-        ['translateTo', 'animationToggle', 'sentenceCounter'],
-        function (items) {
-            settings['languageCode'] = items.translateTo;
-            settings['languageFull'] = 'Ukrainian';
-            settings['animationToggle'] = items.animationToggle === 'true';
-            settings['sentenceCounter'] = items.sentenceCounter;
-        }
-    );
-})();
-
 let originalTextContent = [];
 
 async function getToken() {
@@ -31,64 +19,7 @@ async function getToken() {
     return result.token;
 }
 
-document.addEventListener('keydown', function (event) {
-    if (event.ctrlKey && event.shiftKey && event.code === 'KeyS') {
-        const selectedText = window.getSelection().toString().trim();
-        if (selectedText) {
-            runLogic(selectedText);
-            console.log(`Saved: ${selectedText}`);
-        }
-    }
-});
-
-document.addEventListener('mousedown', function (event) {
-    if (event.target.tagName !== 'BUTTON') {
-        const existingButton = document.getElementById('add new word');
-        if (existingButton) {
-            window.getSelection().empty();
-            window.getSelection().removeAllRanges();
-            existingButton.remove();
-        }
-    }
-});
-
-document.addEventListener('mouseup', function (event) {
-    if (event.target.tagName !== 'BUTTON') {
-        const selectedText = window.getSelection().toString().trim();
-        if (selectedText) {
-            const button = document.createElement('div');
-            button.id = 'add new word';
-            button.innerText = '+';
-            button.style.width = '20px';
-            button.style.height = '20px';
-            button.style.padding = '4px';
-            button.style.backgroundColor = 'white';
-            button.style.border = '1px solid black';
-            button.style.borderRadius = '2px';
-            button.style.textAlign = 'center';
-            button.style.display = 'inline-block';
-            button.style.cursor = 'pointer';
-            button.style.position = 'absolute';
-            button.style.top = event.pageY + 20 + 'px';
-            button.style.left = event.pageX + 20 + 'px';
-            button.addEventListener('click', function () {
-                alert('Button clicked!');
-                window.getSelection().empty();
-                window.getSelection().removeAllRanges();
-                button.remove();
-                // add logic for saving the word
-            });
-            // button.onclick = function () {
-            //     alert('Button clicked!');
-            //     window.getSelection().empty();
-            //     window.getSelection().removeAllRanges();
-            //     button.remove()
-            //     // add logic for saving the word
-            // };
-            document.body.appendChild(button);
-        }
-    }
-});
+// Saving/deleting words
 
 async function deleteWordFromStorage(wordId) {
     const { words } = await chrome.storage.local.get(['words']);
@@ -96,30 +27,6 @@ async function deleteWordFromStorage(wordId) {
 
     chrome.storage.local.set({ words: updatedWords });
 }
-
-document.addEventListener('click', (e) => {
-    const existingButton = document.getElementById('deleteWordBtn');
-
-    if (existingButton) existingButton.remove();
-
-    if (!e.target.dataset.wordId) return;
-
-    const deleteButton = document.createElement('button');
-    deleteButton.textContent = '-';
-    deleteButton.id = 'deleteWordBtn';
-
-    deleteButton.addEventListener('click', (event) => {
-        event.stopPropagation();
-
-        const clickedWordId = e.target.dataset.wordId;
-
-        deleteWordFromStorage(clickedWordId);
-
-        deleteButton.remove();
-    });
-
-    e.target.appendChild(deleteButton);
-});
 
 async function runLogic(selectedText) {
     saveWordToDictionary(selectedText)
@@ -183,14 +90,6 @@ function animateWordToToolbar() {
         floatingWord.remove();
     }, 550);
 }
-
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    if (request.action === 'saveWordToDictionary') {
-        console.log('Received selected text:', request.text);
-        runLogic(request.text);
-        sendResponse({ status: 'success' });
-    }
-});
 
 // Highlighting/clearing highlighting saved words
 
@@ -298,7 +197,110 @@ function checkInitialExtensionState() {
     );
 }
 
-checkInitialExtensionState();
+// Event listeners and initialization
+
+(function loadSettings() {
+    return chrome.storage.local.get(
+        ['translateTo', 'animationToggle', 'sentenceCounter'],
+        function (items) {
+            settings['languageCode'] = items.translateTo;
+            settings['languageFull'] = 'Ukrainian';
+            settings['animationToggle'] = items.animationToggle === 'true';
+            settings['sentenceCounter'] = items.sentenceCounter;
+        }
+    );
+})();
+
+document.addEventListener('keydown', function (event) {
+    if (event.ctrlKey && event.shiftKey && event.code === 'KeyS') {
+        const selectedText = window.getSelection().toString().trim();
+        if (selectedText) {
+            runLogic(selectedText);
+            console.log(`Saved: ${selectedText}`);
+        }
+    }
+});
+
+document.addEventListener('mousedown', function (event) {
+    if (event.target.tagName !== 'BUTTON') {
+        const existingButton = document.getElementById('add new word');
+        if (existingButton) {
+            window.getSelection().empty();
+            window.getSelection().removeAllRanges();
+            existingButton.remove();
+        }
+    }
+});
+
+document.addEventListener('mouseup', function (event) {
+    if (event.target.tagName !== 'BUTTON') {
+        const selectedText = window.getSelection().toString().trim();
+        if (selectedText) {
+            const button = document.createElement('div');
+            button.id = 'add new word';
+            button.innerText = '+';
+            button.style.width = '20px';
+            button.style.height = '20px';
+            button.style.padding = '4px';
+            button.style.backgroundColor = 'white';
+            button.style.border = '1px solid black';
+            button.style.borderRadius = '2px';
+            button.style.textAlign = 'center';
+            button.style.display = 'inline-block';
+            button.style.cursor = 'pointer';
+            button.style.position = 'absolute';
+            button.style.top = event.pageY + 20 + 'px';
+            button.style.left = event.pageX + 20 + 'px';
+            button.addEventListener('click', function () {
+                alert('Button clicked!');
+                window.getSelection().empty();
+                window.getSelection().removeAllRanges();
+                button.remove();
+                // add logic for saving the word
+            });
+            // button.onclick = function () {
+            //     alert('Button clicked!');
+            //     window.getSelection().empty();
+            //     window.getSelection().removeAllRanges();
+            //     button.remove()
+            //     // add logic for saving the word
+            // };
+            document.body.appendChild(button);
+        }
+    }
+});
+
+document.addEventListener('click', (e) => {
+    const existingButton = document.getElementById('deleteWordBtn');
+
+    if (existingButton) existingButton.remove();
+
+    if (!e.target.dataset.wordId) return;
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = '-';
+    deleteButton.id = 'deleteWordBtn';
+
+    deleteButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        const clickedWordId = e.target.dataset.wordId;
+
+        deleteWordFromStorage(clickedWordId);
+
+        deleteButton.remove();
+    });
+
+    e.target.appendChild(deleteButton);
+});
+
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    if (request.action === 'saveWordToDictionary') {
+        console.log('Received selected text:', request.text);
+        runLogic(request.text);
+        sendResponse({ status: 'success' });
+    }
+});
 
 chrome.runtime.onMessage.addListener((request) => {
     if (request.action === 'extensionStateChanged') {
@@ -316,3 +318,5 @@ chrome.runtime.onMessage.addListener((request) => {
         console.log('words were changed: ', words);
     }
 });
+
+checkInitialExtensionState();
