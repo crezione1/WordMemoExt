@@ -8,8 +8,15 @@ input {
     padding: 0;
 }
 
+ul {
+    list-style: none;
+    padding: 0;
+}
+
 /* Style the container */
 .container {
+    max-height: 480px;
+    overflow: auto;
     background-color: #f2f2f2;
     text-align: center;
     padding: 20px;
@@ -69,16 +76,10 @@ button:hover {
     background-color: #357ae8;
 }
 
-/* Center the button horizontally */
-button {
-    /* margin: 0 auto; */
-    margin: 0;
-}
-
 .tabs {
     display: flex;
     flex-direction: row;
-    justify-content: right;
+    justify-content: center;
     align-items: center;
     padding: 5px 10px;
     cursor: pointer;
@@ -87,10 +88,6 @@ button {
 
 .tab-content {
     display: none;
-}
-
-.active-tab {
-    /* background-color: #e0e0e0; or any other styling you prefer */
 }
 
 .tab-action {
@@ -112,10 +109,6 @@ button {
     color: #333;
 }
 
-button {
-    cursor: pointer;
-}
-
 header {
     border-bottom: 1px solid #333333;
 }
@@ -132,8 +125,6 @@ header {
     margin: 0;
     display: flex;
     flex-wrap: wrap;
-    list-style: none;
-    padding: 0;
     gap: 0.5rem;
 }
 
@@ -213,13 +204,51 @@ header {
 }
 
 input:checked + .slider {
-    background-color: #2196f3;
+    background-color: #4285f4;
 }
 
 input:focus + .slider {
-    box-shadow: 0 0 1px #2196f3;
+    box-shadow: 0 0 1px #4285f4;
 }
 
 input:checked + .slider:before {
     transform: translateX(20px);
+}
+
+/* Dictionary */
+
+.dictionary-list {
+    text-align: left;
+}
+
+.dictionary-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dictionary-list li + li {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid;
+}
+
+.dictionary-list li div {
+    flex: 1;
+    display: flex;
+}
+
+.dictionary-word {
+    flex: 1 1 50%;
+}
+
+.dictionary-translation {
+    flex: 1 1 50%;
+}
+
+.dictionary-list button {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 50%;
 }

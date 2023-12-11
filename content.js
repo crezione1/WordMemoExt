@@ -12,34 +12,206 @@ const config = {
 const API_URL = config[ENV].API_URL;
 
 let settings = {};
+let originalTextContent = [];
+
+async function getToken() {
+    const result = await chrome.storage.local.get(['token']);
+    return result.token;
+}
+
+// Saving/deleting words
+
+async function deleteWordFromStorage(wordId) {
+    const { words } = await chrome.storage.local.get(['words']);
+    const updatedWords = words.filter((word) => word.id !== Number(wordId));
+
+    chrome.storage.local.set({ words: updatedWords });
+}
+
+async function runLogic(selectedText) {
+    saveWordToDictionary(selectedText)
+        .then((_) => {
+            animateWordToToolbar();
+        })
+        .catch((error) => {
+            console.log('error', error);
+            console.log('error.code', error.code);
+            if (error.code === 403) {
+                console.log('please login');
+            } else {
+                console.log('some error happened');
+            }
+        });
+}
+
+async function saveWordToDictionary(word) {
+    try {
+        const token = await getToken();
+
+        await fetch(`${API_URL}/api/words`, {
+            method: 'POST',
+            body: JSON.stringify({ word: word.toLowerCase(), ...settings }),
+            headers: {
+                Authorization: 'Bearer ' + token,
+                Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                'Content-Type': 'application/json',
+            },
+        });
+    } catch (error) {
+        console.error('Error saving word:', error);
+    }
+}
+
+function animateWordToToolbar() {
+    let selection = window.getSelection();
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
+    const floatingWord = document.createElement('span');
+    floatingWord.textContent = selection;
+    floatingWord.style.position = 'fixed';
+    floatingWord.style.zIndex = '999999';
+    floatingWord.style.background = '#68c2ff';
+    floatingWord.style.border = '1px solid #3A8FC9FF';
+    floatingWord.style.borderRadius = '5px';
+    floatingWord.style.left = `${rect.left}px`;
+    floatingWord.style.top = `${rect.top}px`;
+    floatingWord.style.transition = 'top 0.5s linear, left 0.5s linear';
+
+    document.body.appendChild(floatingWord);
+    window.getSelection().removeAllRanges();
+    // Animate the word towards the top-right corner (where the extension icon usually is)
+    setTimeout(() => {
+        floatingWord.style.left = '95%';
+        floatingWord.style.top = '5px';
+    }, 50);
+
+    setTimeout(() => {
+        floatingWord.remove();
+    }, 550);
+}
+
+// Highlighting/clearing highlighting saved words
+
+function clearHighlighting() {
+    originalTextContent.forEach(([parentNode, innerHTML]) => {
+        parentNode.innerHTML = innerHTML;
+    });
+
+    originalTextContent = [];
+}
+
+function replaceTextNode(node, targetWords, translations) {
+    const words = node.nodeValue.split(' ');
+    const parentNode = node.parentNode;
+    const documentFragment = document.createDocumentFragment();
+
+    words.forEach((word) => {
+        if (targetWords.includes(word.toLowerCase())) {
+            const highlightedSpan = document.createElement('span');
+            highlightedSpan.classList.add('highlighted-word');
+            highlightedSpan.textContent = word;
+            requestAnimationFrame(() => {
+                highlightedSpan.classList.add('animate-border');
+            });
+            documentFragment.appendChild(highlightedSpan);
+
+            setTimeout(() => {
+                highlightedSpan.classList.add('animate-background');
+            }, 10);
+
+            const translationText = `[${
+                translations[word.toLowerCase()].translation
+            }] `;
+            const translationNode = document.createElement('span');
+            translationNode.classList.add('translation');
+            translationNode.dataset.wordId =
+                translations[word.toLowerCase()].id;
+            translationNode.textContent = translationText;
+
+            documentFragment.appendChild(translationNode);
+        } else {
+            const wordNode = document.createTextNode(word + ' ');
+            documentFragment.appendChild(wordNode);
+        }
+    });
+
+    originalTextContent.push([parentNode, parentNode.innerHTML]);
+
+    parentNode.replaceChild(documentFragment, node);
+}
+
+function findTextNodes(element) {
+    let nodes = [];
+    for (element = element.firstChild; element; element = element.nextSibling) {
+        if (element.nodeType === 3 && !element.nodeValue.match(/^\s*$/)) {
+            nodes.push(element);
+        } else if (element.nodeType === 1) {
+            nodes = nodes.concat(findTextNodes(element));
+        }
+    }
+    return nodes;
+}
+
+async function highlightWords(words) {
+    const targetWords = words.map((t) => t.word.toLowerCase());
+    const textNodes = findTextNodes(document.body);
+
+    const translations = words.reduce((result, item) => {
+        const key = item.word;
+        result[key] = item;
+        return result;
+    }, {});
+
+    textNodes.forEach((node) => {
+        if (
+            targetWords.some((targetWord) =>
+                node.nodeValue.toLowerCase().includes(targetWord)
+            )
+        ) {
+            replaceTextNode(node, targetWords, translations);
+        }
+    });
+}
+
+function handleExtensionStateChange(enabled) {
+    if (enabled) {
+        chrome.storage.local
+            .get(['words'])
+            .then((result) => highlightWords(result.words));
+
+        console.log('Extension is enabled for this site.');
+    } else {
+        clearHighlighting();
+        console.log('Extension is disabled for this site.');
+    }
+}
+
+function checkInitialExtensionState() {
+    chrome.runtime.sendMessage(
+        { action: 'checkExtensionState' },
+        function (response) {
+            const enabled = response.enabled;
+            handleExtensionStateChange(enabled);
+        }
+    );
+}
+
+// Event listeners and initialization
+
 (function loadSettings() {
     return chrome.storage.local.get(
         ['translateTo', 'animationToggle', 'sentenceCounter'],
         function (items) {
             settings['languageCode'] = items.translateTo;
+            settings['languageFull'] = 'Ukrainian';
             settings['animationToggle'] = items.animationToggle === 'true';
             settings['sentenceCounter'] = items.sentenceCounter;
         }
     );
 })();
 
-let originalTextContent = [];
-
-// document.addEventListener('click', function(event) {
-//     let targetElement = event.target; // Starting point
-//     console.log("AAAAAAAAAAAAAA")
-//     while (targetElement != null) {
-//         if (targetElement.classList.contains('s-item')) {
-//             // Found the item card root element
-//             console.log('Item card root element:', targetElement);
-//             break;
-//         }
-//         targetElement = targetElement.parentElement; // Move up in the DOM tree
-//     }
-// });
-
 document.addEventListener('keydown', function (event) {
-    console.log(chrome);
     if (event.ctrlKey && event.shiftKey && event.code === 'KeyS') {
         const selectedText = window.getSelection().toString().trim();
         if (selectedText) {
@@ -98,73 +270,29 @@ document.addEventListener('mouseup', function (event) {
     }
 });
 
-async function runLogic(selectedText) {
-    saveWordToDictionary(selectedText)
-        .then((_) => {
-            animateWordToToolbar();
-        })
-        .catch((error) => {
-            console.log('error', error);
-            console.log('error.code', error.code);
-            if (error.code === 403) {
-                console.log('please login');
-            } else {
-                console.log('some error happened');
-            }
-        });
-}
+document.addEventListener('click', (e) => {
+    const existingButton = document.getElementById('deleteWordBtn');
 
-async function getToken() {
-    const result = await chrome.storage.local.get(['token']);
-    return result.token;
-}
+    if (existingButton) existingButton.remove();
 
-async function saveWordToDictionary(word) {
-    try {
-        const token = await getToken();
+    if (!e.target.dataset.wordId) return;
 
-        await fetch(`${API_URL}/api/word/${word}`, {
-            method: 'POST',
-            body: JSON.stringify(settings),
-            headers: {
-                Authorization: 'Bearer ' + token,
-                Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json',
-            },
-        });
-    } catch (error) {
-        console.error('Error saving word:', error);
-    }
-}
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = '-';
+    deleteButton.id = 'deleteWordBtn';
 
-function animateWordToToolbar() {
-    let selection = window.getSelection();
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
+    deleteButton.addEventListener('click', (event) => {
+        event.stopPropagation();
 
-    const floatingWord = document.createElement('span');
-    floatingWord.textContent = selection;
-    floatingWord.style.position = 'fixed';
-    floatingWord.style.zIndex = '999999';
-    floatingWord.style.background = '#68c2ff';
-    floatingWord.style.border = '1px solid #3A8FC9FF';
-    floatingWord.style.borderRadius = '5px';
-    floatingWord.style.left = `${rect.left}px`;
-    floatingWord.style.top = `${rect.top}px`;
-    floatingWord.style.transition = 'top 0.5s linear, left 0.5s linear';
+        const clickedWordId = e.target.dataset.wordId;
 
-    document.body.appendChild(floatingWord);
-    window.getSelection().removeAllRanges();
-    // Animate the word towards the top-right corner (where the extension icon usually is)
-    setTimeout(() => {
-        floatingWord.style.left = '95%';
-        floatingWord.style.top = '5px';
-    }, 50);
+        deleteWordFromStorage(clickedWordId);
 
-    setTimeout(() => {
-        floatingWord.remove();
-    }, 550);
-}
+        deleteButton.remove();
+    });
+
+    e.target.appendChild(deleteButton);
+});
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.action === 'saveWordToDictionary') {
@@ -174,144 +302,21 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     }
 });
 
-// Highlighting/clearing highlighting saved words
-
-function clearHighlighting() {
-    originalTextContent.forEach(([parentNode, innerHTML]) => {
-        parentNode.innerHTML = innerHTML;
-    });
-
-    originalTextContent = [];
-}
-
-function replaceTextNode(node, targetWords, translations) {
-    const words = node.nodeValue.split(' ');
-    const parentNode = node.parentNode;
-    let documentFragment = document.createDocumentFragment();
-
-    words.forEach((word) => {
-        if (targetWords.includes(word.toLowerCase())) {
-            const highlightedSpan = document.createElement('span');
-            highlightedSpan.classList.add('highlighted-word');
-            highlightedSpan.textContent = word;
-            requestAnimationFrame(() => {
-                highlightedSpan.classList.add('animate-border');
-            });
-            documentFragment.appendChild(highlightedSpan);
-
-            setTimeout(() => {
-                highlightedSpan.classList.add('animate-background');
-            }, 10);
-
-            const translationText =
-                '[' + translations[word.toLowerCase()] + '] ';
-            const translationNode = document.createElement('span');
-            translationNode.style.color = '#d0d0d0';
-            translationNode.textContent = translationText;
-            documentFragment.appendChild(translationNode);
-        } else {
-            const wordNode = document.createTextNode(word + ' ');
-            documentFragment.appendChild(wordNode);
-        }
-    });
-
-    originalTextContent.push([parentNode, parentNode.innerHTML]);
-
-    parentNode.replaceChild(documentFragment, node);
-}
-
-function findTextNodes(element) {
-    let nodes = [];
-    for (element = element.firstChild; element; element = element.nextSibling) {
-        if (element.nodeType === 3 && !element.nodeValue.match(/^\s*$/)) {
-            nodes.push(element);
-        } else if (element.nodeType === 1) {
-            nodes = nodes.concat(findTextNodes(element));
-        }
-    }
-    return nodes;
-}
-
-async function highlightWords() {
-    const translationsDto = await getAllTranslations();
-    const translations = translationsDto.map((t) => {
-        let key = t.word.toLowerCase();
-        return { [key]: t.translation };
-    });
-
-    const targetWords = translationsDto.map((t) => t.word.toLowerCase());
-    const textNodes = findTextNodes(document.body);
-
-    const trans = translations.reduce(function (result, item) {
-        var key = Object.keys(item)[0]; //first property: a, b, c
-        result[key] = item[key];
-        return result;
-    }, {});
-
-    textNodes.forEach((node) => {
-        if (
-            targetWords.some((targetWord) =>
-                node.nodeValue.toLowerCase().includes(targetWord)
-            )
-        ) {
-            replaceTextNode(node, targetWords, trans);
-        }
-    });
-}
-
-async function getAllTranslations() {
-    let translations = {};
-    try {
-        const token = await getToken();
-
-        const response = await fetch(`${API_URL}/translations`, {
-            method: 'POST',
-            body: JSON.stringify(settings), // Make sure 'settings' is an object that can be stringified
-            headers: {
-                Authorization: 'Bearer ' + token,
-                Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        translations = await response.json();
-    } catch (error) {
-        console.error('Error fetching translations:', error);
-    }
-    // console.log(translations);
-    return translations;
-}
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request) => {
     if (request.action === 'extensionStateChanged') {
-        const enabled = request.enabled;
+        const enabled = request.newValue;
 
         handleExtensionStateChange(enabled);
     }
-});
 
-function handleExtensionStateChange(enabled) {
-    if (enabled) {
-        highlightWords();
-        console.log('Extension is enabled for this site.');
-    } else {
+    if (request.action === 'wordsChanged') {
+        const words = request.newValue;
+
         clearHighlighting();
-        console.log('Extension is disabled for this site.');
-    }
-}
+        highlightWords(words);
 
-function checkInitialExtensionState() {
-    chrome.runtime.sendMessage(
-        { action: 'checkExtensionState' },
-        function (response) {
-            const enabled = response.enabled;
-            handleExtensionStateChange(enabled);
-        }
-    );
-}
+        console.log('words were changed: ', words);
+    }
+});
 
 checkInitialExtensionState();

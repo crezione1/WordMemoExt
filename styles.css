@@ -28,3 +28,29 @@
 .highlighted-word.animate-background {
     background-color: rgba(255, 0, 0, 0.22); /* Light yellow background */
 }
+
+.translation {
+    position: relative;
+    color: #d0d0d0;
+}
+
+.translation:hover {
+    cursor: pointer;
+}
+
+#deleteWordBtn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    position: absolute;
+    top: -24px;
+    right: -24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background-color: #4285f4;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
