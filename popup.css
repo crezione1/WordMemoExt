@@ -8,6 +8,10 @@ input {
     padding: 0;
 }
 
+body {
+    height: 480px;
+}
+
 ul {
     list-style: none;
     padding: 0;
@@ -15,7 +19,7 @@ ul {
 
 /* Style the container */
 .container {
-    max-height: 480px;
+    height: 100%;
     overflow: auto;
     background-color: #f2f2f2;
     text-align: center;
