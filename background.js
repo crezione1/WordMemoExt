@@ -66,10 +66,17 @@ async function getCurrentTab() {
     return tab;
 }
 
-async function notifyAboutChanges(actionName, content) {
+async function notifyContentAboutChanges(actionName, content) {
     const currentTab = await getCurrentTab();
 
     chrome.tabs.sendMessage(currentTab.id, {
+        action: actionName,
+        newValue: content,
+    });
+}
+
+function notifyPopupAboutChanges(actionName, content) {
+    chrome.runtime.sendMessage({
         action: actionName,
         newValue: content,
     });
@@ -118,9 +125,8 @@ async function handleExcludedSitesChange(changes) {
 
     if (!isCurrentChanged) return;
 
-    checkIfExtensionEnabled().then((enabled) => {
-        notifyAboutChanges('extensionStateChanged', enabled);
-    });
+    const enabled = await checkIfExtensionEnabled();
+    await notifyContentAboutChanges('extensionStateChanged', enabled);
 }
 
 // Getting all words and manipulating them
@@ -207,7 +213,8 @@ async function handleWordsChange(changes) {
 
     const changedWord = getChangedWord(changes);
 
-    await notifyAboutChanges('wordsChanged', changes.newValue);
+    await notifyContentAboutChanges('wordsChanged', changes.newValue);
+    notifyPopupAboutChanges('wordsChanged', changedWord.id);
 
     if (operation === 'deleteWord') {
         await deleteWordFromDictionary(changedWord.id);
