@@ -10,8 +10,9 @@ const config = {
 };
 
 const API_URL = config[ENV].API_URL;
+const TELEGRAM_BOT_URL = 'https://web.telegram.org/k/#@WordMemoBot';
 
-function startOAuthFlow(telegramName) {
+function startOAuthFlow() {
     let clientId = `893654526349-8vbu5ql30musnpecetk9ntigefjk81et.apps.googleusercontent.com`;
     let responseType = `code`;
     let scope = `openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile`;
@@ -26,7 +27,6 @@ function startOAuthFlow(telegramName) {
         function (redirect_url) {
             console.log(redirect_url);
             let authCode = redirect_url.split('&')[0].split('code=')[1];
-            // Send this authCode to your backend for further processing
             fetch(`${API_URL}/check/code/google`, {
                 method: 'POST',
                 headers: {
@@ -35,22 +35,120 @@ function startOAuthFlow(telegramName) {
                 },
                 body: JSON.stringify({
                     code: authCode.replace('%2F', '/'),
-                    telegramName: telegramName,
                 }),
             })
                 .then((response) => response.text())
                 .then((jwt) => {
                     console.log(jwt);
-                    chrome.storage.local.set({ token: jwt }, function () {
+                    chrome.storage.local.set({ token: jwt }, () => {
                         console.log('Token is set to ' + jwt);
                     });
-                    let telegramBotUrl =
-                        'https://web.telegram.org/k/#@WordMemoBot';
-                    chrome.tabs.create({ url: telegramBotUrl });
                 });
         }
     );
 }
+
+async function getCurrentUserInfo() {
+    let userInfo;
+
+    try {
+        const token = await getToken();
+
+        const response = await fetch(`${API_URL}/current`, {
+            method: 'GET',
+            headers: {
+                Authorization: 'Bearer ' + token,
+                Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        userInfo = await response.json();
+    } catch (error) {
+        console.error('Error getting user info:', error);
+    }
+
+    return userInfo;
+}
+
+async function updateTelegram(telegramName, isTelegramIdExist) {
+    let success;
+
+    try {
+        const token = await getToken();
+
+        await fetch(`${API_URL}/telegram`, {
+            method: 'POST',
+            body: JSON.stringify({ telegramName, chatId: null }),
+            headers: {
+                Authorization: 'Bearer ' + token,
+                Accept: 'application/json, application/xml, text/plain, text/html, */*',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        success = true;
+
+        if (!isTelegramIdExist) {
+            chrome.tabs.create({ url: TELEGRAM_BOT_URL });
+        }
+    } catch (error) {
+        success = false;
+        console.error('Error updating telegram:', error);
+    }
+
+    return success;
+}
+
+async function handleUpdateTelegram(telegramName) {
+    const currentUser = await getCurrentUserInfo();
+    const isTelegramIdExist = Boolean(currentUser.telegramId);
+
+    const success = await updateTelegram(telegramName, isTelegramIdExist);
+
+    return success;
+}
+
+// function startOAuthFlow(telegramName) {
+//     let clientId = `893654526349-8vbu5ql30musnpecetk9ntigefjk81et.apps.googleusercontent.com`;
+//     let responseType = `code`;
+//     let scope = `openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile`;
+//     //redirectUri for Anastasiia, should be changed to id of the chrome extension on the store after publishing
+//     let redirectUri = `https://dkecpnpaaifjhhehhdkpaohapiniagod.chromiumapp.org/`;
+
+//     chrome.identity.launchWebAuthFlow(
+//         {
+//             url: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=${responseType}&scope=${scope}&redirect_uri=${redirectUri}`,
+//             interactive: true,
+//         },
+//         function (redirect_url) {
+//             console.log(redirect_url);
+//             let authCode = redirect_url.split('&')[0].split('code=')[1];
+//             // Send this authCode to your backend for further processing
+//             fetch(`${API_URL}/check/code/google`, {
+//                 method: 'POST',
+//                 headers: {
+//                     'Content-Type': 'application/json',
+//                     Login: 'login',
+//                 },
+//                 body: JSON.stringify({
+//                     code: authCode.replace('%2F', '/'),
+//                     telegramName: telegramName,
+//                 }),
+//             })
+//                 .then((response) => response.text())
+//                 .then((jwt) => {
+//                     console.log(jwt);
+//                     chrome.storage.local.set({ token: jwt }, function () {
+//                         console.log('Token is set to ' + jwt);
+//                     });
+//                     let telegramBotUrl =
+//                         'https://web.telegram.org/k/#@WordMemoBot';
+//                     chrome.tabs.create({ url: telegramBotUrl });
+//                 });
+//         }
+//     );
+// }
 
 async function getToken() {
     const result = await chrome.storage.local.get(['token']);
@@ -227,12 +325,11 @@ async function handleWordsChange(changes) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.message === 'login') {
-        console.log(request);
-        startOAuthFlow(request.arguments[0]);
+        startOAuthFlow();
     }
 });
 
-chrome.runtime.onInstalled.addListener(function (details) {
+chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install') {
         // This is a first install!
         chrome.tabs.create({ url: 'popup.html' });
@@ -241,7 +338,7 @@ chrome.runtime.onInstalled.addListener(function (details) {
     }
 });
 
-chrome.runtime.onInstalled.addListener(function () {
+chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: 'saveWordContextMenu',
         title: "Save '%s'", // %s will be replaced by the selected text
@@ -249,15 +346,13 @@ chrome.runtime.onInstalled.addListener(function () {
     });
 });
 
-chrome.contextMenus.onClicked.addListener(function (info, tab) {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === 'saveWordContextMenu') {
         const selectedText = info.selectionText;
         chrome.tabs.sendMessage(
             tab.id,
             { action: 'saveWordToDictionary', text: selectedText },
-            function (response) {
-                console.log(response);
-            }
+            (response) => console.log(response)
         );
     }
 });
@@ -271,6 +366,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .catch((error) => {
                 console.error('Error checking extension state:', error);
                 sendResponse({ enabled: false });
+            });
+
+        return true;
+    }
+
+    if (request.action === 'updateTelegram') {
+        handleUpdateTelegram(request.telegramName)
+            .then((success) => {
+                sendResponse({ success });
+            })
+            .catch((error) => {
+                console.error('Error updating telegram:', error);
+                sendResponse({ success: false });
             });
 
         return true;

@@ -38,22 +38,16 @@
                     conversation by printing /start to finish you registration
                 </p>
 
-                <div id="login">
-                    <input
-                        type="text"
-                        id="telegramName"
-                        placeholder="Your Telegram Name"
-                    />
+                <div class="action-buttons">
                     <button id="loginBtn">
                         <i class="fa-brands fa-google"></i>
                         <span>Login</span>
                     </button>
-                </div>
-                <div id="logout">
-                    <button id="logoutBtn">Logout</button>
-                </div>
 
-                <button id="settings">Settings</button>
+                    <button id="logoutBtn" style="display: none">Logout</button>
+
+                    <button id="settings">Settings</button>
+                </div>
             </div>
 
             <div
@@ -96,6 +90,30 @@
                         />
                         <button id="addSiteBtn">Add Site</button>
                     </div>
+                </div>
+
+                <div
+                    id="telegramContainer"
+                    class="telegram-container"
+                    style="display: none"
+                >
+                    <h3>Connect Telegram</h3>
+
+                    <form id="telegramForm" class="telegram-form">
+                        <input
+                            type="text"
+                            id="telegramName"
+                            placeholder="Your Telegram Name"
+                            class="telegram-input"
+                        />
+                        <button
+                            type="button"
+                            id="telegramBtn"
+                            class="telegram-btn"
+                        >
+                            <span>Connect</span>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

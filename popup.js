@@ -1,5 +1,7 @@
 const telegramName = document.getElementById('telegramName');
 const loginButton = document.getElementById('loginBtn');
+const logoutButton = document.getElementById('logoutBtn');
+const telegramButton = document.getElementById('telegramBtn');
 const dictionaryContainer = document.getElementById('dictionaryContent');
 const exclusionList = document.getElementById('exclusionList');
 const openSiteInputBtn = document.getElementById('openSiteInputBtn');
@@ -13,9 +15,18 @@ let excludedSites;
 let currentSite;
 let isEnabled;
 
-function toggleSubmitButton() {
-    loginButton.disabled = telegramName.value.trim() === '';
-    loginButton.style.pointerEvents = loginButton.disabled ? 'none' : 'auto';
+function showLogin() {
+    logoutButton.style.display = 'none';
+    loginButton.style.display = 'inline-block';
+
+    toggleTelegramForm(false);
+}
+
+function showLogout() {
+    loginButton.style.display = 'none';
+    logoutButton.style.display = 'inline-block';
+
+    toggleTelegramForm(true);
 }
 
 function showTab(tabId) {
@@ -24,7 +35,7 @@ function showTab(tabId) {
         content.style.display = 'none';
     });
     let activeTab = document.getElementById(tabId);
-    activeTab.style.display = 'block';
+    activeTab.style.display = 'flex';
     activeTab.classList.add('active-tab');
 }
 
@@ -245,25 +256,63 @@ async function removeSiteFromExclusion(e) {
     }
 }
 
+function toggleTelegramForm(visible) {
+    const telegramContainer = document.getElementById('telegramContainer');
+
+    telegramContainer.style.display = visible ? 'block' : 'none';
+}
+
+function toggleTelegramButton() {
+    telegramButton.disabled = telegramName.value.trim() === '';
+    telegramButton.style.pointerEvents = telegramButton.disabled
+        ? 'none'
+        : 'auto';
+}
+
+function updateTelegram() {
+    chrome.runtime.sendMessage(
+        {
+            action: 'updateTelegram',
+            telegramName: telegramName.value.trim(),
+        },
+        (response) => {
+            if (response.success) {
+                alert('Telegram name has been successfully updated.');
+            } else {
+                alert(
+                    'There was an error updating a telegram name. Please try again later.'
+                );
+            }
+        }
+    );
+
+    telegramName.value = '';
+}
+
 // Event listeners and initialization
 
-document.addEventListener('DOMContentLoaded', async function () {
-    loginButton.addEventListener('click', function () {
+document.addEventListener('DOMContentLoaded', async () => {
+    loginButton.addEventListener('click', () => {
         chrome.runtime.sendMessage({
             message: 'login',
-            arguments: [telegramName.value],
         });
+
+        showLogout();
     });
 
-    telegramName.addEventListener('input', toggleSubmitButton);
+    telegramName.addEventListener('input', toggleTelegramButton);
 
     document.getElementById('settings').addEventListener('click', () => {
         chrome.runtime.openOptionsPage();
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', () => {
+    logoutButton.addEventListener('click', function () {
         localStorage.removeItem('token');
-        //show login
+        showLogin();
+    });
+
+    telegramButton.addEventListener('click', () => {
+        updateTelegram();
     });
 
     document.getElementById('tabs').addEventListener('click', (e) => {
@@ -281,17 +330,6 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (!button) return;
 
         await deleteWordFromStorage(button.dataset.wordId);
-    });
-
-    //token verification
-    chrome.storage.local.get(['token'], (result) => {
-        if (isTokenValid(result.token)) {
-            // Token exists, now validate it
-            // showLogout()
-        } else {
-            console.log('The token is invalid');
-            // showLogin()
-        }
     });
 
     enableExtensionCheckbox.addEventListener('change', toggleExtensionState);
@@ -314,11 +352,23 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
+    //token verification
+    chrome.storage.local.get(['token'], (result) => {
+        if (isTokenValid(result.token)) {
+            // Token exists, now validate it
+            console.log('The token is valid');
+            showLogout();
+        } else {
+            console.log('The token is invalid');
+            showLogin();
+        }
+    });
+
     excludedSites = await getExcludedSites();
     currentSite = await getCurrentSite();
     isEnabled = checkIfCurrentSiteEnabled();
     enableExtensionCheckbox.checked = isEnabled;
-    toggleSubmitButton();
+    toggleTelegramButton();
     showTab('homeContent');
     await displayDictionary();
     displayExclusionList(excludedSites);
