@@ -10,6 +10,9 @@ const siteInputContainer = document.getElementById('siteInputContainer');
 const siteInput = document.getElementById('siteInput');
 const addSiteButton = document.getElementById('addSiteBtn');
 const enableExtensionCheckbox = document.getElementById('enableExtension');
+const notificationContainer = document.getElementById('notification');
+const messageContainer = document.getElementById('notificationMessage');
+const closeNotificationBtn = document.getElementById('closeNotificationBtn');
 
 let excludedSites;
 let currentSite;
@@ -269,6 +272,19 @@ function toggleTelegramButton() {
         : 'auto';
 }
 
+function showNotification(message) {
+    messageContainer.innerText = message;
+    notificationContainer.classList.add('notification-shown');
+
+    setTimeout(closeNotification, 5000);
+}
+
+function closeNotification() {
+    if (!notificationContainer.classList.contains('notification-shown')) return;
+
+    notificationContainer.classList.remove('notification-shown');
+}
+
 function updateTelegram() {
     chrome.runtime.sendMessage(
         {
@@ -277,11 +293,12 @@ function updateTelegram() {
         },
         (response) => {
             if (response.success) {
-                alert('Telegram name has been successfully updated.');
+                const message = 'Telegram name has been successfully updated.';
+                showNotification(message);
             } else {
-                alert(
-                    'There was an error updating a telegram name. Please try again later.'
-                );
+                const message =
+                    'There was an error updating a telegram name. Please try again later.';
+                showNotification(message);
             }
         }
     );
@@ -351,6 +368,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             deleteWordFromPopupDictionary(changedWordId);
         }
     });
+
+    closeNotificationBtn.addEventListener('click', closeNotification);
 
     //token verification
     chrome.storage.local.get(['token'], (result) => {
