@@ -90,6 +90,9 @@ function createWordsList(words) {
 
 async function displayDictionary() {
     const { words } = await chrome.storage.local.get(['words']);
+
+    if (words === undefined) return;
+
     const wordsList = createWordsList(words);
 
     dictionaryContainer.appendChild(wordsList);
@@ -324,7 +327,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     logoutButton.addEventListener('click', function () {
-        localStorage.removeItem('token');
+        chrome.storage.local.remove(['token', 'words']);
+
         showLogin();
     });
 
@@ -361,11 +365,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     chrome.runtime.onMessage.addListener((request) => {
         if (request.action === 'wordsChanged') {
-            const changedWordId = request.newValue;
+            console.log('words were changed: ', request.newValue);
 
-            console.log('words were changed: ', changedWordId);
-
-            deleteWordFromPopupDictionary(changedWordId);
+            if (request.newValue.operation === 'getAllWords') {
+                displayDictionary().catch(console.error);
+            } else if (request.newValue.operation === 'deleteWord') {
+                deleteWordFromPopupDictionary(request.newValue.wordId);
+            }
         }
     });
 
