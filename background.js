@@ -43,6 +43,8 @@ function startOAuthFlow() {
                     chrome.storage.local.set({ token: jwt }, () => {
                         console.log('Token is set to ' + jwt);
                     });
+
+                    saveWordsToStorage();
                 });
         }
     );
@@ -304,6 +306,19 @@ function getChangedWord(changes) {
 }
 
 async function handleWordsChange(changes) {
+    console.log(changes);
+
+    if (!changes.newValue) {
+        await notifyContentAboutChanges('wordsChanged', []);
+        return;
+    }
+
+    if (!changes.oldValue) {
+        await notifyContentAboutChanges('wordsChanged', changes.newValue);
+        notifyPopupAboutChanges('wordsChanged', { operation: 'getAllWords' });
+        return;
+    }
+
     const operation =
         changes.newValue.length > changes.oldValue.length
             ? 'addWord'
@@ -312,7 +327,10 @@ async function handleWordsChange(changes) {
     const changedWord = getChangedWord(changes);
 
     await notifyContentAboutChanges('wordsChanged', changes.newValue);
-    notifyPopupAboutChanges('wordsChanged', changedWord.id);
+    notifyPopupAboutChanges('wordsChanged', {
+        operation,
+        wordId: changedWord.id,
+    });
 
     if (operation === 'deleteWord') {
         await deleteWordFromDictionary(changedWord.id);
@@ -394,5 +412,3 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
         await handleWordsChange(changes.words);
     }
 });
-
-saveWordsToStorage();

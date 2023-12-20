@@ -176,9 +176,11 @@ async function highlightWords(words) {
 
 function handleExtensionStateChange(enabled) {
     if (enabled) {
-        chrome.storage.local
-            .get(['words'])
-            .then((result) => highlightWords(result.words));
+        chrome.storage.local.get(['words']).then((result) => {
+            if (result.words !== undefined && result.words.length > 0) {
+                highlightWords(result.words);
+            }
+        });
 
         console.log('Extension is enabled for this site.');
     } else {
@@ -202,11 +204,14 @@ function checkInitialExtensionState() {
 (function loadSettings() {
     return chrome.storage.local.get(
         ['translateTo', 'animationToggle', 'sentenceCounter'],
-        function (items) {
-            settings['languageCode'] = items.translateTo;
+        (items) => {
+            settings['languageCode'] = items.translateTo || 'UK';
             settings['languageFull'] = 'Ukrainian';
-            settings['animationToggle'] = items.animationToggle === 'true';
-            settings['sentenceCounter'] = items.sentenceCounter;
+            settings['animationToggle'] =
+                items.animationToggle !== undefined
+                    ? items.animationToggle === 'true'
+                    : true;
+            settings['sentenceCounter'] = items.sentenceCounter || 1;
         }
     );
 })();
@@ -313,7 +318,10 @@ chrome.runtime.onMessage.addListener((request) => {
         const words = request.newValue;
 
         clearHighlighting();
-        highlightWords(words);
+
+        if (words.length > 0) {
+            highlightWords(words);
+        }
 
         console.log('words were changed: ', words);
     }
