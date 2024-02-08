@@ -1,54 +1,16 @@
-const ENV = 'prod';
+const ENV = "prod";
 
 const config = {
     dev: {
-        API_URL: 'http://localhost:8080',
+        API_URL: "http://localhost:8080",
     },
     prod: {
-        API_URL: 'https://sea-lion-app-ut382.ondigitalocean.app',
+        API_URL: "https://sea-lion-app-ut382.ondigitalocean.app",
     },
 };
 
 const API_URL = config[ENV].API_URL;
-const TELEGRAM_BOT_URL = 'https://web.telegram.org/k/#@WordMemoBot';
-
-function startOAuthFlow() {
-    let clientId = `893654526349-8vbu5ql30musnpecetk9ntigefjk81et.apps.googleusercontent.com`;
-    let responseType = `code`;
-    let scope = `openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile`;
-    //redirectUri for Anastasiia, should be changed to id of the chrome extension on the store after publishing
-    let redirectUri = `https://dkecpnpaaifjhhehhdkpaohapiniagod.chromiumapp.org/`;
-
-    chrome.identity.launchWebAuthFlow(
-        {
-            url: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=${responseType}&scope=${scope}&redirect_uri=${redirectUri}`,
-            interactive: true,
-        },
-        function (redirect_url) {
-            console.log(redirect_url);
-            let authCode = redirect_url.split('&')[0].split('code=')[1];
-            fetch(`${API_URL}/check/code/google`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Login: 'login',
-                },
-                body: JSON.stringify({
-                    code: authCode.replace('%2F', '/'),
-                }),
-            })
-                .then((response) => response.text())
-                .then((jwt) => {
-                    console.log(jwt);
-                    chrome.storage.local.set({ token: jwt }, () => {
-                        console.log('Token is set to ' + jwt);
-                    });
-
-                    saveWordsToStorage();
-                });
-        }
-    );
-}
+const TELEGRAM_BOT_URL = "https://web.telegram.org/k/#@WordMemoBot";
 
 async function getCurrentUserInfo() {
     let userInfo;
@@ -56,18 +18,18 @@ async function getCurrentUserInfo() {
     try {
         const token = await getToken();
 
-        const response = await fetch(`${API_URL}/current`, {
-            method: 'GET',
+        const response = await fetch(`${API_URL}/api/users/current`, {
+            method: "GET",
             headers: {
-                Authorization: 'Bearer ' + token,
-                Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json',
+                Authorization: "Bearer " + token,
+                Accept: "application/json, application/xml, text/plain, text/html, */*",
+                "Content-Type": "application/json",
             },
         });
 
         userInfo = await response.json();
     } catch (error) {
-        console.error('Error getting user info:', error);
+        console.error("Error getting user info:", error);
     }
 
     return userInfo;
@@ -80,12 +42,12 @@ async function updateTelegram(telegramName, isTelegramIdExist) {
         const token = await getToken();
 
         await fetch(`${API_URL}/telegram`, {
-            method: 'POST',
+            method: "POST",
             body: JSON.stringify({ telegramName, chatId: null }),
             headers: {
-                Authorization: 'Bearer ' + token,
-                Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json',
+                Authorization: "Bearer " + token,
+                Accept: "application/json, application/xml, text/plain, text/html, */*",
+                "Content-Type": "application/json",
             },
         });
 
@@ -96,7 +58,7 @@ async function updateTelegram(telegramName, isTelegramIdExist) {
         }
     } catch (error) {
         success = false;
-        console.error('Error updating telegram:', error);
+        console.error("Error updating telegram:", error);
     }
 
     return success;
@@ -111,49 +73,8 @@ async function handleUpdateTelegram(telegramName) {
     return success;
 }
 
-// function startOAuthFlow(telegramName) {
-//     let clientId = `893654526349-8vbu5ql30musnpecetk9ntigefjk81et.apps.googleusercontent.com`;
-//     let responseType = `code`;
-//     let scope = `openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile`;
-//     //redirectUri for Anastasiia, should be changed to id of the chrome extension on the store after publishing
-//     let redirectUri = `https://dkecpnpaaifjhhehhdkpaohapiniagod.chromiumapp.org/`;
-
-//     chrome.identity.launchWebAuthFlow(
-//         {
-//             url: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=${responseType}&scope=${scope}&redirect_uri=${redirectUri}`,
-//             interactive: true,
-//         },
-//         function (redirect_url) {
-//             console.log(redirect_url);
-//             let authCode = redirect_url.split('&')[0].split('code=')[1];
-//             // Send this authCode to your backend for further processing
-//             fetch(`${API_URL}/check/code/google`, {
-//                 method: 'POST',
-//                 headers: {
-//                     'Content-Type': 'application/json',
-//                     Login: 'login',
-//                 },
-//                 body: JSON.stringify({
-//                     code: authCode.replace('%2F', '/'),
-//                     telegramName: telegramName,
-//                 }),
-//             })
-//                 .then((response) => response.text())
-//                 .then((jwt) => {
-//                     console.log(jwt);
-//                     chrome.storage.local.set({ token: jwt }, function () {
-//                         console.log('Token is set to ' + jwt);
-//                     });
-//                     let telegramBotUrl =
-//                         'https://web.telegram.org/k/#@WordMemoBot';
-//                     chrome.tabs.create({ url: telegramBotUrl });
-//                 });
-//         }
-//     );
-// }
-
 async function getToken() {
-    const result = await chrome.storage.local.get(['token']);
+    const result = await chrome.storage.local.get(["token"]);
     return result.token;
 }
 
@@ -195,9 +116,7 @@ async function checkIfExtensionEnabled() {
     const excludedSites = result.excludedSites;
     const currentTab = await getCurrentTab();
 
-    const isEnabled = !excludedSites.some((site) =>
-        isSiteEqualToCurrentSite(currentTab.url, site)
-    );
+    const isEnabled = !excludedSites.some((site) => isSiteEqualToCurrentSite(currentTab.url, site));
 
     return isEnabled;
 }
@@ -218,38 +137,34 @@ async function handleExcludedSitesChange(changes) {
     const changedSite = getChangedSite(changes);
 
     const currentTab = await getCurrentTab();
-    const isCurrentChanged = isSiteEqualToCurrentSite(
-        currentTab.url,
-        changedSite
-    );
+    const isCurrentChanged = isSiteEqualToCurrentSite(currentTab.url, changedSite);
 
     if (!isCurrentChanged) return;
 
     const enabled = await checkIfExtensionEnabled();
-    await notifyContentAboutChanges('extensionStateChanged', enabled);
+    await notifyContentAboutChanges("extensionStateChanged", enabled);
 }
 
 // Getting all words and manipulating them
 
 async function getAllTranslations() {
-    const { translateTo } = await chrome.storage.local.get(['translateTo']);
+    const { translateTo } = await chrome.storage.local.get(["translateTo"]);
 
     let translations = {};
 
     try {
         const token = await getToken();
 
-        const response = await fetch(
-            `${API_URL}/api/words?languageCode=${translateTo}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: 'Bearer ' + token,
-                    Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
+        const response = await fetch(`${API_URL}/api/words?languageCodeIso=${translateTo}`, {
+            method: "GET",
+            headers: {
+                Authorization: "Bearer " + token,
+                Accept: "application/json, application/xml, text/plain, text/html, */*",
+                "Content-Type": "application/json",
+            },
+        });
+
+        console.log(response);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -257,7 +172,7 @@ async function getAllTranslations() {
 
         translations = await response.json();
     } catch (error) {
-        console.error('Error fetching translations:', error);
+        console.error("Error fetching translations:", error);
     }
 
     return translations;
@@ -274,17 +189,17 @@ async function deleteWordFromDictionary(wordId) {
         const token = await getToken();
 
         await fetch(`${API_URL}/api/words/${wordId}`, {
-            method: 'DELETE',
+            method: "DELETE",
             headers: {
-                Authorization: 'Bearer ' + token,
-                Accept: 'application/json, application/xml, text/plain, text/html, */*',
-                'Content-Type': 'application/json',
+                Authorization: "Bearer " + token,
+                Accept: "application/json, application/xml, text/plain, text/html, */*",
+                "Content-Type": "application/json",
             },
         });
 
         console.log(`word with id ${wordId} was deleted`);
     } catch (error) {
-        console.error('Error deleting word:', error);
+        console.error("Error deleting word:", error);
     }
 }
 
@@ -309,30 +224,27 @@ async function handleWordsChange(changes) {
     console.log(changes);
 
     if (!changes.newValue) {
-        await notifyContentAboutChanges('wordsChanged', []);
+        await notifyContentAboutChanges("wordsChanged", []);
         return;
     }
 
     if (!changes.oldValue) {
-        await notifyContentAboutChanges('wordsChanged', changes.newValue);
-        notifyPopupAboutChanges('wordsChanged', { operation: 'getAllWords' });
+        await notifyContentAboutChanges("wordsChanged", changes.newValue);
+        notifyPopupAboutChanges("wordsChanged", { operation: "getAllWords" });
         return;
     }
 
-    const operation =
-        changes.newValue.length > changes.oldValue.length
-            ? 'addWord'
-            : 'deleteWord';
+    const operation = changes.newValue.length > changes.oldValue.length ? "addWord" : "deleteWord";
 
     const changedWord = getChangedWord(changes);
 
-    await notifyContentAboutChanges('wordsChanged', changes.newValue);
-    notifyPopupAboutChanges('wordsChanged', {
+    await notifyContentAboutChanges("wordsChanged", changes.newValue);
+    notifyPopupAboutChanges("wordsChanged", {
         operation,
         wordId: changedWord.id,
     });
 
-    if (operation === 'deleteWord') {
+    if (operation === "deleteWord") {
         await deleteWordFromDictionary(changedWord.id);
     } else {
         console.log(`word ${changedWord} was added`);
@@ -341,62 +253,71 @@ async function handleWordsChange(changes) {
 
 // Event listeners and initialization
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.message === 'login') {
-        startOAuthFlow();
-    }
-});
-
 chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === 'install') {
+    if (details.reason === "install") {
         // This is a first install!
-        chrome.tabs.create({ url: 'popup.html' });
-    } else if (details.reason === 'update') {
+        chrome.tabs.create({ url: "popup.html" });
+        chrome.storage.local.set({ token: "" });
+    } else if (details.reason === "update") {
         // This is an update. You can also handle updates here if needed.
     }
 });
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
-        id: 'saveWordContextMenu',
-        title: "Save '%s'", // %s will be replaced by the selected text
-        contexts: ['selection'], // Context type
+        id: "saveWordContextMenu",
+        title: "Save '%s'",
+        contexts: ["selection"],
     });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId === 'saveWordContextMenu') {
+    if (info.menuItemId === "saveWordContextMenu") {
         const selectedText = info.selectionText;
-        chrome.tabs.sendMessage(
-            tab.id,
-            { action: 'saveWordToDictionary', text: selectedText },
-            (response) => console.log(response)
+        chrome.tabs.sendMessage(tab.id, { action: "saveWordToDictionary", text: selectedText }, (response) =>
+            console.log(response)
         );
     }
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'checkExtensionState') {
+    if (request.action === "checkExtensionState") {
         checkIfExtensionEnabled()
             .then((enabled) => {
                 sendResponse({ enabled });
             })
             .catch((error) => {
-                console.error('Error checking extension state:', error);
+                console.error("Error checking extension state:", error);
                 sendResponse({ enabled: false });
             });
 
         return true;
     }
 
-    if (request.action === 'updateTelegram') {
+    if (request.action === "updateTelegram") {
         handleUpdateTelegram(request.telegramName)
             .then((success) => {
                 sendResponse({ success });
             })
             .catch((error) => {
-                console.error('Error updating telegram:', error);
+                console.error("Error updating telegram:", error);
                 sendResponse({ success: false });
+            });
+
+        return true;
+    }
+
+    if (request.action === "saveWordsToStorage") {
+        saveWordsToStorage();
+    }
+
+    if (request.action === "getUserInfo") {
+        getCurrentUserInfo()
+            .then(() => {
+                sendResponse({ userInfo });
+            })
+            .catch((error) => {
+                console.error("Error getting user info:", error);
             });
 
         return true;
@@ -404,11 +325,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
-    if (namespace === 'local' && 'excludedSites' in changes) {
+    if (namespace === "local" && "excludedSites" in changes) {
         await handleExcludedSitesChange(changes.excludedSites);
     }
 
-    if (namespace === 'local' && 'words' in changes) {
+    if (namespace === "local" && "words" in changes) {
         await handleWordsChange(changes.words);
     }
 });

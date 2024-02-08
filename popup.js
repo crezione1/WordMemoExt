@@ -1,45 +1,62 @@
-const telegramName = document.getElementById('telegramName');
-const loginButton = document.getElementById('loginBtn');
-const logoutButton = document.getElementById('logoutBtn');
-const telegramButton = document.getElementById('telegramBtn');
-const dictionaryContainer = document.getElementById('dictionaryContent');
-const exclusionList = document.getElementById('exclusionList');
-const openSiteInputBtn = document.getElementById('openSiteInputBtn');
-const openSiteInputBtnIcon = document.querySelector('#openSiteInputBtn i');
-const siteInputContainer = document.getElementById('siteInputContainer');
-const siteInput = document.getElementById('siteInput');
-const addSiteButton = document.getElementById('addSiteBtn');
-const enableExtensionCheckbox = document.getElementById('enableExtension');
-const notificationContainer = document.getElementById('notification');
-const messageContainer = document.getElementById('notificationMessage');
-const closeNotificationBtn = document.getElementById('closeNotificationBtn');
+const loginPage = document.getElementById("loginPage");
+const mainContent = document.getElementById("mainContent");
+const settingsButton = document.getElementById("settingsBtn");
+const logoutButton = document.getElementById("logoutBtn");
+const wordCategoryList = document.getElementById("wordCategoryList");
+const wordListContainer = document.getElementById("dictionaryContent");
+const notificationContainer = document.getElementById("notification");
+const messageContainer = document.getElementById("notificationMessage");
+const closeNotificationBtn = document.getElementById("closeNotificationBtn");
+const exclusionList = document.getElementById("exclusionList");
+const enableExtensionCheckbox = document.getElementById("enableExtension");
+const siteInput = document.getElementById("siteInput");
+const addSiteButton = document.getElementById("addSiteBtn");
+const changeTelegramBtn = document.getElementById("changeTelegramBtn");
+const telegramContainer = document.getElementById("telegramContainer");
+const openEnglishLevelBtn = document.getElementById("englishLevelBtn");
+const englishLevelContainer = document.getElementById("englishLevelContainer");
+const openLearningGoalsBtnBtn = document.getElementById("learningGoalsBtn");
+const learningGoalsContainer = document.getElementById("learningGoalsContainer");
+const telegramName = document.getElementById("telegramName");
+const telegramButton = document.getElementById("telegramBtn");
+const userEmailContainer = document.getElementById("userEmail");
 
 let excludedSites;
 let currentSite;
 let isEnabled;
 
-function showLogin() {
-    logoutButton.style.display = 'none';
-    loginButton.style.display = 'inline-block';
-
-    toggleTelegramForm(false);
+function showLoginPage() {
+    loginPage.style.display = "block";
+    mainContent.style.display = "none";
 }
 
-function showLogout() {
-    loginButton.style.display = 'none';
-    logoutButton.style.display = 'inline-block';
+function showMainContent() {
+    loginPage.style.display = "none";
+    mainContent.style.display = "block";
 
-    toggleTelegramForm(true);
+    chrome.runtime.sendMessage({
+        action: "saveWordsToStorage",
+    });
 }
 
 function showTab(tabId) {
-    const contents = document.querySelectorAll('.tab-content');
+    const contents = document.querySelectorAll(".tab-content");
+    const tabs = document.querySelectorAll(".tab-action");
+
     contents.forEach((content) => {
-        content.style.display = 'none';
+        content.style.display = "none";
     });
+
+    tabs.forEach((tab) => {
+        tab.classList.remove("active");
+    });
+
+    const tabContentId = tabId.replace("Tab", "Content");
     let activeTab = document.getElementById(tabId);
-    activeTab.style.display = 'flex';
-    activeTab.classList.add('active-tab');
+    let activeContentTab = document.getElementById(tabContentId);
+
+    activeTab.classList.add("active");
+    activeContentTab.style.display = "flex";
 }
 
 function isTokenValid(token) {
@@ -47,67 +64,127 @@ function isTokenValid(token) {
         return false;
     }
     // TODO should be validated on backend
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(token.split(".")[1]));
     const expirationDate = new Date(payload.exp * 1000); // Convert to milliseconds
     const currentDate = new Date();
 
     return currentDate < expirationDate;
 }
 
+function getUserInfo() {
+    chrome.runtime.sendMessage(
+        {
+            action: "getUserInfo",
+        },
+        (response) => {
+            if (response.userInfo) {
+                console.log(userInfo);
+            }
+        }
+    );
+}
+
 // Dictionary
 
 function generateDictionaryListItem(word, translation, wordId) {
     return `<li>
-                <div>
-                    <span class="dictionary-word">
-                        ${word}
-                    </span>
-                    <span class="dictionary-translation">
-                        ${translation}
-                    </span>
+                <span class="word-list-origin">${word}</span>
+                <span class="word-list-translation">${translation}</span>
+                <div class="word-list-actions">
+                    <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="showSynonym">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                clip-rule="evenodd"
+                                d="M3.16699 6.00033C3.16699 5.54009 3.54009 5.16699 4.00033 5.16699H12.0003C12.4606 5.16699 12.8337 5.54009 12.8337 6.00033C12.8337 6.46057 12.4606 6.83366 12.0003 6.83366H4.00033C3.54009 6.83366 3.16699 6.46057 3.16699 6.00033Z"
+                                fill="#FF9D7B"
+                            />
+                            <path
+                                fill-rule="evenodd"
+                                clip-rule="evenodd"
+                                d="M3.16699 10.0003C3.16699 9.54006 3.54009 9.16699 4.00033 9.16699H12.0003C12.4606 9.16699 12.8337 9.54006 12.8337 10.0003C12.8337 10.4606 12.4606 10.8337 12.0003 10.8337H4.00033C3.54009 10.8337 3.16699 10.4606 3.16699 10.0003Z"
+                                fill="#FF9D7B"
+                            />
+                        </svg>
+                    </button>
+                    <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="playPronunciation">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 14 14"
+                            fill="none"
+                        >
+                            <path
+                                d="M8.81304 2.03626C8.95642 1.74776 9.30654 1.63011 9.59499 1.77348C11.5143 2.72731 12.8354 4.70892 12.8354 7.00014C12.8354 9.29136 11.5143 11.273 9.59499 12.2268C9.30654 12.3702 8.95642 12.2525 8.81304 11.964C8.66965 11.6755 8.78731 11.3254 9.07583 11.1821C10.6138 10.4177 11.6687 8.83158 11.6687 7.00014C11.6687 5.1687 10.6138 3.58257 9.07583 2.81825C8.78731 2.67487 8.66965 2.32477 8.81304 2.03626Z"
+                                fill="#FF9D7B"
+                            />
+                            <path
+                                d="M3.5013 4.66632H2.33464C1.6903 4.66632 1.16797 5.18865 1.16797 5.83298V8.16632C1.16797 8.81067 1.6903 9.33298 2.33464 9.33298H3.5013L6.04452 11.4524C6.42444 11.769 7.0013 11.4988 7.0013 11.0042V2.9951C7.0013 2.50052 6.42444 2.23035 6.04452 2.54696L3.5013 4.66632Z"
+                                fill="#FF9D7B"
+                            />
+                            <path
+                                d="M9.80172 4.89954C9.60823 4.64194 9.24259 4.58997 8.98499 4.78346C8.72739 4.97694 8.67542 5.34261 8.86891 5.60021C9.1618 5.99012 9.33511 6.47393 9.33511 6.99987C9.33511 7.5258 9.1618 8.00962 8.86891 8.39952C8.67542 8.65712 8.72739 9.02281 8.98499 9.2163C9.24259 9.40979 9.60823 9.35782 9.80172 9.10022C10.2411 8.51519 10.5018 7.78713 10.5018 6.99987C10.5018 6.2126 10.2411 5.48455 9.80172 4.89954Z"
+                                fill="#FF9D7B"
+                            />
+                        </svg>
+                    </button>
+                    <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="deleteWord">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 14 14"
+                            fill="none"
+                        >
+                            <path
+                                d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
+                                fill="#FF9D7B"
+                            />
+                        </svg>
+                    </button>
                 </div>
-                <button type="button" data-word-id="${wordId}">-</button>
             </li>`;
 }
 
 function createWordsList(words) {
-    const dictionaryList = document.createElement('ul');
-    dictionaryList.id = 'dictionaryList';
-    dictionaryList.className = 'dictionary-list';
+    const dictionaryList = document.createElement("ul");
+    dictionaryList.id = "wordList";
+    dictionaryList.className = "word-list list";
 
     words.forEach((item) => {
-        const listItem = generateDictionaryListItem(
-            item.word,
-            item.translation,
-            item.id
-        );
+        const listItem = generateDictionaryListItem(item.word, item.translation, item.id);
 
-        dictionaryList.insertAdjacentHTML('afterbegin', listItem);
+        dictionaryList.insertAdjacentHTML("afterbegin", listItem);
     });
 
     return dictionaryList;
 }
 
 async function displayDictionary() {
-    const { words } = await chrome.storage.local.get(['words']);
+    const { words } = await chrome.storage.local.get(["words"]);
 
     if (words === undefined) return;
 
     const wordsList = createWordsList(words);
 
-    dictionaryContainer.appendChild(wordsList);
+    wordListContainer.appendChild(wordsList);
 }
 
 function deleteWordFromPopupDictionary(changedWordId) {
-    const changedListItem = dictionaryContainer.querySelector(
-        `[data-word-id="${changedWordId}"]`
-    ).parentNode;
+    const changedListItem = wordList.querySelector(`[data-word-id="${changedWordId}"]`).parentNode;
 
     changedListItem.remove();
 }
 
 async function deleteWordFromStorage(wordId) {
-    const { words } = await chrome.storage.local.get(['words']);
+    const { words } = await chrome.storage.local.get(["words"]);
     const updatedWords = words.filter((word) => word.id !== Number(wordId));
 
     chrome.storage.local.set({ words: updatedWords });
@@ -146,12 +223,20 @@ function checkIfCurrentSiteEnabled() {
 
 function generateExclusionListItem(text) {
     return `<li>
-                ${text}
-                <button
-                    type="button"
-                    class="icon-btn icon-btn-small"
-                >
-                    <i class="fa-solid fa-xmark"></i>
+                <span>${text}</span>
+                <button type="button" class="icon-btn icon-btn-small">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                    >
+                        <path
+                            d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
+                            fill="#FF9D7B"
+                        />
+                    </svg>
                 </button>
             </li>`;
 }
@@ -159,18 +244,8 @@ function generateExclusionListItem(text) {
 function displayExclusionList(list) {
     list.forEach((site) => {
         const listItem = generateExclusionListItem(site);
-        openSiteInputBtn.insertAdjacentHTML('beforebegin', listItem);
+        exclusionList.insertAdjacentHTML("afterbegin", listItem);
     });
-}
-
-function openSiteInput() {
-    if (siteInputContainer.style.display === 'none') {
-        siteInputContainer.style.display = 'flex';
-        openSiteInputBtnIcon.className = 'fa-solid fa-xmark';
-    } else {
-        siteInputContainer.style.display = 'none';
-        openSiteInputBtnIcon.className = 'fa-solid fa-plus';
-    }
 }
 
 async function toggleExtensionState() {
@@ -183,9 +258,7 @@ async function toggleExtensionState() {
     let updatedList;
 
     if (enableExtensionCheckbox.checked) {
-        updatedList = excludedSites.filter(
-            (site) => site !== currentSiteHostname
-        );
+        updatedList = excludedSites.filter((site) => site !== currentSiteHostname);
 
         let currentSiteItem;
 
@@ -200,7 +273,7 @@ async function toggleExtensionState() {
         updatedList = [...excludedSites, currentSiteHostname];
 
         const listItem = generateExclusionListItem(currentSiteHostname);
-        openSiteInputBtn.insertAdjacentHTML('beforebegin', listItem);
+        exclusionList.insertAdjacentHTML("afterbegin", listItem);
         isEnabled = false;
     }
 
@@ -229,8 +302,8 @@ async function addSiteToExclusion() {
         await chrome.storage.local.set({ excludedSites: updatedList });
 
         const listItem = generateExclusionListItem(site);
-        openSiteInputBtn.insertAdjacentHTML('beforebegin', listItem);
-        siteInput.value = '';
+        exclusionList.insertAdjacentHTML("afterbegin", listItem);
+        siteInput.value = "";
 
         const currentSiteHostname = getSiteHostname(currentSite);
 
@@ -240,18 +313,18 @@ async function addSiteToExclusion() {
 }
 
 async function removeSiteFromExclusion(e) {
-    const button = e.target.closest('button');
+    const button = e.target.closest("button");
 
-    if (button && button.parentElement.tagName === 'LI') {
+    console.log(button);
+
+    if (button && button.parentElement.tagName === "LI") {
         const siteToRemove = button.parentElement.textContent.trim();
 
         const result = await chrome.storage.local.get({
             excludedSites: [],
         });
 
-        const updatedList = result.excludedSites.filter(
-            (site) => site !== siteToRemove
-        );
+        const updatedList = result.excludedSites.filter((site) => site !== siteToRemove);
         await chrome.storage.local.set({ excludedSites: updatedList });
         button.parentElement.remove();
 
@@ -262,130 +335,133 @@ async function removeSiteFromExclusion(e) {
     }
 }
 
-function toggleTelegramForm(visible) {
-    const telegramContainer = document.getElementById('telegramContainer');
-
-    telegramContainer.style.display = visible ? 'block' : 'none';
-}
-
-function toggleTelegramButton() {
-    telegramButton.disabled = telegramName.value.trim() === '';
-    telegramButton.style.pointerEvents = telegramButton.disabled
-        ? 'none'
-        : 'auto';
-}
-
 function showNotification(message) {
     messageContainer.innerText = message;
-    notificationContainer.classList.add('notification-shown');
+    notificationContainer.classList.add("notification-shown");
 
     setTimeout(closeNotification, 5000);
 }
 
 function closeNotification() {
-    if (!notificationContainer.classList.contains('notification-shown')) return;
+    if (!notificationContainer.classList.contains("notification-shown")) return;
 
-    notificationContainer.classList.remove('notification-shown');
+    notificationContainer.classList.remove("notification-shown");
+}
+
+function toggleButton(button, input) {
+    button.disabled = input.value.trim() === "";
+    button.style.pointerEvents = button.disabled ? "none" : "auto";
 }
 
 function updateTelegram() {
     chrome.runtime.sendMessage(
         {
-            action: 'updateTelegram',
+            action: "updateTelegram",
             telegramName: telegramName.value.trim(),
         },
         (response) => {
             if (response.success) {
-                const message = 'Telegram name has been successfully updated.';
+                const message = "Telegram name has been successfully updated.";
                 showNotification(message);
             } else {
-                const message =
-                    'There was an error updating a telegram name. Please try again later.';
+                const message = "There was an error updating a telegram name. Please try again later.";
                 showNotification(message);
             }
         }
     );
 
-    telegramName.value = '';
+    telegramName.value = "";
+}
+
+function toggleVisibility(element) {
+    element.style.display = element.style.display === "none" ? "block" : "none";
 }
 
 // Event listeners and initialization
 
-document.addEventListener('DOMContentLoaded', async () => {
-    loginButton.addEventListener('click', () => {
-        chrome.runtime.sendMessage({
-            message: 'login',
-        });
-
-        showLogout();
-    });
-
-    telegramName.addEventListener('input', toggleTelegramButton);
-
-    document.getElementById('settings').addEventListener('click', () => {
-        chrome.runtime.openOptionsPage();
-    });
-
-    logoutButton.addEventListener('click', function () {
-        chrome.storage.local.remove(['token', 'words']);
-
-        showLogin();
-    });
-
-    telegramButton.addEventListener('click', () => {
-        updateTelegram();
-    });
-
-    document.getElementById('tabs').addEventListener('click', (e) => {
-        const tab = e.target.closest('.tab-action');
+document.addEventListener("DOMContentLoaded", async () => {
+    document.getElementById("tabs").addEventListener("click", (e) => {
+        const tab = e.target.closest(".tab-action");
 
         if (!tab) return;
 
-        const tabContent = tab.id.replace('Tab', 'Content');
-        showTab(tabContent);
+        showTab(tab.id);
     });
 
-    dictionaryContainer.addEventListener('click', async (e) => {
-        const button = e.target.closest('button');
+    wordCategoryList.addEventListener("click", (e) => {
+        const category = e.target.closest(".word-category-btn");
+
+        if (!category) return;
+
+        showTab("dictionaryTab");
+    });
+
+    settingsButton.addEventListener("click", () => {
+        chrome.runtime.openOptionsPage();
+    });
+
+    logoutButton.addEventListener("click", () => {
+        chrome.storage.local.remove(["token", "words"]);
+
+        showLoginPage();
+    });
+
+    wordList.addEventListener("click", async (e) => {
+        const button = e.target.closest("button");
 
         if (!button) return;
 
-        await deleteWordFromStorage(button.dataset.wordId);
+        const action = button.dataset.btnFunction;
+
+        if (action === "showSynonym") {
+            console.log("Synonyms");
+        } else if (action === "playPronunciation") {
+            console.log("Pronunciation");
+        } else if (action === "deleteWord") {
+            await deleteWordFromStorage(button.dataset.wordId);
+        }
     });
 
-    enableExtensionCheckbox.addEventListener('change', toggleExtensionState);
+    enableExtensionCheckbox.addEventListener("change", toggleExtensionState);
 
-    openSiteInputBtn.addEventListener('click', openSiteInput);
+    siteInput.addEventListener("input", () => toggleButton(addSiteButton, siteInput));
+    addSiteButton.addEventListener("click", addSiteToExclusion);
 
-    addSiteButton.addEventListener('click', addSiteToExclusion);
-
-    exclusionList.addEventListener('click', async (e) =>
-        removeSiteFromExclusion(e)
-    );
+    exclusionList.addEventListener("click", async (e) => removeSiteFromExclusion(e));
 
     chrome.runtime.onMessage.addListener((request) => {
-        if (request.action === 'wordsChanged') {
-            console.log('words were changed: ', request.newValue);
+        if (request.action === "wordsChanged") {
+            console.log("words were changed: ", request.newValue);
 
-            if (request.newValue.operation === 'getAllWords') {
+            if (request.newValue.operation === "getAllWords") {
                 displayDictionary().catch(console.error);
-            } else if (request.newValue.operation === 'deleteWord') {
+            } else if (request.newValue.operation === "deleteWord") {
                 deleteWordFromPopupDictionary(request.newValue.wordId);
             }
         }
     });
 
-    closeNotificationBtn.addEventListener('click', closeNotification);
+    closeNotificationBtn.addEventListener("click", closeNotification);
+
+    changeTelegramBtn.addEventListener("click", () => toggleVisibility(telegramContainer));
+    openEnglishLevelBtn.addEventListener("click", () => toggleVisibility(englishLevelContainer));
+    openLearningGoalsBtnBtn.addEventListener("click", () => toggleVisibility(learningGoalsContainer));
+
+    telegramName.addEventListener("input", () => toggleButton(telegramButton, telegramName));
+    telegramButton.addEventListener("click", () => {
+        updateTelegram();
+    });
 
     //token verification
-    chrome.storage.local.get(['token'], (result) => {
+    chrome.storage.local.get(["token"], (result) => {
+        console.log(result);
         if (isTokenValid(result.token)) {
             // Token exists, now validate it
-            console.log('The token is valid');
-            showLogout();
+            console.log("The token is valid");
+            showMainContent();
         } else {
-            console.log('The token is invalid');
-            showLogin();
+            console.log("The token is invalid");
+            showLoginPage();
         }
     });
 
@@ -393,8 +469,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentSite = await getCurrentSite();
     isEnabled = checkIfCurrentSiteEnabled();
     enableExtensionCheckbox.checked = isEnabled;
-    toggleTelegramButton();
-    showTab('homeContent');
-    await displayDictionary();
+    showTab("homeTab");
     displayExclusionList(excludedSites);
+    getUserInfo();
+    await displayDictionary();
 });

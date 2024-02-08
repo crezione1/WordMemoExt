@@ -8,14 +8,7 @@
         "page": "options.html",
         "open_in_tab": true
     },
-    "permissions": [
-        "activeTab",
-        "contextMenus",
-        "storage",
-        "identity",
-        "tabs",
-        "scripting"
-    ],
+    "permissions": ["activeTab", "contextMenus", "storage", "identity", "tabs", "scripting"],
     "oauth2": {
         "client_id": "893654526349-8vbu5ql30musnpecetk9ntigefjk81et.apps.googleusercontent.com",
         "scopes": [
