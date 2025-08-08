@@ -11,14 +11,10 @@ const exclusionList = document.getElementById("exclusionList");
 const enableExtensionCheckbox = document.getElementById("enableExtension");
 const siteInput = document.getElementById("siteInput");
 const addSiteButton = document.getElementById("addSiteBtn");
-const changeTelegramBtn = document.getElementById("changeTelegramBtn");
-const telegramContainer = document.getElementById("telegramContainer");
 const openEnglishLevelBtn = document.getElementById("englishLevelBtn");
 const englishLevelContainer = document.getElementById("englishLevelContainer");
 const openLearningGoalsBtnBtn = document.getElementById("learningGoalsBtn");
 const learningGoalsContainer = document.getElementById("learningGoalsContainer");
-const telegramName = document.getElementById("telegramName");
-const telegramButton = document.getElementById("telegramBtn");
 const userEmailContainer = document.getElementById("userEmail");
 
 let excludedSites;
@@ -26,8 +22,8 @@ let currentSite;
 let isEnabled;
 
 function showLoginPage() {
-    loginPage.style.display = "block";
-    mainContent.style.display = "none";
+    loginPage.style.display = "none";
+    mainContent.style.display = "block";
 }
 
 function showMainContent() {
@@ -60,28 +56,17 @@ function showTab(tabId) {
 }
 
 function isTokenValid(token) {
-    if (!token) {
-        return false;
-    }
-    // TODO should be validated on backend
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const expirationDate = new Date(payload.exp * 1000); // Convert to milliseconds
-    const currentDate = new Date();
-
-    return currentDate < expirationDate;
+    // Offline mode: always valid
+    return true;
 }
 
 function getUserInfo() {
-    chrome.runtime.sendMessage(
-        {
-            action: "getUserInfo",
-        },
-        (response) => {
-            if (response.userInfo) {
-                console.log(userInfo);
-            }
+    chrome.storage.local.get(["userInfo"], (result) => {
+        if (result.userInfo) {
+            // Display user info if needed
+            console.log(result.userInfo);
         }
-    );
+    });
 }
 
 // Dictionary
@@ -168,12 +153,10 @@ function createWordsList(words) {
 }
 
 async function displayDictionary() {
+    wordListContainer.innerHTML = '';
     const { words } = await chrome.storage.local.get(["words"]);
-
-    if (words === undefined) return;
-
+    if (!words) return;
     const wordsList = createWordsList(words);
-
     wordListContainer.appendChild(wordsList);
 }
 
@@ -353,26 +336,6 @@ function toggleButton(button, input) {
     button.style.pointerEvents = button.disabled ? "none" : "auto";
 }
 
-function updateTelegram() {
-    chrome.runtime.sendMessage(
-        {
-            action: "updateTelegram",
-            telegramName: telegramName.value.trim(),
-        },
-        (response) => {
-            if (response.success) {
-                const message = "Telegram name has been successfully updated.";
-                showNotification(message);
-            } else {
-                const message = "There was an error updating a telegram name. Please try again later.";
-                showNotification(message);
-            }
-        }
-    );
-
-    telegramName.value = "";
-}
-
 function toggleVisibility(element) {
     element.style.display = element.style.display === "none" ? "block" : "none";
 }
@@ -443,14 +406,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     closeNotificationBtn.addEventListener("click", closeNotification);
 
-    changeTelegramBtn.addEventListener("click", () => toggleVisibility(telegramContainer));
     openEnglishLevelBtn.addEventListener("click", () => toggleVisibility(englishLevelContainer));
     openLearningGoalsBtnBtn.addEventListener("click", () => toggleVisibility(learningGoalsContainer));
-
-    telegramName.addEventListener("input", () => toggleButton(telegramButton, telegramName));
-    telegramButton.addEventListener("click", () => {
-        updateTelegram();
-    });
 
     //token verification
     chrome.storage.local.get(["token"], (result) => {

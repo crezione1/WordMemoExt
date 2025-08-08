@@ -10,67 +10,11 @@ const config = {
 };
 
 const API_URL = config[ENV].API_URL;
-const TELEGRAM_BOT_URL = "https://web.telegram.org/k/#@WordMemoBot";
 
 async function getCurrentUserInfo() {
-    let userInfo;
-
-    try {
-        const token = await getToken();
-
-        const response = await fetch(`${API_URL}/api/users/current`, {
-            method: "GET",
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
-
-        userInfo = await response.json();
-    } catch (error) {
-        console.error("Error getting user info:", error);
-    }
-
-    return userInfo;
-}
-
-async function updateTelegram(telegramName, isTelegramIdExist) {
-    let success;
-
-    try {
-        const token = await getToken();
-
-        await fetch(`${API_URL}/telegram`, {
-            method: "POST",
-            body: JSON.stringify({ telegramName, chatId: null }),
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
-
-        success = true;
-
-        if (!isTelegramIdExist) {
-            chrome.tabs.create({ url: TELEGRAM_BOT_URL });
-        }
-    } catch (error) {
-        success = false;
-        console.error("Error updating telegram:", error);
-    }
-
-    return success;
-}
-
-async function handleUpdateTelegram(telegramName) {
-    const currentUser = await getCurrentUserInfo();
-    const isTelegramIdExist = Boolean(currentUser.telegramId);
-
-    const success = await updateTelegram(telegramName, isTelegramIdExist);
-
-    return success;
+    // Simulate a user object from local storage
+    const { userInfo } = await chrome.storage.local.get(["userInfo"]);
+    return userInfo || { email: "offline@user", telegramId: null };
 }
 
 async function getToken() {
@@ -148,59 +92,24 @@ async function handleExcludedSitesChange(changes) {
 // Getting all words and manipulating them
 
 async function getAllTranslations() {
-    const { translateTo } = await chrome.storage.local.get(["translateTo"]);
-
-    let translations = {};
-
-    try {
-        const token = await getToken();
-
-        const response = await fetch(`${API_URL}/api/words?languageCodeIso=${translateTo}`, {
-            method: "GET",
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
-
-        console.log(response);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        translations = await response.json();
-    } catch (error) {
-        console.error("Error fetching translations:", error);
-    }
-
-    return translations;
+    const { words } = await chrome.storage.local.get(["words"]);
+    // Return as a dictionary for compatibility
+    if (!words) return {};
+    return words.reduce((acc, word) => {
+        acc[word.word.toLowerCase()] = word;
+        return acc;
+    }, {});
 }
 
 function saveWordsToStorage() {
-    getAllTranslations().then((words) => {
-        chrome.storage.local.set({ words });
-    });
+    // Already handled by getAllTranslations and chrome.storage.local
 }
 
 async function deleteWordFromDictionary(wordId) {
-    try {
-        const token = await getToken();
-
-        await fetch(`${API_URL}/api/words/${wordId}`, {
-            method: "DELETE",
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
-
-        console.log(`word with id ${wordId} was deleted`);
-    } catch (error) {
-        console.error("Error deleting word:", error);
-    }
+    const { words } = await chrome.storage.local.get(["words"]);
+    if (!words) return;
+    const updatedWords = words.filter((word) => word.id !== Number(wordId));
+    await chrome.storage.local.set({ words: updatedWords });
 }
 
 function getChangedWord(changes) {
@@ -251,6 +160,15 @@ async function handleWordsChange(changes) {
     }
 }
 
+// Add a function for translation using GPT API (placeholder)
+async function translateWithGPT(text, targetLang) {
+    const apiKey = "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"; // <-- PLACEHOLDER
+    // Example fetch to OpenAI API (pseudo-code, not functional)
+    // return fetch('https://api.openai.com/v1/chat/completions', { ... })
+    // For now, just return the text as-is
+    return text;
+}
+
 // Event listeners and initialization
 
 chrome.runtime.onInstalled.addListener((details) => {
@@ -289,19 +207,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .catch((error) => {
                 console.error("Error checking extension state:", error);
                 sendResponse({ enabled: false });
-            });
-
-        return true;
-    }
-
-    if (request.action === "updateTelegram") {
-        handleUpdateTelegram(request.telegramName)
-            .then((success) => {
-                sendResponse({ success });
-            })
-            .catch((error) => {
-                console.error("Error updating telegram:", error);
-                sendResponse({ success: false });
             });
 
         return true;

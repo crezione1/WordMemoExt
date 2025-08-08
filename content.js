@@ -29,6 +29,7 @@ async function deleteWordFromStorage(wordId) {
 }
 
 async function runLogic(selectedText) {
+    console.log('[WordMemoExt] runLogic called with:', selectedText);
     saveWordToDictionary(selectedText)
         .then((_) => {
             animateWordToToolbar();
@@ -44,19 +45,28 @@ async function runLogic(selectedText) {
         });
 }
 
+// Replace saveWordToDictionary to use local storage and GPT API for translation
 async function saveWordToDictionary(word) {
     try {
-        const token = await getToken();
-
-        await fetch(`${API_URL}/api/words`, {
-            method: "POST",
-            body: JSON.stringify({ word: word.toLowerCase(), ...settings }),
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
+        console.log('[WordMemoExt] saveWordToDictionary called with:', word);
+        // Get current words
+        const { words } = await chrome.storage.local.get(["words"]);
+        const wordList = words || [];
+        // Use GPT API for translation (placeholder)
+        const translation = await translateWithGPT(word, settings["languageCode"] || "uk");
+        // Create new word object
+        const newWord = {
+            id: Date.now(),
+            word: word.toLowerCase(),
+            translation: translation,
+        };
+        // Save to local storage
+        const updatedWords = [...wordList, newWord];
+        await chrome.storage.local.set({ words: updatedWords });
+        console.log('[WordMemoExt] Updated words list:', updatedWords);
+        // Fallback: fetch latest words from storage and highlight
+        const { words: latestWords } = await chrome.storage.local.get(["words"]);
+        highlightWords(latestWords || []);
     } catch (error) {
         console.error("Error saving word:", error);
     }
@@ -210,17 +220,6 @@ document.addEventListener("keydown", function (event) {
     }
 });
 
-document.addEventListener("mousedown", function (event) {
-    if (event.target.tagName !== "BUTTON") {
-        const existingButton = document.getElementById("add new word");
-        if (existingButton) {
-            window.getSelection().empty();
-            window.getSelection().removeAllRanges();
-            existingButton.remove();
-        }
-    }
-});
-
 document.addEventListener("mouseup", function (event) {
     if (event.target.tagName !== "BUTTON") {
         const selectedText = window.getSelection().toString().trim();
@@ -241,11 +240,11 @@ document.addEventListener("mouseup", function (event) {
             button.style.top = event.pageY + 20 + "px";
             button.style.left = event.pageX + 20 + "px";
             button.addEventListener("click", function () {
-                alert("Button clicked!");
+                console.log('[WordMemoExt] + button clicked, selectedText:', selectedText);
+                runLogic(selectedText);
                 window.getSelection().empty();
                 window.getSelection().removeAllRanges();
                 button.remove();
-                // add logic for saving the word
             });
             // button.onclick = function () {
             //     alert('Button clicked!');
@@ -299,6 +298,7 @@ chrome.runtime.onMessage.addListener((request) => {
     }
 
     if (request.action === "wordsChanged") {
+        console.log('[WordMemoExt] Received wordsChanged message', request.newValue);
         const words = request.newValue;
 
         clearHighlighting();
@@ -320,3 +320,14 @@ window.addEventListener("message", (event) => {
 });
 
 checkInitialExtensionState();
+
+// Add a function for translation using GPT API (placeholder)
+async function translateWithGPT(text, targetLang) {
+    const apiKey = "YOUR_GPT_API_KEY_HERE"; // <-- PLACEHOLDER
+    // Example fetch to OpenAI API (pseudo-code, not functional)
+    // return fetch('https://api.openai.com/v1/chat/completions', { ... })
+    // For now, just return the text as-is
+    return text;
+}
+
+console.log('[WordMemoExt] Content script loaded');
