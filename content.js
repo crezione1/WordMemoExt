@@ -368,7 +368,10 @@ async function translateWithGPT(text, targetLang) {
         const errorBody = await response.json();
         console.error("Error details:", errorBody);
         if (response.status === 401) {
-             return `[invalid API key]`;
+            return `[invalid API key]`;
+        }
+        if (response.status === 429) {
+            return `[rate limit exceeded]`;
         }
         return `[translation failed]`;
     }
