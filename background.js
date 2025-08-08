@@ -162,7 +162,7 @@ async function handleWordsChange(changes) {
 
 // Add a function for translation using GPT API (placeholder)
 async function translateWithGPT(text, targetLang) {
-    const apiKey = "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"; // <-- PLACEHOLDER
+    const apiKey = ""; // <-- PLACEHOLDER
     // Example fetch to OpenAI API (pseudo-code, not functional)
     // return fetch('https://api.openai.com/v1/chat/completions', { ... })
     // For now, just return the text as-is

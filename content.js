@@ -323,7 +323,7 @@ checkInitialExtensionState();
 
 // Add a function for translation using GPT API (placeholder)
 async function translateWithGPT(text, targetLang) {
-    const apiKey = "YOUR_GPT_API_KEY_HERE"; // <-- PLACEHOLDER
+    const apiKey = ""; // <-- PLACEHOLDER
     // Example fetch to OpenAI API (pseudo-code, not functional)
     // return fetch('https://api.openai.com/v1/chat/completions', { ... })
     // For now, just return the text as-is
