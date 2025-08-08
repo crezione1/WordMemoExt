@@ -153,9 +153,7 @@ async function handleWordsChange(changes) {
         wordId: changedWord.id,
     });
 
-    if (operation === "deleteWord") {
-        await deleteWordFromDictionary(changedWord.id);
-    } else {
+    if (operation === "addWord") {
         console.log(`word ${changedWord} was added`);
     }
 }
