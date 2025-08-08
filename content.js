@@ -76,9 +76,6 @@ async function saveWordToDictionary(word) {
         const updatedWords = [...wordList, newWord];
         await chrome.storage.local.set({ words: updatedWords });
         console.log('[WordMemoExt] Updated words list:', updatedWords);
-        // Fallback: fetch latest words from storage and highlight
-        const { words: latestWords } = await chrome.storage.local.get(["words"]);
-        highlightWords(latestWords || []);
     } catch (error) {
         console.error("Error saving word:", error);
     }
