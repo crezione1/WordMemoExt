@@ -234,6 +234,10 @@ document.addEventListener("keydown", function (event) {
 });
 
 document.addEventListener("mouseup", function (event) {
+    if (event.target.id === "add new word") {
+        return;
+    }
+
     const existingButton = document.getElementById("add new word");
     if (existingButton) {
         existingButton.remove();
