@@ -32,7 +32,9 @@ async function runLogic(selectedText) {
     console.log('[WordMemoExt] runLogic called with:', selectedText);
     saveWordToDictionary(selectedText)
         .then((_) => {
-            animateWordToToolbar();
+            if (settings["animationToggle"]) {
+                animateWordToToolbar();
+            }
         })
         .catch((error) => {
             console.log("error", error);
@@ -52,6 +54,16 @@ async function saveWordToDictionary(word) {
         // Get current words
         const { words } = await chrome.storage.local.get(["words"]);
         const wordList = words || [];
+
+        const wordExists = wordList.some(
+            (w) => w.word.toLowerCase() === word.toLowerCase()
+        );
+        if (wordExists) {
+            console.log(
+                `[WordMemoExt] Word "${word}" already exists in the dictionary.`
+            );
+            return; // Exit if the word is already saved
+        }
         // Use GPT API for translation (placeholder)
         const translation = await translateWithGPT(word, settings["languageCode"] || "uk");
         // Create new word object
@@ -202,11 +214,12 @@ function checkInitialExtensionState() {
 // Event listeners and initialization
 
 (function loadSettings() {
-    return chrome.storage.local.get(["translateTo", "animationToggle", "sentenceCounter"], (items) => {
+    return chrome.storage.local.get(["translateTo", "animationToggle", "sentenceCounter", "apiKey"], (items) => {
         settings["languageCode"] = items.translateTo || "UK";
         settings["languageFull"] = "Ukrainian";
         settings["animationToggle"] = items.animationToggle !== undefined ? items.animationToggle === "true" : true;
         settings["sentenceCounter"] = items.sentenceCounter || 1;
+        settings["apiKey"] = items.apiKey || "";
     });
 })();
 
@@ -221,6 +234,10 @@ document.addEventListener("keydown", function (event) {
 });
 
 document.addEventListener("mouseup", function (event) {
+    const existingButton = document.getElementById("add new word");
+    if (existingButton) {
+        existingButton.remove();
+    }
     if (event.target.tagName !== "BUTTON") {
         const selectedText = window.getSelection().toString().trim();
         if (selectedText) {
@@ -246,13 +263,6 @@ document.addEventListener("mouseup", function (event) {
                 window.getSelection().removeAllRanges();
                 button.remove();
             });
-            // button.onclick = function () {
-            //     alert('Button clicked!');
-            //     window.getSelection().empty();
-            //     window.getSelection().removeAllRanges();
-            //     button.remove()
-            //     // add logic for saving the word
-            // };
             document.body.appendChild(button);
         }
     }
@@ -323,11 +333,52 @@ checkInitialExtensionState();
 
 // Add a function for translation using GPT API (placeholder)
 async function translateWithGPT(text, targetLang) {
-    const apiKey = ""; // <-- PLACEHOLDER
-    // Example fetch to OpenAI API (pseudo-code, not functional)
-    // return fetch('https://api.openai.com/v1/chat/completions', { ... })
-    // For now, just return the text as-is
-    return text;
+    const apiKey = settings["apiKey"];
+    if (!apiKey) {
+        console.log("API key is missing. Please set it in the options.");
+        return `[translation disabled]`;
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a translator.'
+                },
+                {
+                    role: 'user',
+                    content: `Translate the following English word to ${targetLang}: ${text}`
+                }
+            ],
+            max_tokens: 10,
+            temperature: 0.1
+        })
+    });
+
+    if (!response.ok) {
+        console.error("GPT API request failed:", response.status, response.statusText);
+        const errorBody = await response.json();
+        console.error("Error details:", errorBody);
+        if (response.status === 401) {
+             return `[invalid API key]`;
+        }
+        return `[translation failed]`;
+    }
+
+    const data = await response.json();
+    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+        return data.choices[0].message.content.trim();
+    } else {
+        console.error("Invalid response from GPT API:", data);
+        return `[invalid response]`;
+    }
 }
 
 console.log('[WordMemoExt] Content script loaded');
