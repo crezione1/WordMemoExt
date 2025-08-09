@@ -212,7 +212,7 @@ function checkInitialExtensionState() {
 
 (function loadSettings() {
     return chrome.storage.local.get(["translateTo", "animationToggle", "sentenceCounter"], (items) => {
-        settings["languageCode"] = items.translateTo || "UK";
+        settings["languageCode"] = items.translateTo || "uk";
         settings["languageFull"] = "Ukrainian";
         settings["animationToggle"] = items.animationToggle !== undefined ? items.animationToggle === "true" : true;
         settings["sentenceCounter"] = items.sentenceCounter || 1;
