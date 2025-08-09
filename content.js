@@ -353,8 +353,8 @@ async function translateWithTAS(text, targetLang) {
                     const proxyResult = await response.json();
                     if (proxyResult.contents) {
                         const result = JSON.parse(proxyResult.contents);
-                        if (result && result.translated_text) {
-                            return result.translated_text;
+                        if (result && result.response && result.response.translated_text) {
+                            return result.response.translated_text;
                         }
                     }
                 } else {
