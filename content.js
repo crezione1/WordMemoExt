@@ -12,7 +12,6 @@ const config = {
 const API_URL = config[ENV].API_URL;
 
 let settings = {};
-let originalTextContent = [];
 
 async function getToken() {
     const result = await chrome.storage.local.get(["token"]);
@@ -113,48 +112,68 @@ function animateWordToToolbar() {
 // Highlighting/clearing highlighting saved words
 
 function clearHighlighting() {
-    originalTextContent.forEach(([parentNode, innerHTML]) => {
-        parentNode.innerHTML = innerHTML;
+    const wrappers = document.querySelectorAll('span.highlight-wrapper');
+    const parentsToNormalize = new Set();
+
+    wrappers.forEach(wrapper => {
+        const parent = wrapper.parentNode;
+        if (parent) {
+            const originalText = wrapper.dataset.originalText || '';
+            parent.replaceChild(document.createTextNode(originalText), wrapper);
+            parentsToNormalize.add(parent);
+        }
     });
 
-    originalTextContent = [];
+    // Normalize each parent once after all its children have been processed
+    parentsToNormalize.forEach(parent => parent.normalize());
 }
 
 function replaceTextNode(node, targetWords, translations) {
-    const words = node.nodeValue.split(" ");
+    // Use a regex that splits by word boundaries but includes them.
+    // This is complex, so for now we stick to a space-based split, but improve the robustness.
+    const words = node.nodeValue.split(/(\s+)/);
     const parentNode = node.parentNode;
     const documentFragment = document.createDocumentFragment();
 
     words.forEach((word) => {
-        if (targetWords.includes(word.toLowerCase())) {
+        const lowerWord = word.toLowerCase();
+        if (targetWords.includes(lowerWord)) {
+
+            const wrapper = document.createElement('span');
+            wrapper.className = 'highlight-wrapper';
+            // Store the original word with its surrounding whitespace if any.
+            // The clearHighlighting will need to handle this. For now, just store the word.
+            wrapper.dataset.originalText = word;
+
             const highlightedSpan = document.createElement("span");
             highlightedSpan.classList.add("highlighted-word");
             highlightedSpan.textContent = word;
+
             requestAnimationFrame(() => {
                 highlightedSpan.classList.add("animate-border");
             });
-            documentFragment.appendChild(highlightedSpan);
 
             setTimeout(() => {
                 highlightedSpan.classList.add("animate-background");
             }, 10);
 
-            const translationText = `[${translations[word.toLowerCase()].translation}] `;
             const translationNode = document.createElement("span");
             translationNode.classList.add("translation");
-            translationNode.dataset.wordId = translations[word.toLowerCase()].id;
-            translationNode.textContent = translationText;
+            translationNode.dataset.wordId = translations[lowerWord].id;
+            translationNode.textContent = `[${translations[lowerWord].translation}]`;
 
-            documentFragment.appendChild(translationNode);
+            wrapper.appendChild(highlightedSpan);
+            wrapper.appendChild(translationNode);
+            documentFragment.appendChild(wrapper);
+
         } else {
-            const wordNode = document.createTextNode(word + " ");
-            documentFragment.appendChild(wordNode);
+            documentFragment.appendChild(document.createTextNode(word));
         }
     });
 
-    originalTextContent.push([parentNode, parentNode.innerHTML]);
-
-    parentNode.replaceChild(documentFragment, node);
+    if (documentFragment.childNodes.length > 0) {
+        parentNode.replaceChild(documentFragment, node);
+    }
 }
 
 function findTextNodes(element) {
@@ -188,6 +207,7 @@ async function highlightWords(words) {
 
 function handleExtensionStateChange(enabled) {
     if (enabled) {
+        clearHighlighting();
         chrome.storage.local.get(["words"]).then((result) => {
             if (result.words !== undefined && result.words.length > 0) {
                 highlightWords(result.words);
