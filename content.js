@@ -231,32 +231,24 @@ document.addEventListener("keydown", function (event) {
 });
 
 document.addEventListener("mouseup", function (event) {
-    if (event.target.id === "add new word") {
+    if (event.target.id === "add-new-word") {
         return;
     }
 
-    const existingButton = document.getElementById("add new word");
+    const existingButton = document.getElementById("add-new-word");
     if (existingButton) {
         existingButton.remove();
     }
     if (event.target.tagName !== "BUTTON") {
         const selectedText = window.getSelection().toString().trim();
         if (selectedText) {
-            const button = document.createElement("div");
-            button.id = "add new word";
+            const button = document.createElement("button");
+            button.id = "add-new-word";
             button.innerText = "+";
-            button.style.width = "20px";
-            button.style.height = "20px";
-            button.style.padding = "4px";
-            button.style.backgroundColor = "white";
-            button.style.border = "1px solid black";
-            button.style.borderRadius = "2px";
-            button.style.textAlign = "center";
-            button.style.display = "inline-block";
-            button.style.cursor = "pointer";
             button.style.position = "absolute";
             button.style.top = event.pageY + 20 + "px";
             button.style.left = event.pageX + 20 + "px";
+            button.style.zIndex = "9999";
             button.addEventListener("click", function () {
                 console.log('[WordMemoExt] + button clicked, selectedText:', selectedText);
                 runLogic(selectedText);
