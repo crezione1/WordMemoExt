@@ -325,6 +325,7 @@ checkInitialExtensionState();
 
 async function translateWithTAS(text, targetLang) {
     const endpointsUrl = 'https://raw.githubusercontent.com/Uncover-F/TAS/Uncover/.data/endpoints.json';
+    const proxyUrl = 'https://api.allorigins.win/get?url=';
 
     const params = {
         text: text,
@@ -341,21 +342,26 @@ async function translateWithTAS(text, targetLang) {
         const endpoints = await endpointsResponse.json();
 
         for (const endpoint of endpoints) {
-            const url = new URL(endpoint);
-            url.search = new URLSearchParams(params).toString();
+            let targetUrl = new URL(endpoint);
+            targetUrl.search = new URLSearchParams(params).toString();
+
+            const proxiedUrl = proxyUrl + encodeURIComponent(targetUrl);
 
             try {
-                const response = await fetch(url);
+                const response = await fetch(proxiedUrl);
                 if (response.ok) {
-                    const result = await response.json();
-                    if (result && result.translated_text) {
-                        return result.translated_text;
+                    const proxyResult = await response.json();
+                    if (proxyResult.contents) {
+                        const result = JSON.parse(proxyResult.contents);
+                        if (result && result.translated_text) {
+                            return result.translated_text;
+                        }
                     }
                 } else {
-                    console.error(`Error at ${url}: ${response.status} - ${response.statusText}`);
+                    console.error(`Error at ${proxiedUrl}: ${response.status} - ${response.statusText}`);
                 }
             } catch (error) {
-                console.error(`Request exception at ${url}:`, error);
+                console.error(`Request exception at ${proxiedUrl}:`, error);
             }
         }
 
