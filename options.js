@@ -3,14 +3,12 @@ function saveSettings() {
     const translateTo = document.getElementById('translateTo').value;
     const animationToggle = document.getElementById('animationToggle').value;
     const sentenceCounter = document.getElementById('sentenceCounter').value;
-    const apiKey = document.getElementById('apiKey').value;
 
     chrome.storage.local.set(
         {
             translateTo: translateTo,
             animationToggle: animationToggle,
             sentenceCounter: sentenceCounter,
-            apiKey: apiKey,
         },
         function () {
             const savedMessage = document.getElementById('savedMessage');
@@ -27,7 +25,7 @@ function saveSettings() {
 // Function to load the settings when the options page is opened
 function loadSettings() {
     chrome.storage.local.get(
-        ['translateTo', 'animationToggle', 'sentenceCounter', 'apiKey'],
+        ['translateTo', 'animationToggle', 'sentenceCounter'],
         function (items) {
             if (items.translateTo) {
                 document.getElementById('translateTo').value =
@@ -40,9 +38,6 @@ function loadSettings() {
             if (items.sentenceCounter) {
                 document.getElementById('sentenceCounter').value =
                     items.sentenceCounter;
-            }
-            if (items.apiKey) {
-                document.getElementById('apiKey').value = items.apiKey;
             }
         }
     );

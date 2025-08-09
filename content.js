@@ -64,8 +64,8 @@ async function saveWordToDictionary(word) {
             );
             return; // Exit if the word is already saved
         }
-        // Use GPT API for translation (placeholder)
-        const translation = await translateWithGPT(word, settings["languageCode"] || "uk");
+        // Use new API for translation
+        const translation = await translateWithTAS(word, settings["languageCode"] || "uk");
         // Create new word object
         const newWord = {
             id: Date.now(),
@@ -211,12 +211,11 @@ function checkInitialExtensionState() {
 // Event listeners and initialization
 
 (function loadSettings() {
-    return chrome.storage.local.get(["translateTo", "animationToggle", "sentenceCounter", "apiKey"], (items) => {
+    return chrome.storage.local.get(["translateTo", "animationToggle", "sentenceCounter"], (items) => {
         settings["languageCode"] = items.translateTo || "UK";
         settings["languageFull"] = "Ukrainian";
         settings["animationToggle"] = items.animationToggle !== undefined ? items.animationToggle === "true" : true;
         settings["sentenceCounter"] = items.sentenceCounter || 1;
-        settings["apiKey"] = items.apiKey || "";
     });
 })();
 
@@ -324,56 +323,47 @@ window.addEventListener("message", (event) => {
 
 checkInitialExtensionState();
 
-// Add a function for translation using GPT API (placeholder)
-async function translateWithGPT(text, targetLang) {
-    const apiKey = settings["apiKey"];
-    if (!apiKey) {
-        console.log("API key is missing. Please set it in the options.");
-        return `[translation disabled]`;
-    }
+async function translateWithTAS(text, targetLang) {
+    const endpointsUrl = 'https://raw.githubusercontent.com/Uncover-F/TAS/Uncover/.data/endpoints.json';
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are a translator.'
-                },
-                {
-                    role: 'user',
-                    content: `Translate the following English word to ${targetLang}: ${text}`
+    const params = {
+        text: text,
+        source_lang: 'en',
+        target_lang: targetLang
+    };
+
+    try {
+        const endpointsResponse = await fetch(endpointsUrl);
+        if (!endpointsResponse.ok) {
+            console.error(`Error fetching endpoints: ${endpointsResponse.status} - ${endpointsResponse.statusText}`);
+            return '[translation service unavailable]';
+        }
+        const endpoints = await endpointsResponse.json();
+
+        for (const endpoint of endpoints) {
+            const url = new URL(endpoint);
+            url.search = new URLSearchParams(params).toString();
+
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result && result.translated_text) {
+                        return result.translated_text;
+                    }
+                } else {
+                    console.error(`Error at ${url}: ${response.status} - ${response.statusText}`);
                 }
-            ],
-            max_tokens: 10,
-            temperature: 0.1
-        })
-    });
-
-    if (!response.ok) {
-        console.error("GPT API request failed:", response.status, response.statusText);
-        const errorBody = await response.json();
-        console.error("Error details:", errorBody);
-        if (response.status === 401) {
-            return `[invalid API key]`;
+            } catch (error) {
+                console.error(`Request exception at ${url}:`, error);
+            }
         }
-        if (response.status === 429) {
-            return `[rate limit exceeded]`;
-        }
-        return `[translation failed]`;
-    }
 
-    const data = await response.json();
-    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
-        return data.choices[0].message.content.trim();
-    } else {
-        console.error("Invalid response from GPT API:", data);
-        return `[invalid response]`;
+        console.error('All translation endpoints failed.');
+        return '[translation failed]';
+    } catch (error) {
+        console.error('Error during translation process:', error);
+        return '[translation error]';
     }
 }
 
