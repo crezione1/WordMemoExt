@@ -31,7 +31,7 @@ async function updateWordInStorage(wordId, newTranslation) {
     const { words } = await chrome.storage.local.get(["words"]);
     const updatedWords = words.map(word => {
         if (word.id === Number(wordId)) {
-            return { ...word, translation: newTranslation };
+            return { ...word, translation: newTranslation, lastUpdated: Date.now() };
         }
         return word;
     });
