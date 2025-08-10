@@ -263,11 +263,10 @@ document.addEventListener("mouseup", function (event) {
         if (selectedText) {
             const button = document.createElement("button");
             button.id = "add-new-word";
+            button.className = "action-button";
             button.innerText = "+";
-            button.style.position = "absolute";
             button.style.top = event.pageY + 20 + "px";
             button.style.left = event.pageX + 20 + "px";
-            button.style.zIndex = "9999";
             button.addEventListener("click", function () {
                 console.log('[WordMemoExt] + button clicked, selectedText:', selectedText);
                 runLogic(selectedText);
@@ -290,6 +289,7 @@ document.addEventListener("click", (e) => {
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "-";
     deleteButton.id = "deleteWordBtn";
+    deleteButton.className = "action-button";
 
     deleteButton.addEventListener("click", (event) => {
         event.stopPropagation();
