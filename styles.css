@@ -38,6 +38,11 @@
     cursor: pointer;
 }
 
+.highlight-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
 .action-button {
     width: 24px;
     height: 24px;
