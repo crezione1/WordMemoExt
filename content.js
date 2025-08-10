@@ -155,6 +155,7 @@ function replaceTextNode(node, targetWords, translations) {
             // Store the original word with its surrounding whitespace if any.
             // The clearHighlighting will need to handle this. For now, just store the word.
             wrapper.dataset.originalText = word;
+            wrapper.dataset.wordId = translations[lowerWord].id;
 
             const highlightedSpan = document.createElement("span");
             highlightedSpan.classList.add("highlighted-word");
@@ -170,7 +171,6 @@ function replaceTextNode(node, targetWords, translations) {
 
             const translationNode = document.createElement("span");
             translationNode.classList.add("translation");
-            translationNode.dataset.wordId = translations[lowerWord].id;
             translationNode.textContent = `[${translations[lowerWord].translation}]`;
 
             wrapper.appendChild(highlightedSpan);
@@ -291,19 +291,20 @@ document.addEventListener("mouseup", function (event) {
 });
 
 document.addEventListener("click", (e) => {
+    const wrapper = e.target.closest('.highlight-wrapper');
+
     // Handle click on translation to edit
-    if (e.target.classList.contains('translation')) {
-        showEditUI(e.target);
+    if (e.target.classList.contains('translation') && wrapper) {
+        showEditUI(e.target, wrapper.dataset.wordId);
         // Prevent delete button from showing up when we click to edit
         return;
     }
 
-    const existingButton = document.getElementById("deleteWordBtn");
-
-    if (existingButton) existingButton.remove();
+    const existingDeleteButton = document.getElementById("deleteWordBtn");
+    if (existingDeleteButton) existingDeleteButton.remove();
 
     // This logic shows the delete button when a highlighted word is clicked
-    if (!e.target.dataset.wordId) return;
+    if (!wrapper) return;
 
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "-";
@@ -312,18 +313,15 @@ document.addEventListener("click", (e) => {
 
     deleteButton.addEventListener("click", (event) => {
         event.stopPropagation();
-
-        const clickedWordId = e.target.dataset.wordId;
-
-        deleteWordFromStorage(clickedWordId);
-
+        deleteWordFromStorage(wrapper.dataset.wordId);
         deleteButton.remove();
     });
 
-    e.target.appendChild(deleteButton);
+    // Append to the wrapper for correct positioning relative to the highlighted word
+    wrapper.appendChild(deleteButton);
 });
 
-function showEditUI(translationSpan) {
+function showEditUI(translationSpan, wordId) {
     // Hide the translation span
     translationSpan.style.display = 'none';
 
@@ -351,9 +349,15 @@ function showEditUI(translationSpan) {
 
     input.focus();
 
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            saveButton.click();
+        }
+    });
+
     saveButton.addEventListener('click', () => {
         const newTranslation = input.value.trim();
-        const wordId = translationSpan.dataset.wordId;
 
         if (newTranslation && wordId) {
             updateWordInStorage(wordId, newTranslation);
