@@ -27,6 +27,17 @@ async function deleteWordFromStorage(wordId) {
     chrome.storage.local.set({ words: updatedWords });
 }
 
+async function updateWordInStorage(wordId, newTranslation) {
+    const { words } = await chrome.storage.local.get(["words"]);
+    const updatedWords = words.map(word => {
+        if (word.id === Number(wordId)) {
+            return { ...word, translation: newTranslation };
+        }
+        return word;
+    });
+    chrome.storage.local.set({ words: updatedWords });
+}
+
 async function runLogic(selectedText) {
     console.log('[WordMemoExt] runLogic called with:', selectedText);
     saveWordToDictionary(selectedText)
@@ -280,10 +291,18 @@ document.addEventListener("mouseup", function (event) {
 });
 
 document.addEventListener("click", (e) => {
+    // Handle click on translation to edit
+    if (e.target.classList.contains('translation')) {
+        showEditUI(e.target);
+        // Prevent delete button from showing up when we click to edit
+        return;
+    }
+
     const existingButton = document.getElementById("deleteWordBtn");
 
     if (existingButton) existingButton.remove();
 
+    // This logic shows the delete button when a highlighted word is clicked
     if (!e.target.dataset.wordId) return;
 
     const deleteButton = document.createElement("button");
@@ -303,6 +322,51 @@ document.addEventListener("click", (e) => {
 
     e.target.appendChild(deleteButton);
 });
+
+function showEditUI(translationSpan) {
+    // Hide the translation span
+    translationSpan.style.display = 'none';
+
+    // Create an input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    // Get the current translation text without the brackets
+    const currentTranslation = translationSpan.textContent.slice(1, -1);
+    input.value = currentTranslation;
+    input.className = 'edit-translation-input'; // For potential styling
+
+    // Create a save button
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Save';
+    saveButton.className = 'edit-translation-save-btn'; // For potential styling
+
+    // Create a container for the edit UI
+    const editContainer = document.createElement('span');
+    editContainer.className = 'edit-translation-container';
+    editContainer.appendChild(input);
+    editContainer.appendChild(saveButton);
+
+    // Insert the edit UI after the hidden span
+    translationSpan.parentNode.insertBefore(editContainer, translationSpan.nextSibling);
+
+    input.focus();
+
+    saveButton.addEventListener('click', () => {
+        const newTranslation = input.value.trim();
+        const wordId = translationSpan.dataset.wordId;
+
+        if (newTranslation && wordId) {
+            updateWordInStorage(wordId, newTranslation);
+            // The storage `onChanged` event will trigger a re-highlight,
+            // which will redraw the original span with the new text.
+        }
+
+        // Clean up the edit UI
+        editContainer.remove();
+        // We don't need to un-hide the original span, because the re-highlight will
+        // create a fresh one.
+    });
+}
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.action === "saveWordToDictionary") {
