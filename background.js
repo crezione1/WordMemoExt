@@ -175,7 +175,8 @@ async function handleWordsChange(changes) {
     if (changedWord) {
         const message = {
             operation: operation,
-            word: changedWord
+            word: changedWord,
+            words: newValue // Pass the full list for add/reload cases
         };
         await notifyContentAboutChanges("wordsChanged", message);
         notifyPopupAboutChanges("wordsChanged", {
