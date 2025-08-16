@@ -38,8 +38,18 @@ async function updateWordInStorage(wordId, newTranslation) {
     chrome.storage.local.set({ words: updatedWords });
 }
 
-function runLogic(selectedText) {
+async function runLogic(selectedText) {
     console.log('[WordMemoExt] runLogic called with:', selectedText);
+
+    const { words } = await chrome.storage.local.get(["words"]);
+    const wordList = words || [];
+    const wordExists = wordList.some(w => w.word.toLowerCase() === selectedText.toLowerCase());
+
+    if (wordExists) {
+        console.log(`Word "${selectedText}" already exists.`);
+        // Here we could add a visual indicator that the word is already saved
+        return;
+    }
 
     // Provide immediate UI feedback
     if (settings["animationToggle"]) {
@@ -62,15 +72,6 @@ async function saveWordToDictionary(word) {
         const { words } = await chrome.storage.local.get(["words"]);
         const wordList = words || [];
 
-        const wordExists = wordList.some(
-            (w) => w.word.toLowerCase() === word.toLowerCase()
-        );
-        if (wordExists) {
-            console.log(
-                `[WordMemoExt] Word "${word}" already exists in the dictionary.`
-            );
-            return; // Exit if the word is already saved
-        }
         // Use new API for translation
         const translation = await translateWithTAS(word, settings["languageCode"] || "uk");
         // Create new word object
@@ -387,8 +388,8 @@ function showEditUI(translationSpan, wordId) {
 
     // Create a save button
     const saveButton = document.createElement('button');
-    saveButton.textContent = 'Save';
-    saveButton.className = 'edit-translation-save-btn'; // For potential styling
+    saveButton.className = 'action-button'; // Reuse the round blue style
+    saveButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/></svg>';
 
     // Create a container for the edit UI
     const editContainer = document.createElement('span');
