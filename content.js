@@ -39,26 +39,31 @@ async function updateWordInStorage(wordId, newTranslation) {
 }
 
 async function runLogic(selectedText, rect) {
-    console.log('[WordMemoExt] runLogic called with:', selectedText);
+    // Clean the selection to only get the original word, not the translation
+    const originalWord = selectedText.split('[')[0].trim();
+    if (!originalWord) return;
+
+    console.log('[WordMemoExt] runLogic called with:', originalWord);
 
     const { words } = await chrome.storage.local.get(["words"]);
     const wordList = words || [];
-    const wordExists = wordList.some(w => w.word.toLowerCase() === selectedText.toLowerCase());
+    const wordExists = wordList.some(w => w.word.toLowerCase() === originalWord.toLowerCase());
 
     if (wordExists) {
-        console.log(`Word "${selectedText}" already exists.`);
+        console.log(`Word "${originalWord}" already exists.`);
         return;
     }
 
-    saveWordToDictionary(selectedText)
-        .then(() => {
-            if (settings["animationToggle"]) {
-                animateWordToToolbar(selectedText, rect);
-            }
-        })
-        .catch((error) => {
-            console.log("Error saving word:", error);
-        });
+    // Provide immediate UI feedback
+    if (settings["animationToggle"]) {
+        animateWordToToolbar(originalWord, rect);
+    }
+    showTemporaryHighlightWithLoader(originalWord);
+
+    // Perform saving and translation in the background
+    saveWordToDictionary(originalWord).catch((error) => {
+        console.log("Error saving word in background:", error);
+    });
 }
 
 // Replace saveWordToDictionary to use local storage and GPT API for translation
@@ -101,7 +106,10 @@ function animateWordToToolbar(selectedText, rect) {
     floatingWord.style.transition = "top 0.5s linear, left 0.5s linear";
 
     document.body.appendChild(floatingWord);
-    window.getSelection().removeAllRanges();
+    // This was clearing the selection needed by runLogic, but runLogic now gets the text.
+    // However, the button click also clears it. Let's leave this out for now.
+    // window.getSelection().removeAllRanges();
+
     // Animate the word towards the top-right corner (where the extension icon usually is)
     setTimeout(() => {
         floatingWord.style.left = "95%";
@@ -132,6 +140,47 @@ function clearHighlighting() {
     parentsToNormalize.forEach(parent => parent.normalize());
 }
 
+function showTemporaryHighlightWithLoader(text) {
+    // Convert NodeList to a static array to prevent issues from live DOM modification
+    const textNodes = Array.from(findTextNodes(document.body));
+    const lowerCaseText = text.toLowerCase();
+
+    textNodes.forEach(node => {
+        // Don't highlight inside existing highlights
+        if (node.parentNode.closest('.highlight-wrapper')) {
+            return;
+        }
+
+        if (node.nodeValue.toLowerCase().includes(lowerCaseText)) {
+            const parent = node.parentNode;
+            const fragment = document.createDocumentFragment();
+            const parts = node.nodeValue.split(new RegExp(`(${text})`, 'gi'));
+
+            parts.forEach(part => {
+                if (part.toLowerCase() === lowerCaseText) {
+                    const wrapper = document.createElement('span');
+                    wrapper.className = 'highlight-wrapper';
+                    wrapper.dataset.originalText = part;
+
+                    const highlightedSpan = document.createElement("span");
+                    highlightedSpan.classList.add("highlighted-word");
+                    highlightedSpan.textContent = part;
+
+                    const loader = document.createElement('span');
+                    loader.className = 'translation-loader';
+
+                    wrapper.appendChild(highlightedSpan);
+                    wrapper.appendChild(loader);
+                    fragment.appendChild(wrapper);
+                } else {
+                    fragment.appendChild(document.createTextNode(part));
+                }
+            });
+            parent.replaceChild(fragment, node);
+        }
+    });
+}
+
 function addHighlightForWord(word) {
     const wrappers = document.querySelectorAll('.highlight-wrapper');
     wrappers.forEach(wrapper => {
@@ -155,6 +204,7 @@ function updateHighlightsForWord(word) {
         const translationSpan = wrapper.querySelector('.translation');
         if (translationSpan) {
             translationSpan.textContent = `[${word.translation}]`;
+            translationSpan.style.display = ''; // Ensure span is visible
         }
     });
 }
@@ -446,9 +496,7 @@ chrome.runtime.onMessage.addListener((request) => {
 
         switch (operation) {
             case 'add':
-                // Revert to full refresh for reliability
-                clearHighlighting();
-                highlightWords(words);
+                addHighlightForWord(word);
                 break;
             case 'update':
                 updateHighlightsForWord(word);
