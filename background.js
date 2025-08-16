@@ -113,48 +113,79 @@ async function deleteWordFromDictionary(wordId) {
 }
 
 function getChangedWord(changes) {
-    const newValueIds = changes.newValue.map((word) => word.id);
-    const oldValueIds = changes.oldValue.map((word) => word.id);
+    const newValue = changes.newValue;
+    const oldValue = changes.oldValue;
 
-    const [changedItemId] =
-        newValueIds.length > oldValueIds.length
-            ? newValueIds.filter((item) => !oldValueIds.includes(item))
-            : oldValueIds.filter((item) => !newValueIds.includes(item));
+    if (newValue.length !== oldValue.length) {
+        // Handle add or delete
+        const newValueIds = newValue.map((word) => word.id);
+        const oldValueIds = oldValue.map((word) => word.id);
 
-    const [changedItem] =
-        newValueIds.length > oldValueIds.length
-            ? changes.newValue.filter((item) => item.id === changedItemId)
-            : changes.oldValue.filter((item) => item.id === changedItemId);
+        const [changedItemId] =
+            newValue.length > oldValue.length
+                ? newValueIds.filter((item) => !oldValueIds.includes(item))
+                : oldValueIds.filter((item) => !newValueIds.includes(item));
 
-    return changedItem;
+        const [changedItem] =
+            newValue.length > oldValue.length
+                ? newValue.filter((item) => item.id === changedItemId)
+                : oldValue.filter((item) => item.id === changedItemId);
+        return changedItem;
+    } else {
+        // Handle update - find the item with the newest timestamp
+        const changedItem = newValue.find(newItem => {
+            const oldItem = oldValue.find(old => old.id === newItem.id);
+            // If oldItem doesn't exist or timestamp is different, it's the one that changed.
+            return !oldItem || newItem.lastUpdated !== oldItem.lastUpdated;
+        });
+        return changedItem;
+    }
 }
 
 async function handleWordsChange(changes) {
     console.log(changes);
+    const newValue = changes.newValue;
+    const oldValue = changes.oldValue;
 
-    if (!changes.newValue) {
-        await notifyContentAboutChanges("wordsChanged", []);
+    if (!newValue) {
+        // All words cleared
+        await notifyContentAboutChanges("wordsChanged", { operation: 'clear' });
         return;
     }
 
-    if (!changes.oldValue) {
-        await notifyContentAboutChanges("wordsChanged", changes.newValue);
+    if (!oldValue) {
+        // This is the initial load, not a change. Or first word added.
+        // Let's treat it as a full refresh.
+        await notifyContentAboutChanges("wordsChanged", { operation: 'reload', words: newValue });
         notifyPopupAboutChanges("wordsChanged", { operation: "getAllWords" });
         return;
     }
 
-    const operation = changes.newValue.length > changes.oldValue.length ? "addWord" : "deleteWord";
+    let operation;
+    if (newValue.length > oldValue.length) {
+        operation = 'add';
+    } else if (newValue.length < oldValue.length) {
+        operation = 'delete';
+    } else {
+        operation = 'update';
+    }
 
     const changedWord = getChangedWord(changes);
 
-    await notifyContentAboutChanges("wordsChanged", changes.newValue);
-    notifyPopupAboutChanges("wordsChanged", {
-        operation,
-        wordId: changedWord.id,
-    });
-
-    if (operation === "addWord") {
-        console.log(`word ${changedWord} was added`);
+    if (changedWord) {
+        const message = {
+            operation: operation,
+            word: changedWord
+        };
+        await notifyContentAboutChanges("wordsChanged", message);
+        notifyPopupAboutChanges("wordsChanged", {
+            operation: operation,
+            wordId: changedWord.id,
+        });
+        console.log(`Operation: ${operation}, Word: ${changedWord.word}`);
+    } else {
+        console.log("Could not determine changed word, forcing reload.");
+        await notifyContentAboutChanges("wordsChanged", { operation: 'reload', words: newValue });
     }
 }
 
