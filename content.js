@@ -47,21 +47,18 @@ async function runLogic(selectedText, rect) {
 
     if (wordExists) {
         console.log(`Word "${selectedText}" already exists.`);
-        // Here we could add a visual indicator that the word is already saved
         return;
     }
 
-    // Provide immediate UI feedback
-    if (settings["animationToggle"]) {
-        animateWordToToolbar(selectedText, rect);
-    }
-    showTemporaryHighlightWithLoader(selectedText);
-
-    // Perform saving and translation in the background
-    saveWordToDictionary(selectedText).catch((error) => {
-        console.log("Error saving word in background:", error);
-        // Optional: could add UI feedback here to remove the loaders on failure
-    });
+    saveWordToDictionary(selectedText)
+        .then(() => {
+            if (settings["animationToggle"]) {
+                animateWordToToolbar(selectedText, rect);
+            }
+        })
+        .catch((error) => {
+            console.log("Error saving word:", error);
+        });
 }
 
 // Replace saveWordToDictionary to use local storage and GPT API for translation
@@ -174,46 +171,6 @@ function removeHighlightsForWord(word) {
         }
     });
     parentsToNormalize.forEach(parent => parent.normalize());
-}
-
-function showTemporaryHighlightWithLoader(text) {
-    const textNodes = findTextNodes(document.body);
-    const lowerCaseText = text.toLowerCase();
-
-    textNodes.forEach(node => {
-        // Don't highlight inside existing highlights
-        if (node.parentNode.closest('.highlight-wrapper')) {
-            return;
-        }
-
-        if (node.nodeValue.toLowerCase().includes(lowerCaseText)) {
-            const parent = node.parentNode;
-            const fragment = document.createDocumentFragment();
-            const parts = node.nodeValue.split(new RegExp(`(${text})`, 'gi'));
-
-            parts.forEach(part => {
-                if (part.toLowerCase() === lowerCaseText) {
-                    const wrapper = document.createElement('span');
-                    wrapper.className = 'highlight-wrapper';
-                    wrapper.dataset.originalText = part;
-
-                    const highlightedSpan = document.createElement("span");
-                    highlightedSpan.classList.add("highlighted-word");
-                    highlightedSpan.textContent = part;
-
-                    const loader = document.createElement('span');
-                    loader.className = 'translation-loader';
-
-                    wrapper.appendChild(highlightedSpan);
-                    wrapper.appendChild(loader);
-                    fragment.appendChild(wrapper);
-                } else {
-                    fragment.appendChild(document.createTextNode(part));
-                }
-            });
-            parent.replaceChild(fragment, node);
-        }
-    });
 }
 
 function replaceTextNode(node, targetWords, translations) {
@@ -489,7 +446,9 @@ chrome.runtime.onMessage.addListener((request) => {
 
         switch (operation) {
             case 'add':
-                addHighlightForWord(word);
+                // Revert to full refresh for reliability
+                clearHighlighting();
+                highlightWords(words);
                 break;
             case 'update':
                 updateHighlightsForWord(word);
