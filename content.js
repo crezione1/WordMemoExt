@@ -135,6 +135,47 @@ function clearHighlighting() {
     parentsToNormalize.forEach(parent => parent.normalize());
 }
 
+function addHighlightForWord(word) {
+    const wrappers = document.querySelectorAll('.highlight-wrapper');
+    wrappers.forEach(wrapper => {
+        if (!wrapper.dataset.wordId && wrapper.dataset.originalText.toLowerCase() === word.word.toLowerCase()) {
+            const loader = wrapper.querySelector('.translation-loader');
+            if (loader) loader.remove();
+
+            const translationNode = document.createElement("span");
+            translationNode.classList.add("translation");
+            translationNode.textContent = `[${word.translation}]`;
+            wrapper.appendChild(translationNode);
+
+            wrapper.dataset.wordId = word.id;
+        }
+    });
+}
+
+function updateHighlightsForWord(word) {
+    const wrappers = document.querySelectorAll(`.highlight-wrapper[data-word-id="${word.id}"]`);
+    wrappers.forEach(wrapper => {
+        const translationSpan = wrapper.querySelector('.translation');
+        if (translationSpan) {
+            translationSpan.textContent = `[${word.translation}]`;
+        }
+    });
+}
+
+function removeHighlightsForWord(word) {
+    const wrappers = document.querySelectorAll(`.highlight-wrapper[data-word-id="${word.id}"]`);
+    const parentsToNormalize = new Set();
+    wrappers.forEach(wrapper => {
+        const parent = wrapper.parentNode;
+        if (parent) {
+            const originalText = wrapper.dataset.originalText || '';
+            parent.replaceChild(document.createTextNode(originalText), wrapper);
+            parentsToNormalize.add(parent);
+        }
+    });
+    parentsToNormalize.forEach(parent => parent.normalize());
+}
+
 function showTemporaryHighlightWithLoader(text) {
     const textNodes = findTextNodes(document.body);
     const lowerCaseText = text.toLowerCase();
@@ -443,16 +484,27 @@ chrome.runtime.onMessage.addListener((request) => {
     }
 
     if (request.action === "wordsChanged") {
-        console.log('[WordMemoExt] Received wordsChanged message', request.newValue);
-        const words = request.newValue;
+        console.log('[WordMemoExt] Received wordsChanged message', request);
+        const { operation, word, words } = request.newValue;
 
-        clearHighlighting();
-
-        if (words.length > 0) {
-            highlightWords(words);
+        switch (operation) {
+            case 'add':
+                addHighlightForWord(word);
+                break;
+            case 'update':
+                updateHighlightsForWord(word);
+                break;
+            case 'delete':
+                removeHighlightsForWord(word);
+                break;
+            case 'reload':
+                clearHighlighting();
+                highlightWords(words);
+                break;
+            case 'clear':
+                clearHighlighting();
+                break;
         }
-
-        console.log("words were changed: ", words);
     }
 });
 
