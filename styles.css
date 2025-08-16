@@ -95,3 +95,20 @@
 .edit-translation-save-btn:hover {
     background-color: #357ae8;
 }
+
+.translation-loader {
+    border: 2px solid #f3f3f3; /* Light grey */
+    border-top: 2px solid #4285f4; /* Blue */
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
