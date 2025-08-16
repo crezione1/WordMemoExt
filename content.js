@@ -38,7 +38,7 @@ async function updateWordInStorage(wordId, newTranslation) {
     chrome.storage.local.set({ words: updatedWords });
 }
 
-async function runLogic(selectedText) {
+async function runLogic(selectedText, rect) {
     console.log('[WordMemoExt] runLogic called with:', selectedText);
 
     const { words } = await chrome.storage.local.get(["words"]);
@@ -53,7 +53,7 @@ async function runLogic(selectedText) {
 
     // Provide immediate UI feedback
     if (settings["animationToggle"]) {
-        animateWordToToolbar();
+        animateWordToToolbar(selectedText, rect);
     }
     showTemporaryHighlightWithLoader(selectedText);
 
@@ -89,13 +89,11 @@ async function saveWordToDictionary(word) {
     }
 }
 
-function animateWordToToolbar() {
-    let selection = window.getSelection();
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
+function animateWordToToolbar(selectedText, rect) {
+    if (!rect) return;
 
     const floatingWord = document.createElement("span");
-    floatingWord.textContent = selection;
+    floatingWord.textContent = selectedText;
     floatingWord.style.position = "fixed";
     floatingWord.style.zIndex = "999999";
     floatingWord.style.background = "#68c2ff";
@@ -308,8 +306,12 @@ document.addEventListener("mouseup", function (event) {
         existingButton.remove();
     }
     if (event.target.tagName !== "BUTTON") {
-        const selectedText = window.getSelection().toString().trim();
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
         if (selectedText) {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+
             const button = document.createElement("button");
             button.id = "add-new-word";
             button.className = "action-button";
@@ -318,7 +320,7 @@ document.addEventListener("mouseup", function (event) {
             button.style.left = event.pageX + 20 + "px";
             button.addEventListener("click", function () {
                 console.log('[WordMemoExt] + button clicked, selectedText:', selectedText);
-                runLogic(selectedText);
+                runLogic(selectedText, rect);
                 window.getSelection().empty();
                 window.getSelection().removeAllRanges();
                 button.remove();
