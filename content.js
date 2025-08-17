@@ -141,18 +141,16 @@ function clearHighlighting() {
 }
 
 function showTemporaryHighlightWithLoader(text) {
-    // Convert NodeList to a static array to prevent issues from live DOM modification
     const textNodes = Array.from(findTextNodes(document.body));
     const lowerCaseText = text.toLowerCase();
+    const replacements = [];
 
     textNodes.forEach(node => {
-        // Don't highlight inside existing highlights
         if (node.parentNode.closest('.highlight-wrapper')) {
             return;
         }
 
         if (node.nodeValue.toLowerCase().includes(lowerCaseText)) {
-            const parent = node.parentNode;
             const fragment = document.createDocumentFragment();
             const parts = node.nodeValue.split(new RegExp(`(${text})`, 'gi'));
 
@@ -176,8 +174,12 @@ function showTemporaryHighlightWithLoader(text) {
                     fragment.appendChild(document.createTextNode(part));
                 }
             });
-            parent.replaceChild(fragment, node);
+            replacements.push({ originalNode: node, newFragment: fragment });
         }
+    });
+
+    replacements.forEach(rep => {
+        rep.originalNode.parentNode.replaceChild(rep.newFragment, rep.originalNode);
     });
 }
 
@@ -224,26 +226,25 @@ function removeHighlightsForWord(word) {
 }
 
 function replaceTextNode(node, targetWords, translations) {
-    // Use a regex that splits by word boundaries but includes them.
-    // This is complex, so for now we stick to a space-based split, but improve the robustness.
-    const words = node.nodeValue.split(/(\s+)/);
-    const parentNode = node.parentNode;
-    const documentFragment = document.createDocumentFragment();
+    const replacements = [];
+    const fragment = document.createDocumentFragment();
+    const parts = node.nodeValue.split(new RegExp(`\\b(${targetWords.join('|')})\\b`, 'gi'));
 
-    words.forEach((word) => {
-        const lowerWord = word.toLowerCase();
-        if (targetWords.includes(lowerWord)) {
+    if (parts.length <= 1) {
+        return; // No matches
+    }
 
+    parts.forEach(part => {
+        const lowerPart = part.toLowerCase();
+        if (targetWords.includes(lowerPart)) {
             const wrapper = document.createElement('span');
             wrapper.className = 'highlight-wrapper';
-            // Store the original word with its surrounding whitespace if any.
-            // The clearHighlighting will need to handle this. For now, just store the word.
-            wrapper.dataset.originalText = word;
-            wrapper.dataset.wordId = translations[lowerWord].id;
+            wrapper.dataset.originalText = part;
+            wrapper.dataset.wordId = translations[lowerPart].id;
 
             const highlightedSpan = document.createElement("span");
             highlightedSpan.classList.add("highlighted-word");
-            highlightedSpan.textContent = word;
+            highlightedSpan.textContent = part;
 
             requestAnimationFrame(() => {
                 highlightedSpan.classList.add("animate-border");
@@ -255,20 +256,17 @@ function replaceTextNode(node, targetWords, translations) {
 
             const translationNode = document.createElement("span");
             translationNode.classList.add("translation");
-            translationNode.textContent = `[${translations[lowerWord].translation}]`;
+            translationNode.textContent = `[${translations[lowerPart].translation}]`;
 
             wrapper.appendChild(highlightedSpan);
             wrapper.appendChild(translationNode);
-            documentFragment.appendChild(wrapper);
-
+            fragment.appendChild(wrapper);
         } else {
-            documentFragment.appendChild(document.createTextNode(word));
+            fragment.appendChild(document.createTextNode(part));
         }
     });
 
-    if (documentFragment.childNodes.length > 0) {
-        parentNode.replaceChild(documentFragment, node);
-    }
+    node.parentNode.replaceChild(fragment, node);
 }
 
 function findTextNodes(element) {
