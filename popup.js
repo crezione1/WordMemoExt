@@ -379,7 +379,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (action === "showSynonym") {
             console.log("Synonyms");
         } else if (action === "playPronunciation") {
-            console.log("Pronunciation");
+            const listItem = button.closest('li');
+            const word = listItem.querySelector('.word-list-origin').textContent;
+            const utterance = new SpeechSynthesisUtterance(word);
+            speechSynthesis.speak(utterance);
         } else if (action === "deleteWord") {
             await deleteWordFromStorage(button.dataset.wordId);
         }
