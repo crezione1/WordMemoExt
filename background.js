@@ -34,10 +34,20 @@ async function getCurrentTab() {
 async function notifyContentAboutChanges(actionName, content) {
     const currentTab = await getCurrentTab();
 
-    chrome.tabs.sendMessage(currentTab.id, {
-        action: actionName,
-        newValue: content,
-    });
+    if (currentTab && currentTab.id) {
+        try {
+            await chrome.tabs.sendMessage(currentTab.id, {
+                action: actionName,
+                newValue: content,
+            });
+        } catch (error) {
+            if (error.message.includes("Receiving end does not exist")) {
+                console.log("Content script not available on this tab. Can be ignored.");
+            } else {
+                console.error("Error sending message to content script:", error);
+            }
+        }
+    }
 }
 
 function notifyPopupAboutChanges(actionName, content) {
