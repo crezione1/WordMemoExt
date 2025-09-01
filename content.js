@@ -344,14 +344,45 @@ function checkInitialExtensionState() {
 
 // Event listeners and initialization
 
-(function loadSettings() {
-    return chrome.storage.local.get(["translateTo", "animationToggle", "sentenceCounter"], (items) => {
-        settings["languageCode"] = items.translateTo || "uk";
-        settings["languageFull"] = "Ukrainian";
-        settings["animationToggle"] = items.animationToggle !== undefined ? items.animationToggle === "true" : true;
-        settings["sentenceCounter"] = items.sentenceCounter || 1;
+function applySettings(newSettings) {
+    settings = { ...settings, ...newSettings };
+
+    // Apply visual changes based on settings
+    updateHighlightColors(settings.highlightColor, settings.translationColor);
+
+    if (settings.highlightingEnabled) {
+        chrome.storage.local.get(["words"]).then((result) => {
+            if (result.words && result.words.length > 0) {
+                clearHighlighting();
+                highlightWords(result.words);
+            }
+        });
+    } else {
+        clearHighlighting();
+    }
+}
+
+function loadInitialSettings() {
+    chrome.storage.local.get([
+        "translateTo",
+        "animationToggle",
+        "sentenceCounter",
+        "highlightingEnabled",
+        "highlightColor",
+        "translationColor"
+    ], (items) => {
+        const initialSettings = {
+            languageCode: items.translateTo || "uk",
+            languageFull: "Ukrainian",
+            animationToggle: items.animationToggle !== undefined ? items.animationToggle === "true" : true,
+            sentenceCounter: items.sentenceCounter || 1,
+            highlightingEnabled: items.highlightingEnabled !== undefined ? items.highlightingEnabled : true,
+            highlightColor: items.highlightColor,
+            translationColor: items.translationColor
+        };
+        applySettings(initialSettings);
     });
-})();
+}
 
 document.addEventListener("keydown", function (event) {
     if (event.ctrlKey && event.shiftKey && event.code === "KeyS") {
@@ -526,32 +557,7 @@ chrome.runtime.onMessage.addListener((request) => {
 
     if (request.action === "settingsChanged") {
         console.log('[WordMemoExt] Settings changed:', request.settings);
-        const { highlightingEnabled, highlightColor, translationColor, translateTo, animationToggle } = request.settings;
-
-        // Update local settings
-        settings["languageCode"] = translateTo || settings["languageCode"];
-        settings["animationToggle"] = animationToggle !== undefined ? animationToggle : settings["animationToggle"];
-
-        // Update CSS custom properties for colors
-        if (highlightColor || translationColor) {
-            updateHighlightColors(highlightColor, translationColor);
-        }
-
-        // Handle highlighting enable/disable
-        if (highlightingEnabled !== undefined) {
-            if (highlightingEnabled) {
-                // Re-highlight words if highlighting is enabled
-                chrome.storage.local.get(["words"]).then((result) => {
-                    if (result.words && result.words.length > 0) {
-                        clearHighlighting();
-                        highlightWords(result.words);
-                    }
-                });
-            } else {
-                // Clear all highlighting if disabled
-                clearHighlighting();
-            }
-        }
+        applySettings(request.settings);
     }
 });
 
@@ -563,7 +569,7 @@ window.addEventListener("message", (event) => {
     }
 });
 
-checkInitialExtensionState();
+loadInitialSettings();
 
 async function translateWithTAS(text, targetLang) {
     const endpointsUrl = 'https://raw.githubusercontent.com/Uncover-F/TAS/Uncover/.data/endpoints.json';

@@ -59,7 +59,7 @@
     bottom: -1px;
     width: 0;
     height: 1px;
-    background: rgba(255, 0, 0, 0.64);
+    background: var(--highlight-color, rgba(255, 0, 0, 0.64));
     transition: width 1s ease; /* Animate width property */
 }
 
@@ -74,12 +74,12 @@
 
 /* Animate to this background color upon insertion */
 .highlighted-word.animate-background {
-    background-color: rgba(255, 0, 0, 0.22); /* Light yellow background */
+    background-color: var(--highlight-color, rgba(255, 0, 0, 0.22));
 }
 
 .translation {
     position: relative;
-    color: #d0d0d0;
+    color: var(--translation-color, #d0d0d0);
 }
 
 .translation:hover {
