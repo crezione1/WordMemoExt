@@ -82,7 +82,8 @@ function toggleHighlightingOptions() {
 function saveSettings() {
     const translateTo = document.getElementById('translateTo').value;
     const animationToggle = document.getElementById('animationToggle').checked;
-    const sentenceCounter = document.getElementById('sentenceCounter').value;
+    const sentenceCounterElement = document.getElementById('sentenceCounter');
+    const sentenceCounter = sentenceCounterElement ? sentenceCounterElement.value : '1';
     const highlightingEnabled = document.getElementById('highlightingToggle').checked;
 
     chrome.storage.local.set({
@@ -136,8 +137,9 @@ function loadSettings() {
             document.getElementById('animationToggle').checked = items.animationToggle === 'true';
         }
 
-        if (items.sentenceCounter) {
-            document.getElementById('sentenceCounter').value = items.sentenceCounter;
+        const sentenceCounterElement = document.getElementById('sentenceCounter');
+        if (items.sentenceCounter && sentenceCounterElement) {
+            sentenceCounterElement.value = items.sentenceCounter;
         }
 
         // Load highlighting settings
