@@ -512,6 +512,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!category) return;
 
+        // Determine which filter to apply based on the clicked category
+        let targetFilter = 'all';
+        if (category.id === 'newWordsList') {
+            targetFilter = 'all';
+        } else if (category.id === 'savedWordsList') {
+            targetFilter = 'today';
+        } else if (category.id === 'learnedWordsList') {
+            targetFilter = 'learned';
+        }
+
+        // Set the filter and update the UI
+        currentFilter = targetFilter;
+        updateActiveFilterTab(currentFilter);
+        createWordsList(allWords, currentFilter);
+        
         showTab("dictionaryTab");
     });
 

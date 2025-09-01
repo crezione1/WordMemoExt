@@ -481,6 +481,16 @@ function showEditUI(translationSpan, wordId) {
     });
 }
 
+// Helper function to update CSS custom properties for highlight colors
+function updateHighlightColors(highlightColor, translationColor) {
+    if (highlightColor) {
+        document.documentElement.style.setProperty('--highlight-color', highlightColor);
+    }
+    if (translationColor) {
+        document.documentElement.style.setProperty('--translation-color', translationColor);
+    }
+}
+
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.action === "saveWordToDictionary") {
         console.log("Received selected text:", request.text);
@@ -490,12 +500,6 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 });
 
 chrome.runtime.onMessage.addListener((request) => {
-    if (request.action === "extensionStateChanged") {
-        const enabled = request.newValue;
-
-        handleExtensionStateChange(enabled);
-    }
-
     if (request.action === "wordsChanged") {
         console.log('[WordMemoExt] Received wordsChanged message', request);
         const { operation, word, words } = request.newValue;
@@ -517,6 +521,36 @@ chrome.runtime.onMessage.addListener((request) => {
             case 'clear':
                 clearHighlighting();
                 break;
+        }
+    }
+
+    if (request.action === "settingsChanged") {
+        console.log('[WordMemoExt] Settings changed:', request.settings);
+        const { highlightingEnabled, highlightColor, translationColor, translateTo, animationToggle } = request.settings;
+
+        // Update local settings
+        settings["languageCode"] = translateTo || settings["languageCode"];
+        settings["animationToggle"] = animationToggle !== undefined ? animationToggle : settings["animationToggle"];
+
+        // Update CSS custom properties for colors
+        if (highlightColor || translationColor) {
+            updateHighlightColors(highlightColor, translationColor);
+        }
+
+        // Handle highlighting enable/disable
+        if (highlightingEnabled !== undefined) {
+            if (highlightingEnabled) {
+                // Re-highlight words if highlighting is enabled
+                chrome.storage.local.get(["words"]).then((result) => {
+                    if (result.words && result.words.length > 0) {
+                        clearHighlighting();
+                        highlightWords(result.words);
+                    }
+                });
+            } else {
+                // Clear all highlighting if disabled
+                clearHighlighting();
+            }
         }
     }
 });

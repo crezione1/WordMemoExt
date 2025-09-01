@@ -104,7 +104,9 @@ function saveSettings() {
                         settings: {
                             highlightingEnabled,
                             highlightColor: selectedHighlightColor,
-                            translationColor: selectedTranslationColor
+                            translationColor: selectedTranslationColor,
+                            translateTo: translateTo,
+                            animationToggle: animationToggle
                         }
                     }).catch(() => {
                         // Ignore errors for tabs that don't have content scripts
