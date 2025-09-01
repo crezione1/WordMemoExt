@@ -344,6 +344,56 @@ button:disabled {
 
 /* Word List Tab */
 
+.word-filter-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 15px 0;
+    padding: 0 10px;
+}
+
+.filter-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--bg-light-grey-color);
+    border-radius: 8px;
+    background: var(--bg-light-grey-color);
+    color: var(--text-dark-grey-color);
+    font-size: 12px;
+    font-weight: 400;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.filter-tab:hover {
+    border-color: var(--accent-color);
+    background: var(--accent-color-light);
+}
+
+.filter-tab.active {
+    background-color: #FF9D7B;
+    color: white;
+}
+
+.filter-tab.active {
+    background-color: #FF9D7B;
+    color: white;
+}
+
+.filter-counter {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: 8px;
+    min-width: 20px;
+    text-align: center;
+    display: inline-block;
+}
+
+.filter-tab.active .filter-counter {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
 .list {
     padding: 0 10px;
     background: #fff;

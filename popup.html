@@ -1,607 +1,532 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Word Saver</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Word Saver</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
             href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap"
             rel="stylesheet"
-        />
-        <link rel="stylesheet" href="font-awesome/css/fontawesome.css" />
-        <link rel="stylesheet" href="font-awesome/css/solid.css" />
-        <link rel="stylesheet" href="font-awesome/css/brands.css" />
-        <link rel="stylesheet" href="popup.css" />
-    </head>
-    <body>
-        <div class="container" id="container">
-            <div class="login-page" id="loginPage" style="display: none">
-                <div>
-                    <h1 class="title-large">Welcome to Lazy Lex!</h1>
-                    <p class="desc">
-                        Elia is a Chrome extension that helps you improve your English vocabulary while you browse the
-                        web.
-                    </p>
-                </div>
+    />
+    <link rel="stylesheet" href="font-awesome/css/fontawesome.css" />
+    <link rel="stylesheet" href="font-awesome/css/solid.css" />
+    <link rel="stylesheet" href="font-awesome/css/brands.css" />
+    <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+<div class="container" id="container">
+    <div class="login-page" id="loginPage" style="display: none">
+        <div>
+            <h1 class="title-large">Welcome to Lazy Lex!</h1>
+            <p class="desc">
+                Elia is a Chrome extension that helps you improve your English vocabulary while you browse the
+                web.
+            </p>
+        </div>
 
-                <div class="img-container">
-                    <img src="./images/lazylex_logo.png" width="175" height="175" alt="LazyLex logo" />
-                </div>
+        <div class="img-container">
+            <img src="./images/lazylex_logo.png" width="175" height="175" alt="LazyLex logo" />
+        </div>
 
-                <div class="buttons-container">
-                    <p class="desc">
-                        To use <a class="link" href="https://lazylex.com/" target="_blank">Lazy Lex</a> you need to
-                        register or log in.
-                    </p>
-                    <a class="btn accent" href="https://lazylex.com/#/login" target="_blank">Log in</a>
-                    <a class="btn" href="https://lazylex.com/#/register" target="_blank">Register</a>
-                    <p class="desc">
-                        Got a question?<br />
-                        Leave us a <span class="link uppercase">message</span>
-                    </p>
-                </div>
-            </div>
+        <div class="buttons-container">
+            <p class="desc">
+                To use <a class="link" href="https://lazylex.com/" target="_blank">Lazy Lex</a> you need to
+                register or log in.
+            </p>
+            <a class="btn accent" href="https://lazylex.com/#/login" target="_blank">Log in</a>
+            <a class="btn" href="https://lazylex.com/#/register" target="_blank">Register</a>
+            <p class="desc">
+                Got a question?<br />
+                Leave us a <span class="link uppercase">message</span>
+            </p>
+        </div>
+    </div>
 
-            <div class="main-content" id="mainContent" style="display: none">
-                <header>
-                    <nav class="tabs" id="tabs">
-                        <button type="button" class="tab-action icon-btn active" id="homeTab">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 20 20"
-                                fill="none"
-                            >
-                                <path
-                                    d="M13.6371 18.7497H6.36213C5.53941 18.7803 4.73788 18.4849 4.13167 17.9279C3.52547 17.3708 3.16358 16.5971 3.12463 15.7747V11.8747C3.12463 11.709 3.19048 11.55 3.30769 11.4328C3.4249 11.3156 3.58387 11.2497 3.74963 11.2497C3.91539 11.2497 4.07436 11.3156 4.19157 11.4328C4.30878 11.55 4.37463 11.709 4.37463 11.8747V15.7747C4.41304 16.2656 4.64302 16.7217 5.0149 17.0445C5.38678 17.3672 5.8707 17.5308 6.36213 17.4997H13.6371C14.1286 17.5308 14.6125 17.3672 14.9844 17.0445C15.3562 16.7217 15.5862 16.2656 15.6246 15.7747V11.8747C15.6246 11.709 15.6905 11.55 15.8077 11.4328C15.9249 11.3156 16.0839 11.2497 16.2496 11.2497C16.4154 11.2497 16.5744 11.3156 16.6916 11.4328C16.8088 11.55 16.8746 11.709 16.8746 11.8747V15.7747C16.8357 16.5971 16.4738 17.3708 15.8676 17.9279C15.2614 18.4849 14.4598 18.7803 13.6371 18.7497ZM18.5684 10.4435C18.627 10.3854 18.6735 10.3162 18.7052 10.2401C18.7369 10.1639 18.7533 10.0822 18.7533 9.99972C18.7533 9.91721 18.7369 9.83552 18.7052 9.75936C18.6735 9.68319 18.627 9.61407 18.5684 9.55597L10.4434 1.43097C10.3853 1.37239 10.3161 1.32589 10.24 1.29416C10.1638 1.26243 10.0821 1.24609 9.99963 1.24609C9.91712 1.24609 9.83543 1.26243 9.75927 1.29416C9.6831 1.32589 9.61398 1.37239 9.55588 1.43097L1.43088 9.55597C1.31319 9.67366 1.24707 9.83328 1.24707 9.99972C1.24707 10.1662 1.31319 10.3258 1.43088 10.4435C1.54857 10.5612 1.70819 10.6273 1.87463 10.6273C2.04107 10.6273 2.20069 10.5612 2.31838 10.4435L9.99963 2.75597L17.6809 10.4435C17.739 10.502 17.8081 10.5485 17.8843 10.5803C17.9604 10.612 18.0421 10.6283 18.1246 10.6283C18.2071 10.6283 18.2888 10.612 18.365 10.5803C18.4412 10.5485 18.5103 10.502 18.5684 10.4435Z"
-                                    fill="#ff9d7b"
-                                />
-                            </svg>
-                        </button>
-                        <button type="button" class="tab-action icon-btn" id="dictionaryTab">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 20 20"
-                                fill="none"
-                            >
-                                <g clip-path="url(#clip0_124_429)">
-                                    <path
-                                        d="M19.2193 9.21875H5.63574C5.20426 9.21875 4.85449 9.56852 4.85449 10C4.85449 10.4315 5.20426 10.7812 5.63574 10.7812H19.2193C19.6507 10.7812 20.0005 10.4315 20.0005 10C20.0005 9.56852 19.6507 9.21875 19.2193 9.21875Z"
-                                        fill="#FF9D7B"
-                                    />
-                                    <path
-                                        d="M19.2193 3.35938H5.63574C5.20426 3.35938 4.85449 3.70914 4.85449 4.14062C4.85449 4.57211 5.20426 4.92188 5.63574 4.92188H19.2193C19.6507 4.92188 20.0005 4.57211 20.0005 4.14062C20.0005 3.70914 19.6507 3.35938 19.2193 3.35938Z"
-                                        fill="#FF9D7B"
-                                    />
-                                    <path
-                                        d="M19.2193 15.0781H5.63574C5.20426 15.0781 4.85449 15.4279 4.85449 15.8594C4.85449 16.2909 5.20426 16.6406 5.63574 16.6406H19.2193C19.6507 16.6406 20.0005 16.2909 20.0005 15.8594C20.0005 15.4279 19.6507 15.0781 19.2193 15.0781Z"
-                                        fill="#FF9D7B"
-                                    />
-                                    <path
-                                        d="M1.05469 5.19531C1.63718 5.19531 2.10938 4.72311 2.10938 4.14062C2.10938 3.55814 1.63718 3.08594 1.05469 3.08594C0.4722 3.08594 0 3.55814 0 4.14062C0 4.72311 0.4722 5.19531 1.05469 5.19531Z"
-                                        fill="#FF9D7B"
-                                    />
-                                    <path
-                                        d="M1.05469 11.0547C1.63718 11.0547 2.10938 10.5825 2.10938 10C2.10938 9.41751 1.63718 8.94531 1.05469 8.94531C0.4722 8.94531 0 9.41751 0 10C0 10.5825 0.4722 11.0547 1.05469 11.0547Z"
-                                        fill="#FF9D7B"
-                                    />
-                                    <path
-                                        d="M1.05469 16.9141C1.63718 16.9141 2.10938 16.4419 2.10938 15.8594C2.10938 15.2769 1.63718 14.8047 1.05469 14.8047C0.4722 14.8047 0 15.2769 0 15.8594C0 16.4419 0.4722 16.9141 1.05469 16.9141Z"
-                                        fill="#FF9D7B"
-                                    />
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_124_429">
-                                        <rect width="20" height="20" fill="white" />
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                        </button>
-                        <button type="button" class="tab-action icon-btn" id="settingsTab">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 20 20"
-                                fill="none"
-                            >
-                                <g clip-path="url(#clip0_124_392)">
-                                    <path
-                                        d="M10.0124 14.1664C7.7149 14.1664 5.8457 12.2972 5.8457 9.99973C5.8457 7.70221 7.7149 5.83301 10.0124 5.83301C12.3098 5.83301 14.179 7.70221 14.179 9.99973C14.179 12.2972 12.3098 14.1664 10.0124 14.1664ZM10.0124 7.08301C8.40399 7.08301 7.0957 8.39145 7.0957 9.99973C7.0957 11.608 8.40399 12.9164 10.0124 12.9164C11.6207 12.9164 12.929 11.608 12.929 9.99973C12.929 8.39145 11.6207 7.08301 10.0124 7.08301Z"
-                                        fill="#FF9D7B"
-                                    />
-                                    <path
-                                        d="M11.3982 20H8.62641C7.95976 20 7.37062 19.5267 7.22566 18.8742L6.87486 17.3141C6.30311 17.0717 5.75807 16.7551 5.24644 16.3684L3.72728 16.8483C3.07557 17.0508 2.36726 16.7741 2.04057 16.1908L0.659038 13.8017C0.328075 13.21 0.439769 12.4817 0.926524 12.0233L2.10389 10.9409C2.06819 10.6233 2.05064 10.3084 2.05064 10C2.05064 9.69162 2.06819 9.37668 2.10313 9.05914L0.932323 7.98172C0.439769 7.51831 0.327312 6.79001 0.654765 6.2059L2.04484 3.80173C2.36726 3.22495 3.07725 2.9509 3.72483 3.15002L5.24644 3.63083C5.75807 3.24417 6.30311 2.92755 6.87486 2.68494L7.22642 1.12335C7.37062 0.473328 7.95976 0 8.62641 0H11.3982C12.0648 0 12.654 0.473328 12.7989 1.12579L13.1497 2.68585C13.7215 2.92831 14.2665 3.24493 14.7781 3.63159L16.2973 3.1517C16.9507 2.9509 17.6573 3.22586 17.984 3.8092L19.3657 6.19827C19.6965 6.79001 19.5848 7.51831 19.0981 7.97668L17.9207 9.05914C17.9556 9.37668 17.9732 9.69254 17.9732 10C17.9732 10.3075 17.9556 10.6233 17.9207 10.9409L19.0923 12.0175C19.0939 12.0192 19.0956 12.0209 19.0981 12.0226C19.5848 12.4808 19.6973 13.2092 19.3698 13.7933L17.9797 16.1975C17.6573 16.7741 16.949 17.05 16.299 16.8483L14.7772 16.3675C14.2656 16.7542 13.7206 17.0708 13.149 17.3134L12.7973 18.875C12.654 19.5267 12.0648 20 11.3982 20ZM5.374 15.0491C5.51728 15.0491 5.65812 15.0983 5.77149 15.1917C6.344 15.6625 6.96809 16.0258 7.62895 16.2692C7.82807 16.3425 7.97563 16.5117 8.02232 16.7183L8.44651 18.6017C8.46559 18.6884 8.54142 18.75 8.62733 18.75H11.3989C11.4848 18.75 11.5607 18.6884 11.579 18.6034L12.0039 16.7183C12.0506 16.5117 12.1982 16.3425 12.3973 16.2692C13.0573 16.0258 13.6823 15.6625 14.2548 15.1917C14.4182 15.0566 14.6381 15.0133 14.8407 15.0775L16.6748 15.6567C16.7622 15.6842 16.8556 15.6517 16.8956 15.58L18.2857 13.1758C18.3273 13.1017 18.3122 13 18.2457 12.935L16.839 11.6417C16.6864 11.5016 16.6132 11.2941 16.644 11.0892C16.6989 10.7201 16.7265 10.3534 16.7265 9.99924C16.7265 9.64493 16.6989 9.27826 16.644 8.90915C16.6132 8.70422 16.6864 8.49747 16.839 8.35663L18.2489 7.05994C18.3122 7.00089 18.3273 6.89743 18.2814 6.81503L16.8997 4.42581C16.8549 4.34662 16.7598 4.31503 16.6731 4.3425L14.8415 4.92081C14.6398 4.98505 14.4199 4.94171 14.2557 4.80667C13.6832 4.33578 13.0589 3.97247 12.3981 3.7291C12.199 3.65585 12.0514 3.48663 12.0049 3.28003L11.5807 1.39664C11.5598 1.31165 11.4839 1.25 11.3982 1.25H8.62641C8.54066 1.25 8.46482 1.31165 8.44651 1.39664L8.0214 3.28171C7.97486 3.48831 7.82731 3.65662 7.62818 3.73077C6.96809 3.97415 6.34309 4.33746 5.77149 4.80835C5.60731 4.94339 5.3856 4.98581 5.18571 4.92249L3.35145 4.34326C3.2657 4.31671 3.17063 4.3483 3.13066 4.42001L1.74058 6.82327C1.69892 6.89835 1.71403 7.00165 1.78315 7.06665L3.18818 8.35754C3.34062 8.49747 3.41401 8.70499 3.38319 8.91006C3.32811 9.27917 3.30064 9.64584 3.30064 10C3.30064 10.3542 3.32811 10.7208 3.38319 11.0899C3.41401 11.295 3.34062 11.5016 3.18818 11.6425L1.77812 12.9391C1.71479 12.9984 1.69984 13.1017 1.74562 13.1842L3.1273 15.5733C3.1714 15.6525 3.26646 15.6833 3.35389 15.6567L5.18571 15.0783C5.24736 15.0583 5.31068 15.0491 5.374 15.0491Z"
-                                        fill="#FF9D7B"
-                                    />
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_124_392">
-                                        <rect width="20" height="20" fill="white" />
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                        </button>
-                    </nav>
-                </header>
-
-                <div id="homeContent" class="tab-content home-content">
-                    <div>
-                        <h2 class="title-large">My Word Lists</h2>
-                        <div class="word-category-list" id="wordCategoryList">
-                            <button class="word-category-btn" id="newWordsList">
-                                <div class="word-category">
-                                    <span class="category-word-count">143</span>
-                                    <span class="category-title">New Worlds</span>
-                                </div>
-                            </button>
-                            <button class="word-category-btn" id="savedWordsList">
-                                <div class="word-category">
-                                    <span class="category-word-count">4</span>
-                                    <span class="category-title">Saved Words</span>
-                                </div>
-                            </button>
-                            <button class="word-category-btn" id="learnedWordsList">
-                                <div class="word-category">
-                                    <span class="category-word-count">13</span>
-                                    <span class="category-title">Learned Words</span>
-                                </div>
-                            </button>
-                        </div>
-
-                        <!-- <div class="search">
-                            <input class="search-input input" type="text" placeholder="Your English Dictionary" />
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 14 14"
-                                fill="none"
-                            >
-                                <g clip-path="url(#clip0_124_231)">
-                                    <path
-                                        d="M3.86612 3.18671C3.66421 2.98464 3.33663 2.98464 3.13472 3.18671C2.38507 3.93637 2.01661 4.98068 2.12369 6.05206C2.1504 6.31896 2.37525 6.51792 2.63783 6.51792C2.65509 6.51792 2.67248 6.51704 2.68973 6.51532C2.97405 6.48688 3.18145 6.23324 3.15302 5.94911C3.07681 5.18772 3.33682 4.44739 3.86612 3.91807C4.06819 3.71619 4.06819 3.38859 3.86612 3.18671Z"
-                                        fill="#7F7C8A"
-                                    />
-                                    <path
-                                        d="M5.9138 0C2.65292 0 0 2.65292 0 5.9138C0 9.17468 2.65292 11.8276 5.9138 11.8276C9.17468 11.8276 11.8276 9.17468 11.8276 5.9138C11.8276 2.65292 9.17465 0 5.9138 0ZM5.9138 10.7931C3.22328 10.7931 1.0345 8.60431 1.0345 5.9138C1.0345 3.22328 3.22328 1.0345 5.9138 1.0345C8.60415 1.0345 10.7931 3.22328 10.7931 5.9138C10.7931 8.60431 8.60431 10.7931 5.9138 10.7931Z"
-                                        fill="#7F7C8A"
-                                    />
-                                    <path
-                                        d="M13.8496 13.1182L10.091 9.35956C9.88888 9.15749 9.56163 9.15749 9.35956 9.35956C9.15749 9.56147 9.15749 9.88904 9.35956 10.091L13.1182 13.8496C13.2192 13.9506 13.3515 14.0011 13.4839 14.0011C13.6163 14.0011 13.7486 13.9506 13.8496 13.8496C14.0516 13.6477 14.0516 13.3201 13.8496 13.1182Z"
-                                        fill="#7F7C8A"
-                                    />
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_124_231">
-                                        <rect width="14" height="14" fill="white" />
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                        </div> -->
-                    </div>
-
-                    <div>
-                        <h2 class="title-large">General</h2>
-                        <button class="settings-page-btn" id="settingsBtn">
-                            <div class="settings-page-btn-title">Features On/Off</div>
-                            <div class="settings-page-btn-icon icon-btn">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="17"
-                                    height="10"
-                                    viewBox="0 0 17 10"
-                                    fill="none"
-                                >
-                                    <path
-                                        d="M1 4.38763C0.661796 4.38763 0.387628 4.6618 0.387628 5C0.387628 5.3382 0.661796 5.61237 1 5.61237V4.38763ZM16.433 5.43301C16.6722 5.19387 16.6722 4.80613 16.433 4.56699L12.5359 0.669873C12.2968 0.430727 11.909 0.430727 11.6699 0.669873C11.4307 0.909019 11.4307 1.29675 11.6699 1.5359L15.134 5L11.6699 8.4641C11.4307 8.70325 11.4307 9.09098 11.6699 9.33013C11.909 9.56927 12.2968 9.56927 12.5359 9.33013L16.433 5.43301ZM1 5.61237H16V4.38763H1V5.61237Z"
-                                        fill="white"
-                                    />
-                                </svg>
-                            </div>
-                        </button>
-                    </div>
-
-                    <div>
-                        <h2 class="title-large">Learned Today</h2>
-                        <p class="desc" id="noLearnedWordsToday">
-                            No words learned today. Start by double clicking on any<br />word on this website
-                        </p>
-                    </div>
-                </div>
-
-                <div id="dictionaryContent" class="tab-content" style="display: none">
-                    <h2 class="title-large">My Word List</h2>
-                    <ul class="word-list list" id="wordList">
-                        <li>
-                            <span class="word-list-origin">Optimism</span>
-                            <span class="word-list-translation">Оптимізм</span>
-                            <div class="word-list-actions">
-                                <div>
-                                    <button
-                                        type="button"
-                                        class="icon-btn icon-btn-small"
-                                        data-btn-function="showSynonym"
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                        >
-                                            <path
-                                                fill-rule="evenodd"
-                                                clip-rule="evenodd"
-                                                d="M3.16699 6.00033C3.16699 5.54009 3.54009 5.16699 4.00033 5.16699H12.0003C12.4606 5.16699 12.8337 5.54009 12.8337 6.00033C12.8337 6.46057 12.4606 6.83366 12.0003 6.83366H4.00033C3.54009 6.83366 3.16699 6.46057 3.16699 6.00033Z"
-                                                fill="#FF9D7B"
-                                            />
-                                            <path
-                                                fill-rule="evenodd"
-                                                clip-rule="evenodd"
-                                                d="M3.16699 10.0003C3.16699 9.54006 3.54009 9.16699 4.00033 9.16699H12.0003C12.4606 9.16699 12.8337 9.54006 12.8337 10.0003C12.8337 10.4606 12.4606 10.8337 12.0003 10.8337H4.00033C3.54009 10.8337 3.16699 10.4606 3.16699 10.0003Z"
-                                                fill="#FF9D7B"
-                                            />
-                                        </svg>
-                                        <span class="custom-tooltip">Show more</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="icon-btn icon-btn-small"
-                                        data-btn-function="playPronunciation"
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="14"
-                                            height="14"
-                                            viewBox="0 0 14 14"
-                                            fill="none"
-                                        >
-                                            <path
-                                                d="M8.81304 2.03626C8.95642 1.74776 9.30654 1.63011 9.59499 1.77348C11.5143 2.72731 12.8354 4.70892 12.8354 7.00014C12.8354 9.29136 11.5143 11.273 9.59499 12.2268C9.30654 12.3702 8.95642 12.2525 8.81304 11.964C8.66965 11.6755 8.78731 11.3254 9.07583 11.1821C10.6138 10.4177 11.6687 8.83158 11.6687 7.00014C11.6687 5.1687 10.6138 3.58257 9.07583 2.81825C8.78731 2.67487 8.66965 2.32477 8.81304 2.03626Z"
-                                                fill="#FF9D7B"
-                                            />
-                                            <path
-                                                d="M3.5013 4.66632H2.33464C1.6903 4.66632 1.16797 5.18865 1.16797 5.83298V8.16632C1.16797 8.81067 1.6903 9.33298 2.33464 9.33298H3.5013L6.04452 11.4524C6.42444 11.769 7.0013 11.4988 7.0013 11.0042V2.9951C7.0013 2.50052 6.42444 2.23035 6.04452 2.54696L3.5013 4.66632Z"
-                                                fill="#FF9D7B"
-                                            />
-                                            <path
-                                                d="M9.80172 4.89954C9.60823 4.64194 9.24259 4.58997 8.98499 4.78346C8.72739 4.97694 8.67542 5.34261 8.86891 5.60021C9.1618 5.99012 9.33511 6.47393 9.33511 6.99987C9.33511 7.5258 9.1618 8.00962 8.86891 8.39952C8.67542 8.65712 8.72739 9.02281 8.98499 9.2163C9.24259 9.40979 9.60823 9.35782 9.80172 9.10022C10.2411 8.51519 10.5018 7.78713 10.5018 6.99987C10.5018 6.2126 10.2411 5.48455 9.80172 4.89954Z"
-                                                fill="#FF9D7B"
-                                            />
-                                        </svg>
-                                        <span class="custom-tooltip">Pronunciation</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="icon-btn icon-btn-small"
-                                        data-btn-function="deleteWord"
-                                    >
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="14"
-                                            height="14"
-                                            viewBox="0 0 14 14"
-                                            fill="none"
-                                        >
-                                            <path
-                                                d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
-                                                fill="#FF9D7B"
-                                            />
-                                        </svg>
-                                        <span class="custom-tooltip">Delete</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-
-                <div id="settingsContent" class="tab-content settings-content">
-                    <h2 class="title-large">Settings</h2>
-
-                    <div class="exclusion-list-container">
-                        <h3 class="title-small">Exclusion List</h3>
-                        <div class="add-exclusion">
-                            <input
-                                class="add-exclusion-input input"
-                                type="text"
-                                placeholder="Enter a site URL"
-                                id="siteInput"
-                            />
-                            <button type="button" class="add-exclusion-btn icon-btn" id="addSiteBtn" disabled>
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    viewBox="0 0 20 20"
-                                    fill="none"
-                                >
-                                    <g clip-path="url(#clip0_124_576)">
-                                        <path
-                                            d="M10 20C9.741 20 9.49261 19.8971 9.30947 19.714C9.12632 19.5308 9.02344 19.2824 9.02344 19.0234V0.976562C9.02344 0.717562 9.12632 0.46917 9.30947 0.286029C9.49261 0.102888 9.741 0 10 0C10.259 0 10.5074 0.102888 10.6905 0.286029C10.8737 0.46917 10.9766 0.717562 10.9766 0.976562V19.0234C10.9766 19.2824 10.8737 19.5308 10.6905 19.714C10.5074 19.8971 10.259 20 10 20Z"
-                                            fill="white"
-                                        />
-                                        <path
-                                            d="M19.0234 10.9766H0.976562C0.717562 10.9766 0.46917 10.8737 0.286029 10.6905C0.102888 10.5074 0 10.259 0 10C0 9.741 0.102888 9.49261 0.286029 9.30947C0.46917 9.12632 0.717562 9.02344 0.976562 9.02344H19.0234C19.2824 9.02344 19.5308 9.12632 19.714 9.30947C19.8971 9.49261 20 9.741 20 10C20 10.259 19.8971 10.5074 19.714 10.6905C19.5308 10.8737 19.2824 10.9766 19.0234 10.9766Z"
-                                            fill="white"
-                                        />
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_124_576">
-                                            <rect width="20" height="20" fill="white" />
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                            </button>
-                        </div>
-                        <ul class="exclusion-list list" id="exclusionList"></ul>
-                    </div>
-
-                    <label class="switch">
-                        <span class="switch-label-text">Enable extension for this site</span>
-                        <input type="checkbox" id="enableExtension" />
-                        <span class="slider"></span>
-                    </label>
-
-                    <ul class="list setting-list">
-                        <li>
-                            <div class="email-container">
-                                <span>Email</span>
-                                <span class="current-setting" id="userEmail">oksanarymyk.work@gmail.com</span>
-                            </div>
-                        </li>
-                        <li>
-                            <button type="button" class="setting-list-btn" id="changeTelegramBtn">
-                                <span>Telegram</span>
-                                <div class="current-setting">
-                                    <span id="userTelegram">@telegram</span>
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 18 18"
-                                        fill="none"
-                                    >
-                                        <path
-                                            d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
-                                            fill="#8B8B8E"
-                                        />
-                                    </svg>
-                                </div>
-                            </button>
-
-                            <div id="telegramContainer" class="telegram-container" style="display: none">
-                                <form id="telegramForm" class="telegram-form">
-                                    <input
-                                        type="text"
-                                        id="telegramName"
-                                        placeholder="Your Telegram Name"
-                                        class="telegram-input input"
-                                    />
-                                    <button type="button" id="telegramBtn" class="telegram-btn btn" disabled>
-                                        <span>Connect</span>
-                                    </button>
-                                </form>
-                            </div>
-                        </li>
-                        <li>
-                            <button type="button" class="setting-list-btn" id="englishLevelBtn">
-                                <span>English Level</span>
-                                <div class="current-setting">
-                                    <span>B2 Upper-Intermediate</span>
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 18 18"
-                                        fill="none"
-                                    >
-                                        <path
-                                            d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
-                                            fill="#8B8B8E"
-                                        />
-                                    </svg>
-                                </div>
-                            </button>
-
-                            <div class="english-level-container" id="englishLevelContainer" style="display: none">
-                                <ul class="level-list list">
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>A1 Starter</div>
-                                            </div>
-                                            <input type="radio" name="englishLevel" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>A2 Pre-Intermediate</div>
-                                            </div>
-                                            <input type="radio" name="englishLevel" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>B1 Intermediate</div>
-                                            </div>
-                                            <input type="radio" name="englishLevel" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>B2 Upper-Intermediate</div>
-                                            </div>
-                                            <input type="radio" name="englishLevel" checked />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>C1 Advanced</div>
-                                            </div>
-                                            <input type="radio" name="englishLevel" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>C2 Professional</div>
-                                            </div>
-                                            <input type="radio" name="englishLevel" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                </ul>
-                            </div>
-                        </li>
-                        <li>
-                            <button type="button" class="setting-list-btn" id="learningGoalsBtn">
-                                <span>Learning Goal</span>
-                                <div class="current-setting">
-                                    <span>Written academic English</span>
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 18 18"
-                                        fill="none"
-                                    >
-                                        <path
-                                            d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
-                                            fill="#8B8B8E"
-                                        />
-                                    </svg>
-                                </div>
-                            </button>
-
-                            <div class="learning-goals-container" id="learningGoalsContainer" style="display: none">
-                                <ul class="learning-goal-list list">
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>Write more clearly and accurately</div>
-                                            </div>
-                                            <input type="checkbox" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>Comprehend industry-specific content</div>
-                                            </div>
-                                            <input type="checkbox" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>Read lots of English texts faster</div>
-                                            </div>
-                                            <input type="checkbox" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>Smoothly communicate with peers</div>
-                                            </div>
-                                            <input type="checkbox" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>Grow my professional network</div>
-                                            </div>
-                                            <input type="checkbox" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                    <li class="checkbox-wrapper">
-                                        <label class="control control-checkbox">
-                                            <div class="control-text">
-                                                <div>Prepare for English presentations</div>
-                                            </div>
-                                            <input type="checkbox" />
-                                            <div class="control-indicator"></div>
-                                        </label>
-                                    </li>
-                                </ul>
-                            </div>
-                        </li>
-                        <li>
-                            <a class="setting-list-btn" href="https://lazylex.com/#/reset-password" target="_blank">
-                                <span>Change Password</span>
-                                <div class="current-setting">
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 18 18"
-                                        fill="none"
-                                    >
-                                        <path
-                                            d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
-                                            fill="#8B8B8E"
-                                        />
-                                    </svg>
-                                </div>
-                            </a>
-                        </li>
-                        <li>
-                            <button type="button" class="setting-list-btn" id="logoutBtn">
-                                <span>Log Out</span>
-                                <div class="current-setting">
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="18"
-                                        height="18"
-                                        viewBox="0 0 18 18"
-                                        fill="none"
-                                    >
-                                        <path
-                                            d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
-                                            fill="#8B8B8E"
-                                        />
-                                    </svg>
-                                </div>
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <div id="notification" class="notification">
-                <p id="notificationMessage"></p>
-                <button type="button" class="icon-btn icon-btn-small close-notification-btn" id="closeNotificationBtn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <div class="main-content" id="mainContent" style="display: none">
+        <header>
+            <nav class="tabs" id="tabs">
+                <button type="button" class="tab-action icon-btn active" id="homeTab">
+                    <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                    >
                         <path
-                            d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
-                            fill="#FF9D7B"
+                                d="M13.6371 18.7497H6.36213C5.53941 18.7803 4.73788 18.4849 4.13167 17.9279C3.52547 17.3708 3.16358 16.5971 3.12463 15.7747V11.8747C3.12463 11.709 3.19048 11.55 3.30769 11.4328C3.4249 11.3156 3.58387 11.2497 3.74963 11.2497C3.91539 11.2497 4.07436 11.3156 4.19157 11.4328C4.30878 11.55 4.37463 11.709 4.37463 11.8747V15.7747C4.41304 16.2656 4.64302 16.7217 5.0149 17.0445C5.38678 17.3672 5.8707 17.5308 6.36213 17.4997H13.6371C14.1286 17.5308 14.6125 17.3672 14.9844 17.0445C15.3562 16.7217 15.5862 16.2656 15.6246 15.7747V11.8747C15.6246 11.709 15.6905 11.55 15.8077 11.4328C15.9249 11.3156 16.0839 11.2497 16.2496 11.2497C16.4154 11.2497 16.5744 11.3156 16.6916 11.4328C16.8088 11.55 16.8746 11.709 16.8746 11.8747V15.7747C16.8357 16.5971 16.4738 17.3708 15.8676 17.9279C15.2614 18.4849 14.4598 18.7803 13.6371 18.7497ZM18.5684 10.4435C18.627 10.3854 18.6735 10.3162 18.7052 10.2401C18.7369 10.1639 18.7533 10.0822 18.7533 9.99972C18.7533 9.91721 18.7369 9.83552 18.7052 9.75936C18.6735 9.68319 18.627 9.61407 18.5684 9.55597L10.4434 1.43097C10.3853 1.37239 10.3161 1.32589 10.24 1.29416C10.1638 1.26243 10.0821 1.24609 9.99963 1.24609C9.91712 1.24609 9.83543 1.26243 9.75927 1.29416C9.6831 1.32589 9.61398 1.37239 9.55588 1.43097L1.43088 9.55597C1.31319 9.67366 1.24707 9.83328 1.24707 9.99972C1.24707 10.1662 1.31319 10.3258 1.43088 10.4435C1.54857 10.5612 1.70819 10.6273 1.87463 10.6273C2.04107 10.6273 2.20069 10.5612 2.31838 10.4435C17.739 10.502 17.8081 10.5485 17.8843 10.5803C17.9604 10.612 18.0421 10.6283 18.1246 10.6283C18.2071 10.6283 18.2888 10.612 18.365 10.5803C18.4412 10.5485 18.5103 10.502 18.5684 10.4435Z"
+                                fill="#ff9d7b"
                         />
                     </svg>
                 </button>
+                <button type="button" class="tab-action icon-btn" id="dictionaryTab">
+                    <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                    >
+                        <g clip-path="url(#clip0_124_429)">
+                            <path
+                                    d="M19.2193 9.21875H5.63574C5.20426 9.21875 4.85449 9.56852 4.85449 10C4.85449 10.4315 5.20426 10.7812 5.63574 10.7812H19.2193C19.6507 10.7812 20.0005 10.4315 20.0005 10C20.0005 9.56852 19.6507 9.21875 19.2193 9.21875Z"
+                                    fill="#FF9D7B"
+                            />
+                            <path
+                                    d="M19.2193 3.35938H5.63574C5.20426 3.35938 4.85449 3.70914 4.85449 4.14062C4.85449 4.57211 5.20426 4.92188 5.63574 4.92188H19.2193C19.6507 4.92188 20.0005 4.57211 20.0005 4.14062C20.0005 3.70914 19.6507 3.35938 19.2193 3.35938Z"
+                                    fill="#FF9D7B"
+                            />
+                            <path
+                                    d="M19.2193 15.0781H5.63574C5.20426 15.0781 4.85449 15.4279 4.85449 15.8594C4.85449 16.2909 5.20426 16.6406 5.63574 16.6406H19.2193C19.6507 16.6406 20.0005 16.2909 20.0005 15.8594C20.0005 15.4279 19.6507 15.0781 19.2193 15.0781Z"
+                                    fill="#FF9D7B"
+                            />
+                            <path
+                                    d="M1.05469 5.19531C1.63718 5.19531 2.10938 4.72311 2.10938 4.14062C2.10938 3.55814 1.63718 3.08594 1.05469 3.08594C0.4722 3.08594 0 3.55814 0 4.14062C0 4.72311 0.4722 5.19531 1.05469 5.19531Z"
+                                    fill="#FF9D7B"
+                            />
+                            <path
+                                    d="M1.05469 11.0547C1.63718 11.0547 2.10938 10.5825 2.10938 10C2.10938 9.41751 1.63718 8.94531 1.05469 8.94531C0.4722 8.94531 0 9.41751 0 10C0 10.5825 0.4722 11.0547 1.05469 11.0547Z"
+                                    fill="#FF9D7B"
+                            />
+                            <path
+                                    d="M1.05469 16.9141C1.63718 16.9141 2.10938 16.4419 2.10938 15.8594C2.10938 15.2769 1.63718 14.8047 1.05469 14.8047C0.4722 14.8047 0 15.2769 0 15.8594C0 16.4419 0.4722 16.9141 1.05469 16.9141Z"
+                                    fill="#FF9D7B"
+                            />
+                        </g>
+                        <defs>
+                            <clipPath id="clip0_124_429">
+                                <rect width="20" height="20" fill="white" />
+                            </clipPath>
+                        </defs>
+                    </svg>
+                </button>
+                <button type="button" class="tab-action icon-btn" id="settingsTab">
+                    <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                    >
+                        <g clip-path="url(#clip0_124_392)">
+                            <path
+                                    d="M10.0124 14.1664C7.7149 14.1664 5.8457 12.2972 5.8457 9.99973C5.8457 7.70221 7.7149 5.83301 10.0124 5.83301C12.3098 5.83301 14.179 7.70221 14.179 9.99973C14.179 12.2972 12.3098 14.1664 10.0124 14.1664ZM10.0124 7.08301C8.40399 7.08301 7.0957 8.39145 7.0957 9.99973C7.0957 11.608 8.40399 12.9164 10.0124 12.9164C11.6207 12.9164 12.929 11.608 12.929 9.99973C12.929 8.39145 11.6207 7.08301 10.0124 7.08301Z"
+                                    fill="#FF9D7B"
+                            />
+                            <path
+                                    d="M11.3982 20H8.62641C7.95976 20 7.37062 19.5267 7.22566 18.8742L6.87486 17.3141C6.30311 17.0717 5.75807 16.7551 5.24644 16.3684L3.72728 16.8483C3.07557 17.0508 2.36726 16.7741 2.04057 16.1908L0.659038 13.8017C0.328075 13.21 0.439769 12.4817 0.926524 12.0233L2.10389 10.9409C2.06819 10.6233 2.05064 10.3084 2.05064 10C2.05064 9.69162 2.06819 9.37668 2.10313 9.05914L0.932323 7.98172C0.439769 7.51831 0.327312 6.79001 0.654765 6.2059L2.04484 3.80173C2.36726 3.22495 3.07725 2.9509 3.72483 3.15002L5.24644 3.63083C5.75807 3.24417 6.30311 2.92755 6.87486 2.68494L7.22642 1.12335C7.37062 0.473328 7.95976 0 8.62641 0H11.3982C12.0648 0 12.654 0.473328 12.7989 1.12579L13.1497 2.68585C13.7215 2.92831 14.2665 3.24493 14.7781 3.63159L16.2973 3.1517C16.9507 2.9509 17.6573 3.22586 17.984 3.8092L19.3657 6.19827C19.6965 6.79001 19.5848 7.51831 19.0981 7.97668L17.9207 9.05914C17.9556 9.37668 17.9732 9.69254 17.9732 10C17.9732 10.3075 17.9556 10.6233 17.9207 10.9409L19.0923 12.0175C19.0939 12.0192 19.0956 12.0209 19.0981 12.0226C19.5848 12.4808 19.6973 13.2092 19.3698 13.7933L17.9797 16.1975C17.6573 16.7741 16.949 17.05 16.299 16.8483L14.7772 16.3675C14.2656 16.7542 13.7206 17.0708 13.149 17.3134L12.7973 18.875C12.654 19.5267 12.0648 20 11.3982 20ZM5.374 15.0491C5.51728 15.0491 5.65812 15.0983 5.77149 15.1917C6.344 15.6625 6.96809 16.0258 7.62895 16.2692C7.82807 16.3425 7.97563 16.5117 8.02232 16.7183L8.44651 18.6017C8.46559 18.6884 8.54142 18.75 8.62733 18.75H11.3989C11.4848 18.75 11.5607 18.6884 11.579 18.6034L12.0039 16.7183C12.0506 16.5117 12.1982 16.3425 12.3973 16.2692C13.0573 16.0258 13.6823 15.6625 14.2548 15.1917C14.4182 15.0566 14.6381 15.0133 14.8407 15.0775L16.6748 15.6567C16.7622 15.6842 16.8556 15.6517 16.8956 15.58L18.2857 13.1758C18.3273 13.1017 18.3122 13 18.2457 12.935L16.839 11.6417C16.6864 11.5016 16.6132 11.2941 16.644 11.0892C16.6989 10.7201 16.7265 10.3534 16.7265 9.99924C16.7265 9.64493 16.6989 9.27826 16.644 8.90915C16.6132 8.70422 16.6864 8.49747 16.839 8.35663L18.2489 7.05994C18.3122 7.00089 18.3273 6.89743 18.2814 6.81503L16.8997 4.42581C16.8549 4.34662 16.7598 4.31503 16.6731 4.3425L14.8415 4.92081C14.6398 4.98505 14.4199 4.94171 14.2557 4.80667C13.6832 4.33578 13.0589 3.97247 12.3981 3.7291C12.199 3.65585 12.0514 3.48663 12.0049 3.28003L11.5807 1.39664C11.5598 1.31165 11.4839 1.25 11.3982 1.25H8.62641C8.54066 1.25 8.46482 1.31165 8.44651 1.39664L8.0214 3.28171C7.97486 3.48831 7.82731 3.65662 7.62818 3.73077C6.96809 3.97415 6.34309 4.33746 5.77149 4.80835C5.60731 4.94339 5.3856 4.98581 5.18571 4.92249L3.35145 4.34326C3.2657 4.31671 3.17063 4.3483 3.13066 4.42001L1.74058 6.82327C1.69892 6.89835 1.71403 7.00165 1.78315 7.06665L3.18818 8.35754C3.34062 8.49747 3.41401 8.70499 3.38319 8.91006C3.32811 9.27917 3.30064 9.64584 3.30064 10C3.30064 10.3542 3.32811 10.7208 3.38319 11.0899C3.41401 11.295 3.34062 11.5016 3.18818 11.6425L1.77812 12.9391C1.71479 12.9984 1.69984 13.1017 1.74562 13.1842L3.1273 15.5733C3.1714 15.6525 3.26646 15.6833 3.35389 15.6567L5.18571 15.0783C5.24736 15.0583 5.31068 15.0491 5.374 15.0491Z"
+                                    fill="#FF9D7B"
+                            />
+                        </g>
+                        <defs>
+                            <clipPath id="clip0_124_392">
+                                <rect width="20" height="20" fill="white" />
+                            </clipPath>
+                        </defs>
+                    </svg>
+                </button>
+            </nav>
+        </header>
+
+        <div id="homeContent" class="tab-content home-content">
+            <div>
+                <h2 class="title-large">My Word Lists</h2>
+                <div class="word-category-list" id="wordCategoryList">
+                    <button class="word-category-btn" id="newWordsList">
+                        <div class="word-category">
+                            <span class="category-word-count" id="allWordsCounter">0</span>
+                            <span class="category-title">All Words</span>
+                        </div>
+                    </button>
+                    <button class="word-category-btn" id="savedWordsList">
+                        <div class="word-category">
+                            <span class="category-word-count" id="newWordsCounter">0</span>
+                            <span class="category-title">New Worlds</span>
+                        </div>
+                    </button>
+                    <button class="word-category-btn" id="learnedWordsList">
+                        <div class="word-category">
+                            <span class="category-word-count" id="learnedWordsCounter">0</span>
+                            <span class="category-title">Learned Words</span>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- <div class="search">
+                    <input class="search-input input" type="text" placeholder="Your English Dictionary" />
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                    >
+                        <g clip-path="url(#clip0_124_231)">
+                            <path
+                                d="M3.86612 3.18671C3.66421 2.98464 3.33663 2.98464 3.13472 3.18671C2.38507 3.93637 2.01661 4.98068 2.12369 6.05206C2.1504 6.31896 2.37525 6.51792 2.63783 6.51792C2.65509 6.51792 2.67248 6.51704 2.68973 6.51532C2.97405 6.48688 3.18145 6.23324 3.15302 5.94911C3.07681 5.18772 3.33682 4.44739 3.86612 3.91807C4.06819 3.71619 4.06819 3.38859 3.86612 3.18671Z"
+                                fill="#7F7C8A"
+                            />
+                            <path
+                                d="M5.9138 0C2.65292 0 0 2.65292 0 5.9138C0 9.17468 2.65292 11.8276 5.9138 11.8276C9.17468 11.8276 11.8276 9.17468 11.8276 5.9138C11.8276 2.65292 9.17465 0 5.9138 0ZM5.9138 10.7931C3.22328 10.7931 1.0345 8.60431 1.0345 5.9138C1.0345 3.22328 3.22328 1.0345 5.9138 1.0345C8.60415 1.0345 10.7931 3.22328 10.7931 5.9138C10.7931 8.60431 8.60431 10.7931 5.9138 10.7931Z"
+                                fill="#7F7C8A"
+                            />
+                            <path
+                                d="M13.8496 13.1182L10.091 9.35956C9.88888 9.15749 9.56163 9.15749 9.35956 9.35956C9.15749 9.56147 9.15749 9.88904 9.35956 10.091L13.1182 13.8496C13.2192 13.9506 13.3515 14.0011 13.4839 14.0011C13.6163 14.0011 13.7486 13.9506 13.8496 13.8496C14.0516 13.6477 14.0516 13.3201 13.8496 13.1182Z"
+                                fill="#7F7C8A"
+                            />
+                        </g>
+                        <defs>
+                            <clipPath id="clip0_124_231">
+                                <rect width="14" height="14" fill="white" />
+                            </clipPath>
+                        </defs>
+                    </svg>
+                </div> -->
+            </div>
+
+            <div>
+                <h2 class="title-large">General</h2>
+                <button class="settings-page-btn" id="settingsBtn">
+                    <div class="settings-page-btn-title">Features On/Off</div>
+                    <div class="settings-page-btn-icon icon-btn">
+                        <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="17"
+                                height="10"
+                                viewBox="0 0 17 10"
+                                fill="none"
+                        >
+                            <path
+                                    d="M1 4.38763C0.661796 4.38763 0.387628 4.6618 0.387628 5C0.387628 5.3382 0.661796 5.61237 1 5.61237V4.38763ZM16.433 5.43301C16.6722 5.19387 16.6722 4.80613 16.433 4.56699L12.5359 0.669873C12.2968 0.430727 11.909 0.430727 11.6699 0.669873C11.4307 0.909019 11.4307 1.29675 11.6699 1.5359L15.134 5L11.6699 8.4641C11.4307 8.70325 11.4307 9.09098 11.6699 9.33013C11.909 9.56927 12.2968 9.56927 12.5359 9.33013L16.433 5.43301ZM1 5.61237H16V4.38763H1V5.61237Z"
+                                    fill="white"
+                            />
+                        </svg>
+                    </div>
+                </button>
+            </div>
+
+            <div>
+                <h2 class="title-large">Learned Today</h2>
+                <p class="desc" id="noLearnedWordsToday">
+                    No words learned today. Start by double clicking on any<br />word on this website
+                </p>
             </div>
         </div>
-    </body>
-    <script src="popup.js"></script>
+
+        <div id="dictionaryContent" class="tab-content" style="display: none">
+            <h2 class="title-large">My Word List</h2>
+
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all">All Words <span class="filter-counter">0</span></button>
+                <button class="filter-tab" data-filter="learned">Learned <span class="filter-counter">0</span></button>
+                <button class="filter-tab" data-filter="today">Added Today <span class="filter-counter">0</span></button>
+            </div>
+
+            <ul class="word-list list" id="wordList"></ul>
+        </div>
+
+        <div id="settingsContent" class="tab-content settings-content">
+            <h2 class="title-large">Settings</h2>
+
+            <div class="exclusion-list-container">
+                <h3 class="title-small">Exclusion List</h3>
+                <div class="add-exclusion">
+                    <input
+                            class="add-exclusion-input input"
+                            type="text"
+                            placeholder="Enter a site URL"
+                            id="siteInput"
+                    />
+                    <button type="button" class="add-exclusion-btn icon-btn" id="addSiteBtn" disabled>
+                        <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                        >
+                            <g clip-path="url(#clip0_124_576)">
+                                <path
+                                        d="M10 20C9.741 20 9.49261 19.8971 9.30947 19.714C9.12632 19.5308 9.02344 19.2824 9.02344 19.0234V0.976562C9.02344 0.717562 9.12632 0.46917 9.30947 0.286029C9.49261 0.102888 9.741 0 10 0C10.259 0 10.5074 0.102888 10.6905 0.286029C10.8737 0.46917 10.9766 0.717562 10.9766 0.976562V19.0234C10.9766 19.2824 10.8737 19.5308 10.6905 19.714C10.5074 19.8971 10.259 20 10 20Z"
+                                        fill="white"
+                                />
+                                <path
+                                        d="M19.0234 10.9766H0.976562C0.717562 10.9766 0.46917 10.8737 0.286029 10.6905C0.102888 10.5074 0 10.259 0 10C0 9.741 0.102888 9.49261 0.286029 9.30947C0.46917 9.12632 0.717562 9.02344 0.976562 9.02344H19.0234C19.2824 9.02344 19.5308 9.12632 19.714 9.30947C19.8971 9.49261 20 9.741 20 10C20 10.259 19.8971 10.5074 19.714 10.6905C19.5308 10.8737 19.2824 10.9766 19.0234 10.9766Z"
+                                        fill="white"
+                                />
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_124_576">
+                                    <rect width="20" height="20" fill="white" />
+                                </clipPath>
+                            </defs>
+                        </svg>
+                    </button>
+                </div>
+                <ul class="exclusion-list list" id="exclusionList"></ul>
+            </div>
+
+            <label class="switch">
+                <span class="switch-label-text">Enable extension for this site</span>
+                <input type="checkbox" id="enableExtension" />
+                <span class="slider"></span>
+            </label>
+
+            <ul class="list setting-list">
+                <li>
+                    <div class="email-container">
+                        <span>Email</span>
+                        <span class="current-setting" id="userEmail">oksanarymyk.work@gmail.com</span>
+                    </div>
+                </li>
+                <li>
+                    <button type="button" class="setting-list-btn" id="changeTelegramBtn">
+                        <span>Telegram</span>
+                        <div class="current-setting">
+                            <span id="userTelegram">@telegram</span>
+                            <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                            >
+                                <path
+                                        d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
+                                        fill="#8B8B8E"
+                                />
+                            </svg>
+                        </div>
+                    </button>
+
+                    <div id="telegramContainer" class="telegram-container" style="display: none">
+                        <form id="telegramForm" class="telegram-form">
+                            <input
+                                    type="text"
+                                    id="telegramName"
+                                    placeholder="Your Telegram Name"
+                                    class="telegram-input input"
+                            />
+                            <button type="button" id="telegramBtn" class="telegram-btn btn" disabled>
+                                <span>Connect</span>
+                            </button>
+                        </form>
+                    </div>
+                </li>
+                <li>
+                    <button type="button" class="setting-list-btn" id="englishLevelBtn">
+                        <span>English Level</span>
+                        <div class="current-setting">
+                            <span>B2 Upper-Intermediate</span>
+                            <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                            >
+                                <path
+                                        d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
+                                        fill="#8B8B8E"
+                                />
+                            </svg>
+                        </div>
+                    </button>
+
+                    <div class="english-level-container" id="englishLevelContainer" style="display: none">
+                        <ul class="level-list list">
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>A1 Starter</div>
+                                    </div>
+                                    <input type="radio" name="englishLevel" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>A2 Pre-Intermediate</div>
+                                    </div>
+                                    <input type="radio" name="englishLevel" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>B1 Intermediate</div>
+                                    </div>
+                                    <input type="radio" name="englishLevel" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>B2 Upper-Intermediate</div>
+                                    </div>
+                                    <input type="radio" name="englishLevel" checked />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>C1 Advanced</div>
+                                    </div>
+                                    <input type="radio" name="englishLevel" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>C2 Professional</div>
+                                    </div>
+                                    <input type="radio" name="englishLevel" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                <li>
+                    <button type="button" class="setting-list-btn" id="learningGoalsBtn">
+                        <span>Learning Goal</span>
+                        <div class="current-setting">
+                            <span>Written academic English</span>
+                            <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                            >
+                                <path
+                                        d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
+                                        fill="#8B8B8E"
+                                />
+                            </svg>
+                        </div>
+                    </button>
+
+                    <div class="learning-goals-container" id="learningGoalsContainer" style="display: none">
+                        <ul class="learning-goal-list list">
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>Write more clearly and accurately</div>
+                                    </div>
+                                    <input type="checkbox" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>Comprehend industry-specific content</div>
+                                    </div>
+                                    <input type="checkbox" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>Read lots of English texts faster</div>
+                                    </div>
+                                    <input type="checkbox" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>Smoothly communicate with peers</div>
+                                    </div>
+                                    <input type="checkbox" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>Grow my professional network</div>
+                                    </div>
+                                    <input type="checkbox" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                            <li class="checkbox-wrapper">
+                                <label class="control control-checkbox">
+                                    <div class="control-text">
+                                        <div>Prepare for English presentations</div>
+                                    </div>
+                                    <input type="checkbox" />
+                                    <div class="control-indicator"></div>
+                                </label>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                <li>
+                    <a class="setting-list-btn" href="https://lazylex.com/#/reset-password" target="_blank">
+                        <span>Change Password</span>
+                        <div class="current-setting">
+                            <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                            >
+                                <path
+                                        d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
+                                        fill="#8B8B8E"
+                                />
+                            </svg>
+                        </div>
+                    </a>
+                </li>
+                <li>
+                    <button type="button" class="setting-list-btn" id="logoutBtn">
+                        <span>Log Out</span>
+                        <div class="current-setting">
+                            <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                            >
+                                <path
+                                        d="M9.87852 9.00005L6.16602 5.28755L7.22652 4.22705L11.9995 9.00005L7.22652 13.7731L6.16602 12.7126L9.87852 9.00005Z"
+                                        fill="#8B8B8E"
+                                />
+                            </svg>
+                        </div>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="notification" class="notification">
+        <p id="notificationMessage"></p>
+        <button type="button" class="icon-btn icon-btn-small close-notification-btn" id="closeNotificationBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                        d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
+                        fill="#FF9D7B"
+                />
+            </svg>
+        </button>
+    </div>
+</div>
+</body>
+<script src="popup.js"></script>
 </html>

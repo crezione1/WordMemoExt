@@ -45,7 +45,7 @@ async function runLogic(selectedText, rect) {
 
     console.log('[WordMemoExt] runLogic called with:', originalWord);
 
-    const { words } = await chrome.storage.local.get(["words"]);
+    const { words } = await chrome.storage.local.get(["words"]) || [];
     const wordList = words || [];
     const wordExists = wordList.some(w => w.word.toLowerCase() === originalWord.toLowerCase());
 
@@ -71,8 +71,7 @@ async function saveWordToDictionary(word) {
     try {
         console.log('[WordMemoExt] saveWordToDictionary called with:', word);
         // Get current words
-        const { words } = await chrome.storage.local.get(["words"]);
-        const wordList = words || [];
+        const { words } = await chrome.storage.local.get({ words: [] });
 
         // Use new API for translation
         const translation = await translateWithTAS(word, settings["languageCode"] || "uk");
@@ -81,9 +80,14 @@ async function saveWordToDictionary(word) {
             id: Date.now(),
             word: word.toLowerCase(),
             translation: translation,
+            dateAdded: Date.now(), // Add current date
+            learned: false // Default learned status
         };
+        chrome.runtime.sendMessage({ action: "saveWordsToStorage" });
+        // addHighlightForWord(newWord);
+
         // Save to local storage
-        const updatedWords = [...wordList, newWord];
+        const updatedWords = [...words, newWord];
         await chrome.storage.local.set({ words: updatedWords });
         console.log('[WordMemoExt] Updated words list:', updatedWords);
     } catch (error) {
@@ -106,11 +110,7 @@ function animateWordToToolbar(selectedText, rect) {
     floatingWord.style.transition = "top 0.5s linear, left 0.5s linear";
 
     document.body.appendChild(floatingWord);
-    // This was clearing the selection needed by runLogic, but runLogic now gets the text.
-    // However, the button click also clears it. Let's leave this out for now.
-    // window.getSelection().removeAllRanges();
 
-    // Animate the word towards the top-right corner (where the extension icon usually is)
     setTimeout(() => {
         floatingWord.style.left = "95%";
         floatingWord.style.top = "5px";
@@ -136,7 +136,6 @@ function clearHighlighting() {
         }
     });
 
-    // Normalize each parent once after all its children have been processed
     parentsToNormalize.forEach(parent => parent.normalize());
 }
 
@@ -184,8 +183,9 @@ function showTemporaryHighlightWithLoader(text) {
 }
 
 function addHighlightForWord(word) {
-    const wrappers = document.querySelectorAll('.highlight-wrapper');
-    wrappers.forEach(wrapper => {
+    // First, update any existing temporary highlight wrappers
+    const existingWrappers = document.querySelectorAll('.highlight-wrapper');
+    existingWrappers.forEach(wrapper => {
         if (!wrapper.dataset.wordId && wrapper.dataset.originalText.toLowerCase() === word.word.toLowerCase()) {
             const loader = wrapper.querySelector('.translation-loader');
             if (loader) loader.remove();
@@ -196,6 +196,28 @@ function addHighlightForWord(word) {
             wrapper.appendChild(translationNode);
 
             wrapper.dataset.wordId = word.id;
+
+            const highlightedSpan = wrapper.querySelector('.highlighted-word');
+            if (highlightedSpan) {
+                requestAnimationFrame(() => {
+                    highlightedSpan.classList.add("animate-border");
+                });
+
+                setTimeout(() => {
+                    highlightedSpan.classList.add("animate-background");
+                }, 10);
+            }
+        }
+    });
+
+    // Then, scan the entire page for new instances of this word and highlight them
+    const textNodes = Array.from(findTextNodes(document.body));
+    const targetWord = word.word.toLowerCase();
+    const translations = { [targetWord]: word };
+
+    textNodes.forEach((node) => {
+        if (node.nodeValue.toLowerCase().includes(targetWord) && !node.parentNode.closest('.highlight-wrapper')) {
+            replaceTextNode(node, [targetWord], translations);
         }
     });
 }
@@ -226,7 +248,6 @@ function removeHighlightsForWord(word) {
 }
 
 function replaceTextNode(node, targetWords, translations) {
-    const replacements = [];
     const fragment = document.createDocumentFragment();
     const parts = node.nodeValue.split(new RegExp(`\\b(${targetWords.join('|')})\\b`, 'gi'));
 
@@ -410,42 +431,34 @@ document.addEventListener("click", (e) => {
 function showEditUI(translationSpan, wordId) {
     const existingEditContainer = document.querySelector('.edit-translation-container');
     if (existingEditContainer) {
-        // Find the original translation span that was hidden
         const originalSpan = existingEditContainer.previousSibling;
         if (originalSpan && originalSpan.style.display === 'none') {
-            originalSpan.style.display = ''; // Restore visibility
+            originalSpan.style.display = '';
         }
         existingEditContainer.remove();
 
-        // If the user clicked the same translation, just close it and don't reopen.
         if (originalSpan === translationSpan) {
             return;
         }
     }
 
-    // Hide the translation span
     translationSpan.style.display = 'none';
 
-    // Create an input field
     const input = document.createElement('input');
     input.type = 'text';
-    // Get the current translation text without the brackets
     const currentTranslation = translationSpan.textContent.slice(1, -1);
     input.value = currentTranslation;
-    input.className = 'edit-translation-input'; // For potential styling
+    input.className = 'edit-translation-input';
 
-    // Create a save button
     const saveButton = document.createElement('button');
-    saveButton.className = 'action-button'; // Reuse the round blue style
+    saveButton.className = 'action-button';
     saveButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/></svg>';
 
-    // Create a container for the edit UI
     const editContainer = document.createElement('span');
     editContainer.className = 'edit-translation-container';
     editContainer.appendChild(input);
     editContainer.appendChild(saveButton);
 
-    // Insert the edit UI after the hidden span
     translationSpan.parentNode.insertBefore(editContainer, translationSpan.nextSibling);
 
     input.focus();
@@ -462,14 +475,9 @@ function showEditUI(translationSpan, wordId) {
 
         if (newTranslation && wordId) {
             updateWordInStorage(wordId, newTranslation);
-            // The storage `onChanged` event will trigger a re-highlight,
-            // which will redraw the original span with the new text.
         }
 
-        // Clean up the edit UI
         editContainer.remove();
-        // We don't need to un-hide the original span, because the re-highlight will
-        // create a fresh one.
     });
 }
 
