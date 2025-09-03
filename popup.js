@@ -72,32 +72,22 @@ function isTokenValid(token) {
     return currentDate < expirationDate;
 }
 
-function getUserInfo() {
-    // Initialize Firebase and get current user
-    const auth = window.initializeFirebase();
-    if (auth) {
-        const user = window.firebaseAuth.getCurrentUser();
-        if (user) {
+async function getUserInfo() {
+    try {
+        // Get current user from Chrome storage
+        const user = await window.firebaseAuth.getCurrentUser();
+        if (user && userEmailContainer) {
             console.log('Current user:', user);
-            userEmailContainer.textContent = user.email;
+            userEmailContainer.textContent = user.email || 'Authenticated User';
             return user;
         } else {
             console.log('No user signed in');
             return null;
         }
+    } catch (error) {
+        console.error('Error getting user info:', error);
+        return null;
     }
-    
-    // Fallback to original API call if Firebase not available
-    chrome.runtime.sendMessage(
-        {
-            action: "getUserInfo",
-        },
-        (response) => {
-            if (response.userInfo) {
-                console.log(response.userInfo);
-            }
-        }
-    );
 }
 
 // Dictionary
@@ -498,30 +488,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateTelegram();
     });
 
-    // Firebase authentication state management
+    // Initialize authentication system
     window.initializeFirebase();
+    
+    // Check authentication state
+    chrome.storage.local.get(['auth_token', 'token'], (result) => {
+        if (result.auth_token || isTokenValid(result.token)) {
+            console.log('User is authenticated');
+            showMainContent();
+        } else {
+            console.log('User is not authenticated');
+            showLoginPage();
+        }
+    });
     
     // Listen for auth state changes
     if (window.firebaseAuth && window.firebaseAuth.onAuthStateChanged) {
         window.firebaseAuth.onAuthStateChanged((user) => {
             if (user) {
                 console.log('User is signed in:', user);
-                showMainContent();
+                if (loginPage.style.display !== "none") {
+                    showMainContent();
+                }
             } else {
                 console.log('User is signed out');
-                showLoginPage();
-            }
-        });
-    } else {
-        // Fallback to token verification if Firebase is not available
-        chrome.storage.local.get(["token"], (result) => {
-            console.log(result);
-            if (isTokenValid(result.token)) {
-                console.log("The token is valid");
-                showMainContent();
-            } else {
-                console.log("The token is invalid");
-                showLoginPage();
+                if (mainContent.style.display !== "none") {
+                    showLoginPage();
+                }
             }
         });
     }

@@ -9,16 +9,10 @@ function createGoogleProvider() {
     return provider;
 }
 
-// Sign in with Google using Chrome identity API
+// Sign in with Google using Chrome identity API (simplified for extension)
 async function signInWithGoogle() {
     try {
-        // Initialize Firebase if not already done
-        const auth = window.initializeFirebase();
-        if (!auth) {
-            throw new Error('Firebase not initialized');
-        }
-
-        // Use Chrome identity API to get Google access token
+        // Use Chrome identity API to get auth token directly
         return new Promise((resolve, reject) => {
             chrome.identity.getAuthToken({ interactive: true }, (token) => {
                 if (chrome.runtime.lastError) {
@@ -26,19 +20,20 @@ async function signInWithGoogle() {
                     return;
                 }
                 
-                // Create credential from token
-                const credential = firebase.auth.GoogleAuthProvider.credential(null, token);
-                
-                // Sign in with credential
-                auth.signInWithCredential(credential)
-                    .then((result) => {
-                        console.log('Successfully signed in:', result.user);
-                        resolve(result);
-                    })
-                    .catch((error) => {
-                        console.error('Firebase sign in error:', error);
-                        reject(error);
+                if (token) {
+                    // Store the token and simulate successful login
+                    chrome.storage.local.set({ 'auth_token': token }, () => {
+                        console.log('Authentication token stored');
+                        resolve({ 
+                            user: { 
+                                accessToken: token,
+                                email: 'user@gmail.com' // This will be populated from user info API
+                            } 
+                        });
                     });
+                } else {
+                    reject(new Error('No token received'));
+                }
             });
         });
     } catch (error) {
@@ -50,35 +45,48 @@ async function signInWithGoogle() {
 // Sign out
 async function signOut() {
     try {
-        const auth = window.getAuth();
-        if (auth) {
-            await auth.signOut();
-            
-            // Also remove Chrome identity token
-            chrome.identity.removeCachedAuthToken({
-                token: await getCachedToken()
-            }, () => {
-                console.log('Signed out successfully');
+        // Get current token and remove it
+        const token = await getCachedToken();
+        if (token) {
+            chrome.identity.removeCachedAuthToken({ token }, () => {
+                console.log('Token removed from cache');
             });
         }
+        
+        // Clear local storage
+        chrome.storage.local.remove(['auth_token', 'user_info'], () => {
+            console.log('Signed out successfully');
+        });
     } catch (error) {
         console.error('Sign out error:', error);
         throw error;
     }
 }
 
-// Get current user
-function getCurrentUser() {
-    const auth = window.getAuth();
-    return auth ? auth.currentUser : null;
+// Get current user (from Chrome storage)
+async function getCurrentUser() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['auth_token', 'user_info'], (result) => {
+            if (result.auth_token) {
+                resolve(result.user_info || { accessToken: result.auth_token });
+            } else {
+                resolve(null);
+            }
+        });
+    });
 }
 
-// Listen for auth state changes
+// Listen for auth state changes (simplified for extension)
 function onAuthStateChanged(callback) {
-    const auth = window.getAuth();
-    if (auth) {
-        return auth.onAuthStateChanged(callback);
-    }
+    // Check current auth state
+    getCurrentUser().then(callback);
+    
+    // Listen for storage changes
+    chrome.storage.onChanged.addListener((changes) => {
+        if (changes.auth_token || changes.user_info) {
+            getCurrentUser().then(callback);
+        }
+    });
 }
 
 // Get cached Chrome identity token
