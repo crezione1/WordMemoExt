@@ -2,6 +2,7 @@ const loginPage = document.getElementById("loginPage");
 const mainContent = document.getElementById("mainContent");
 const settingsButton = document.getElementById("settingsBtn");
 const logoutButton = document.getElementById("logoutBtn");
+const googleSignInBtn = document.getElementById("googleSignInBtn");
 const wordCategoryList = document.getElementById("wordCategoryList");
 const wordListContainer = document.getElementById("dictionaryContent");
 const notificationContainer = document.getElementById("notification");
@@ -72,13 +73,28 @@ function isTokenValid(token) {
 }
 
 function getUserInfo() {
+    // Initialize Firebase and get current user
+    const auth = window.initializeFirebase();
+    if (auth) {
+        const user = window.firebaseAuth.getCurrentUser();
+        if (user) {
+            console.log('Current user:', user);
+            userEmailContainer.textContent = user.email;
+            return user;
+        } else {
+            console.log('No user signed in');
+            return null;
+        }
+    }
+    
+    // Fallback to original API call if Firebase not available
     chrome.runtime.sendMessage(
         {
             action: "getUserInfo",
         },
         (response) => {
             if (response.userInfo) {
-                console.log(userInfo);
+                console.log(response.userInfo);
             }
         }
     );
@@ -400,10 +416,40 @@ document.addEventListener("DOMContentLoaded", async () => {
         chrome.runtime.openOptionsPage();
     });
 
-    logoutButton.addEventListener("click", () => {
-        chrome.storage.local.remove(["token", "words"]);
+    // Google Sign In button
+    googleSignInBtn.addEventListener("click", async () => {
+        try {
+            googleSignInBtn.disabled = true;
+            googleSignInBtn.textContent = "Signing in...";
+            
+            const result = await window.firebaseAuth.signInWithGoogle();
+            console.log('Sign in successful:', result);
+            
+            // The auth state change listener will handle showing main content
+        } catch (error) {
+            console.error('Sign in failed:', error);
+            showNotification('Sign in failed. Please try again.');
+            
+            googleSignInBtn.disabled = false;
+            googleSignInBtn.textContent = "Sign in with Google";
+        }
+    });
 
-        showLoginPage();
+    logoutButton.addEventListener("click", async () => {
+        try {
+            // Sign out from Firebase
+            await window.firebaseAuth.signOut();
+            
+            // Clear local storage
+            chrome.storage.local.remove(["token", "words"]);
+            
+            showLoginPage();
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Fallback to clearing storage even if Firebase logout fails
+            chrome.storage.local.remove(["token", "words"]);
+            showLoginPage();
+        }
     });
 
     wordList.addEventListener("click", async (e) => {
@@ -452,18 +498,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateTelegram();
     });
 
-    //token verification
-    chrome.storage.local.get(["token"], (result) => {
-        console.log(result);
-        if (isTokenValid(result.token)) {
-            // Token exists, now validate it
-            console.log("The token is valid");
-            showMainContent();
-        } else {
-            console.log("The token is invalid");
-            showLoginPage();
-        }
-    });
+    // Firebase authentication state management
+    window.initializeFirebase();
+    
+    // Listen for auth state changes
+    if (window.firebaseAuth && window.firebaseAuth.onAuthStateChanged) {
+        window.firebaseAuth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('User is signed in:', user);
+                showMainContent();
+            } else {
+                console.log('User is signed out');
+                showLoginPage();
+            }
+        });
+    } else {
+        // Fallback to token verification if Firebase is not available
+        chrome.storage.local.get(["token"], (result) => {
+            console.log(result);
+            if (isTokenValid(result.token)) {
+                console.log("The token is valid");
+                showMainContent();
+            } else {
+                console.log("The token is invalid");
+                showLoginPage();
+            }
+        });
+    }
 
     excludedSites = await getExcludedSites();
     currentSite = await getCurrentSite();

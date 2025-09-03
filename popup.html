@@ -35,7 +35,8 @@
                         To use <a class="link" href="https://lazylex.com/" target="_blank">Lazy Lex</a> you need to
                         register or log in.
                     </p>
-                    <a class="btn accent" href="https://lazylex.com/#/login" target="_blank">Log in</a>
+                    <button class="btn accent" id="googleSignInBtn">Sign in with Google</button>
+                    <a class="btn" href="https://lazylex.com/#/login" target="_blank">LazyLex Login</a>
                     <a class="btn" href="https://lazylex.com/#/register" target="_blank">Register</a>
                     <p class="desc">
                         Got a question?<br />
@@ -603,5 +604,14 @@
             </div>
         </div>
     </body>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    
+    <!-- Firebase configuration -->
+    <script src="firebase-config.js"></script>
+    <script src="firebase-auth.js"></script>
+    
+    <!-- Main popup script -->
     <script src="popup.js"></script>
 </html>
