@@ -1,0 +1,17 @@
+{
+  "name": "wordmemo-ext",
+  "version": "1.0.0",
+  "description": "Chrome extension for learning English vocabulary",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
