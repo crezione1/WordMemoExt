@@ -303,6 +303,7 @@ function playWordPronunciation(wordId) {
     const word = allWords.find(w => w.id === Number(wordId));
     if (word) {
         const utterance = new SpeechSynthesisUtterance(word.word);
+        // TODO create onbording screen + add this to options to select languages and use it here
         utterance.lang = 'en-US';
         speechSynthesis.speak(utterance);
     }
@@ -680,17 +681,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     //token verification
-    chrome.storage.local.get(["token"], (result) => {
-        console.log(result);
-        if (isTokenValid(result.token)) {
-            // Token exists, now validate it
-            console.log("The token is valid");
-            showMainContent();
-        } else {
-            console.log("The token is invalid");
-            showLoginPage();
-        }
-    });
+    // chrome.storage.local.get(["token"], (result) => {
+    //     console.log(result);
+    //     if (isTokenValid(result.token)) {
+    //         // Token exists, now validate it
+    //         console.log("The token is valid");
+    //         showMainContent();
+    //     } else {
+    //         console.log("The token is invalid");
+    //         showLoginPage();
+    //     }
+    // });
+
+    const currentUser = await getUserInfo();
+    if (currentUser) {
+        showMainContent();
+    } else {
+        chrome.storage.local.get(["token"], (result) => {
+            if (isTokenValid(result.token)) {
+                showMainContent();
+            } else {
+                showLoginPage();
+            }
+        });
+    }
 
     excludedSites = await getExcludedSites();
     currentSite = await getCurrentSite();
@@ -698,6 +712,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     enableExtensionCheckbox.checked = isEnabled;
     showTab("homeTab");
     displayExclusionList(excludedSites);
-    getUserInfo();
     await displayDictionary();
 });

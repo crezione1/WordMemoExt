@@ -139,6 +139,19 @@ function clearHighlighting() {
     parentsToNormalize.forEach(parent => parent.normalize());
 }
 
+function disableHighlightingDisplay() {
+    document.querySelectorAll('span.highlight-wrapper').forEach(wrapper => {
+        const highlighted = wrapper.querySelector('.highlighted-word');
+        const translation = wrapper.querySelector('.translation');
+        if (highlighted) {
+            highlighted.classList.remove('highlighted-word', 'animate-border', 'animate-background');
+        }
+        if (translation) {
+            translation.classList.remove('translation');
+        }
+    });
+}
+
 function showTemporaryHighlightWithLoader(text) {
     const textNodes = Array.from(findTextNodes(document.body));
     const lowerCaseText = text.toLowerCase();
@@ -220,6 +233,10 @@ function addHighlightForWord(word) {
             replaceTextNode(node, [targetWord], translations);
         }
     });
+
+    if (!settings.highlightingEnabled) {
+        disableHighlightingDisplay();
+    }
 }
 
 function updateHighlightsForWord(word) {
@@ -345,21 +362,21 @@ function checkInitialExtensionState() {
 // Event listeners and initialization
 
 function applySettings(newSettings) {
-    settings = { ...settings, ...newSettings };
+    settings = {...settings, ...newSettings};
 
     // Apply visual changes based on settings
     updateHighlightColors(settings.highlightColor, settings.translationColor);
 
-    if (settings.highlightingEnabled) {
-        chrome.storage.local.get(["words"]).then((result) => {
-            if (result.words && result.words.length > 0) {
-                clearHighlighting();
-                highlightWords(result.words);
-            }
-        });
-    } else {
+    chrome.storage.local.get(["words"]).then((result) => {
+        const words = result.words || [];
         clearHighlighting();
-    }
+        if (words.length > 0) {
+            highlightWords(words);
+            if (!settings.highlightingEnabled) {
+                disableHighlightingDisplay();
+            }
+        }
+    });
 }
 
 function loadInitialSettings() {
