@@ -1,12 +1,7 @@
-// Firebase-based background script
-// Import Firebase scripts for service worker
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-functions-compat.js');
+// Firebase REST API integration for Chrome extension
+// Using Firebase REST API to avoid CSP issues with external scripts
 
-// Firebase configuration
-const firebaseConfig = {
+const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBvOiSH5kKIIkLj2HFlbmGqm8TfAH8Pc7s",
     authDomain: "wordmemo-6c5b1.firebaseapp.com", 
     projectId: "wordmemo-6c5b1",
@@ -15,27 +10,29 @@ const firebaseConfig = {
     appId: "1:93068966734:web:2fa3e0d42b3e7dc6ddc99c"
 };
 
-// Initialize Firebase in service worker
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const functions = firebase.functions();
+// Firebase REST API endpoints
+const FIREBASE_AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCredential?key=${FIREBASE_CONFIG.apiKey}`;
+const FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
+
+// Current user state
+let currentUser = null;
 const TELEGRAM_BOT_URL = "https://web.telegram.org/k/#@WordMemoBot";
 
 async function getCurrentUserInfo() {
     try {
-        const user = auth.currentUser;
-        if (user) {
-            return {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL
-            };
-        } else {
-            console.log('No authenticated user');
-            return null;
+        if (currentUser) {
+            return currentUser;
         }
+        
+        // Try to get user from storage
+        const result = await chrome.storage.local.get(['user_info']);
+        if (result.user_info) {
+            currentUser = result.user_info;
+            return currentUser;
+        }
+        
+        console.log('No authenticated user');
+        return null;
     } catch (error) {
         console.error("Error getting user info:", error);
         return null;
@@ -167,8 +164,8 @@ async function handleExcludedSitesChange(changes) {
 
 async function getAllTranslations() {
     try {
-        const user = auth.currentUser;
-        if (!user) {
+        const userInfo = await getCurrentUserInfo();
+        if (!userInfo) {
             console.log('User not authenticated');
             return [];
         }
@@ -176,22 +173,42 @@ async function getAllTranslations() {
         const { translateTo } = await chrome.storage.local.get(["translateTo"]);
         const languageCode = translateTo || 'uk';
 
-        // Get words from Firebase Firestore
-        const userRef = db.collection('users').doc(user.uid);
-        const wordsSnapshot = await userRef.collection('words')
-            .where('languageCode', '==', languageCode)
-            .orderBy('createdAt', 'desc')
-            .get();
+        // Get words from Firestore using REST API
+        const token = await getFirebaseIdToken();
+        if (!token) {
+            console.log('No valid token for Firestore access');
+            return [];
+        }
 
-        const words = [];
-        wordsSnapshot.forEach(doc => {
-            words.push({
-                id: doc.id,
-                ...doc.data()
-            });
+        const wordsUrl = `${FIRESTORE_URL}/users/${userInfo.uid}/words`;
+        const response = await fetch(wordsUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
 
-        return words;
+        if (response.ok) {
+            const data = await response.json();
+            const words = [];
+            
+            if (data.documents) {
+                data.documents.forEach(doc => {
+                    const docData = parseFirestoreDocument(doc);
+                    if (docData.languageCode === languageCode) {
+                        words.push({
+                            id: doc.name.split('/').pop(),
+                            ...docData
+                        });
+                    }
+                });
+            }
+            
+            return words;
+        } else {
+            console.error('Failed to fetch words from Firestore:', response.status);
+            return [];
+        }
     } catch (error) {
         console.error("Error fetching translations from Firebase:", error);
         return [];
@@ -206,17 +223,33 @@ function saveWordsToStorage() {
 
 async function deleteWordFromDictionary(wordId) {
     try {
-        const user = auth.currentUser;
-        if (!user) {
+        const userInfo = await getCurrentUserInfo();
+        if (!userInfo) {
             console.log('User not authenticated');
             return;
         }
 
-        // Delete word from Firebase Firestore
-        const userRef = db.collection('users').doc(user.uid);
-        await userRef.collection('words').doc(wordId).delete();
+        // Delete word from Firestore using REST API
+        const token = await getFirebaseIdToken();
+        if (!token) {
+            console.log('No valid token for Firestore access');
+            return;
+        }
 
-        console.log(`Word with id ${wordId} was deleted from Firebase`);
+        const wordUrl = `${FIRESTORE_URL}/users/${userInfo.uid}/words/${wordId}`;
+        const response = await fetch(wordUrl, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            console.log(`Word with id ${wordId} was deleted from Firebase`);
+        } else {
+            console.error('Failed to delete word from Firestore:', response.status);
+        }
     } catch (error) {
         console.error("Error deleting word from Firebase:", error);
     }
@@ -396,11 +429,60 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
+// Firebase REST API helper functions
+function parseFirestoreDocument(doc) {
+    const data = {};
+    if (doc.fields) {
+        for (const [key, value] of Object.entries(doc.fields)) {
+            if (value.stringValue !== undefined) {
+                data[key] = value.stringValue;
+            } else if (value.timestampValue !== undefined) {
+                data[key] = new Date(value.timestampValue);
+            } else if (value.integerValue !== undefined) {
+                data[key] = parseInt(value.integerValue);
+            } else if (value.doubleValue !== undefined) {
+                data[key] = parseFloat(value.doubleValue);
+            } else if (value.booleanValue !== undefined) {
+                data[key] = value.booleanValue;
+            }
+        }
+    }
+    return data;
+}
+
+function createFirestoreDocument(data) {
+    const fields = {};
+    for (const [key, value] of Object.entries(data)) {
+        if (typeof value === 'string') {
+            fields[key] = { stringValue: value };
+        } else if (typeof value === 'number') {
+            fields[key] = Number.isInteger(value) ? { integerValue: value.toString() } : { doubleValue: value };
+        } else if (typeof value === 'boolean') {
+            fields[key] = { booleanValue: value };
+        } else if (value instanceof Date) {
+            fields[key] = { timestampValue: value.toISOString() };
+        } else if (value === 'SERVER_TIMESTAMP') {
+            fields[key] = { timestampValue: new Date().toISOString() };
+        }
+    }
+    return { fields };
+}
+
+async function getFirebaseIdToken() {
+    try {
+        const result = await chrome.storage.local.get(['auth_token']);
+        return result.auth_token;
+    } catch (error) {
+        console.error('Error getting Firebase token:', error);
+        return null;
+    }
+}
+
 // Authentication helper functions
 async function checkAuthenticationState() {
     try {
-        const user = auth.currentUser;
-        return user !== null;
+        const result = await chrome.storage.local.get(['user_info', 'auth_token']);
+        return !!(result.user_info && result.auth_token);
     } catch (error) {
         console.error('Error checking authentication:', error);
         return false;
@@ -418,27 +500,28 @@ async function handleFirebaseSignIn() {
                 
                 if (token) {
                     try {
-                        // Create a Google credential using the token
-                        const credential = firebase.auth.GoogleAuthProvider.credential(null, token);
+                        // Get user info from Google API
+                        const userInfoResponse = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${token}`);
+                        const googleUserInfo = await userInfoResponse.json();
                         
-                        // Sign in to Firebase with the credential
-                        const result = await firebase.auth().signInWithCredential(credential);
-                        
-                        // Store user info in Chrome storage
+                        // Create user info object
                         const userInfo = {
-                            uid: result.user.uid,
-                            email: result.user.email,
-                            displayName: result.user.displayName,
-                            photoURL: result.user.photoURL
+                            uid: googleUserInfo.id,
+                            email: googleUserInfo.email,
+                            displayName: googleUserInfo.name,
+                            photoURL: googleUserInfo.picture
                         };
                         
+                        // Store user info and token
                         chrome.storage.local.set({ 
                             'auth_token': token,
                             'user_info': userInfo 
                         });
                         
+                        currentUser = userInfo;
+                        
                         // Create user document in Firestore if it doesn't exist
-                        await createUserDocument(result.user);
+                        await createUserDocument(userInfo);
                         
                         // Load user's words
                         saveWordsToStorage();
@@ -461,9 +544,6 @@ async function handleFirebaseSignIn() {
 
 async function handleFirebaseSignOut() {
     try {
-        // Sign out from Firebase
-        await firebase.auth().signOut();
-        
         // Get current token and remove it from Chrome identity
         const token = await getCachedToken();
         if (token) {
@@ -471,6 +551,9 @@ async function handleFirebaseSignOut() {
                 console.log('Token removed from cache');
             });
         }
+        
+        // Clear current user state
+        currentUser = null;
         
         // Clear local storage
         chrome.storage.local.remove(['auth_token', 'user_info', 'words'], () => {
@@ -490,36 +573,76 @@ async function getCachedToken() {
     });
 }
 
-async function createUserDocument(user) {
+async function createUserDocument(userInfo) {
     try {
-        const userRef = db.collection('users').doc(user.uid);
-        const userDoc = await userRef.get();
+        const token = await getFirebaseIdToken();
+        if (!token) {
+            console.log('No valid token for Firestore access');
+            return;
+        }
         
-        if (!userDoc.exists) {
-            await userRef.set({
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+        // Check if user document exists
+        const userUrl = `${FIRESTORE_URL}/users/${userInfo.uid}`;
+        const checkResponse = await fetch(userUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (checkResponse.status === 404) {
+            // User doesn't exist, create new user document
+            const userData = createFirestoreDocument({
+                uid: userInfo.uid,
+                email: userInfo.email,
+                displayName: userInfo.displayName,
+                photoURL: userInfo.photoURL,
+                createdAt: 'SERVER_TIMESTAMP',
+                lastLoginAt: 'SERVER_TIMESTAMP'
+            });
+            
+            await fetch(userUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(userData)
             });
             
             // Create default user settings
-            await userRef.collection('userSettings').doc('preferences').set({
+            const settingsUrl = `${FIRESTORE_URL}/users/${userInfo.uid}/userSettings/preferences`;
+            const settingsData = createFirestoreDocument({
                 translateTo: 'UK',
                 languageFull: 'Ukrainian',
                 animationToggle: true,
                 sentenceCounter: 1,
-                excludedSites: [],
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: 'SERVER_TIMESTAMP'
+            });
+            
+            await fetch(settingsUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settingsData)
             });
             
             console.log('User document created');
-        } else {
-            // Update last login time
-            await userRef.update({
-                lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+        } else if (checkResponse.ok) {
+            // User exists, update last login time
+            const updateData = createFirestoreDocument({
+                lastLoginAt: 'SERVER_TIMESTAMP'
+            });
+            
+            await fetch(userUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
             });
         }
     } catch (error) {
@@ -530,9 +653,14 @@ async function createUserDocument(user) {
 // Save word to Firebase Firestore
 async function saveWordToFirebase(word, settings = {}) {
     try {
-        const user = auth.currentUser;
-        if (!user) {
+        const userInfo = await getCurrentUserInfo();
+        if (!userInfo) {
             throw new Error('User not authenticated');
+        }
+
+        const token = await getFirebaseIdToken();
+        if (!token) {
+            throw new Error('No valid token for Firestore access');
         }
 
         const languageCode = settings.languageCode || 'uk';
@@ -558,20 +686,36 @@ async function saveWordToFirebase(word, settings = {}) {
             word: word.toLowerCase(),
             translation: translation,
             languageCode: languageCode,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            userId: user.uid
+            createdAt: 'SERVER_TIMESTAMP',
+            userId: userInfo.uid
         };
 
-        // Save to Firestore
-        const userRef = db.collection('users').doc(user.uid);
-        const docRef = await userRef.collection('words').add(wordData);
+        // Save to Firestore using REST API
+        const wordsUrl = `${FIRESTORE_URL}/users/${userInfo.uid}/words`;
+        const firestoreData = createFirestoreDocument(wordData);
+        
+        const response = await fetch(wordsUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(firestoreData)
+        });
 
-        console.log('Word saved to Firebase with ID:', docRef.id);
-        
-        // Update local storage cache
-        saveWordsToStorage();
-        
-        return { id: docRef.id, ...wordData };
+        if (response.ok) {
+            const result = await response.json();
+            const docId = result.name.split('/').pop();
+            
+            console.log('Word saved to Firebase with ID:', docId);
+            
+            // Update local storage cache
+            saveWordsToStorage();
+            
+            return { id: docId, ...wordData };
+        } else {
+            throw new Error(`Failed to save word: ${response.status}`);
+        }
     } catch (error) {
         console.error('Error saving word to Firebase:', error);
         throw error;
