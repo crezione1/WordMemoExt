@@ -174,13 +174,33 @@ function createWordsList(words) {
 }
 
 async function displayDictionary() {
-    const { words } = await chrome.storage.local.get(["words"]);
-
-    if (words === undefined) return;
-
-    const wordsList = createWordsList(words);
-
-    wordListContainer.appendChild(wordsList);
+    try {
+        // Try to get words from Firebase first, fallback to local storage
+        if (window.firebaseFirestore && firebase.auth().currentUser) {
+            const words = await window.firebaseFirestore.getAllWordsFromFirestore();
+            if (words && words.length > 0) {
+                const wordsList = createWordsList(words);
+                wordListContainer.appendChild(wordsList);
+                return;
+            }
+        }
+        
+        // Fallback to local storage
+        const { words } = await chrome.storage.local.get(["words"]);
+        if (words && words.length > 0) {
+            const wordsList = createWordsList(words);
+            wordListContainer.appendChild(wordsList);
+        }
+    } catch (error) {
+        console.error('Error displaying dictionary:', error);
+        
+        // Fallback to local storage on error
+        const { words } = await chrome.storage.local.get(["words"]);
+        if (words && words.length > 0) {
+            const wordsList = createWordsList(words);
+            wordListContainer.appendChild(wordsList);
+        }
+    }
 }
 
 function deleteWordFromPopupDictionary(changedWordId) {
@@ -190,10 +210,28 @@ function deleteWordFromPopupDictionary(changedWordId) {
 }
 
 async function deleteWordFromStorage(wordId) {
-    const { words } = await chrome.storage.local.get(["words"]);
-    const updatedWords = words.filter((word) => word.id !== Number(wordId));
-
-    chrome.storage.local.set({ words: updatedWords });
+    try {
+        // Delete from Firebase if user is authenticated
+        if (window.firebaseFirestore && firebase.auth().currentUser) {
+            await window.firebaseFirestore.deleteWordFromFirestore(wordId);
+        }
+        
+        // Also update local storage cache
+        const { words } = await chrome.storage.local.get(["words"]);
+        if (words) {
+            const updatedWords = words.filter((word) => word.id !== wordId && word.id !== Number(wordId));
+            chrome.storage.local.set({ words: updatedWords });
+        }
+    } catch (error) {
+        console.error('Error deleting word:', error);
+        
+        // Fallback to just updating local storage
+        const { words } = await chrome.storage.local.get(["words"]);
+        if (words) {
+            const updatedWords = words.filter((word) => word.id !== wordId && word.id !== Number(wordId));
+            chrome.storage.local.set({ words: updatedWords });
+        }
+    }
 }
 
 // Settings
@@ -488,36 +526,51 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateTelegram();
     });
 
-    // Initialize authentication system
-    window.initializeFirebase();
-    
-    // Check authentication state
-    chrome.storage.local.get(['auth_token', 'token'], (result) => {
-        if (result.auth_token || isTokenValid(result.token)) {
-            console.log('User is authenticated');
-            showMainContent();
-        } else {
-            console.log('User is not authenticated');
-            showLoginPage();
-        }
-    });
-    
-    // Listen for auth state changes
-    if (window.firebaseAuth && window.firebaseAuth.onAuthStateChanged) {
-        window.firebaseAuth.onAuthStateChanged((user) => {
-            if (user) {
-                console.log('User is signed in:', user);
-                if (loginPage.style.display !== "none") {
+    // Initialize Firebase and authentication system
+    setTimeout(() => {
+        if (firebase && firebase.auth) {
+            console.log('Firebase loaded, initializing authentication...');
+            
+            // Initialize Firestore operations
+            if (window.firebaseFirestore) {
+                window.firebaseFirestore.initializeFirestore();
+            }
+            
+            // Listen for auth state changes
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    console.log('User is signed in:', user);
                     showMainContent();
-                }
-            } else {
-                console.log('User is signed out');
-                if (mainContent.style.display !== "none") {
+                    // Refresh the dictionary from Firebase
+                    displayDictionary().catch(console.error);
+                } else {
+                    console.log('User is signed out');
                     showLoginPage();
                 }
+            });
+            
+            // Check current auth state
+            const currentUser = firebase.auth().currentUser;
+            if (currentUser) {
+                console.log('User already authenticated:', currentUser);
+                showMainContent();
+            } else {
+                // Check if we have tokens in storage
+                chrome.storage.local.get(['auth_token', 'token'], (result) => {
+                    if (result.auth_token || isTokenValid(result.token)) {
+                        console.log('Found valid token in storage');
+                        showMainContent();
+                    } else {
+                        console.log('No valid authentication found');
+                        showLoginPage();
+                    }
+                });
             }
-        });
-    }
+        } else {
+            console.error('Firebase not loaded properly');
+            showLoginPage();
+        }
+    }, 1000); // Wait for Firebase to load
 
     excludedSites = await getExcludedSites();
     currentSite = await getCurrentSite();

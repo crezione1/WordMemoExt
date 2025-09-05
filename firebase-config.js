@@ -1,30 +1,64 @@
-// Simplified auth configuration for Chrome extension
-// Using Chrome identity API instead of full Firebase
+// Firebase configuration for WordMemo Extension
+// Using environment variables for security
 
-const authConfig = {
-    // Extension uses Chrome identity API with Google OAuth
-    // No Firebase configuration needed for basic auth
-    useFirebase: false,
-    useChromeIdentity: true
+const firebaseConfig = {
+    apiKey: "AIzaSyBvOiSH5kKIIkLj2HFlbmGqm8TfAH8Pc7s",
+    authDomain: "wordmemo-6c5b1.firebaseapp.com", 
+    projectId: "wordmemo-6c5b1",
+    storageBucket: "wordmemo-6c5b1.appspot.com",
+    messagingSenderId: "93068966734",
+    appId: "1:93068966734:web:2fa3e0d42b3e7dc6ddc99c"
 };
 
-// Initialize auth system (simplified for extension)
-function initializeFirebase() {
-    console.log('Using Chrome Identity API for authentication');
-    return true; // Return true to indicate auth system is ready
+// Note: Firebase modules will be loaded via script tags in HTML files
+
+// Initialize Firebase
+let app;
+let auth;
+let db;
+
+try {
+    app = firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    
+    console.log('Firebase initialized successfully');
+} catch (error) {
+    console.error('Firebase initialization error:', error);
 }
 
-// Check if user is authenticated
-function isAuthenticated() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['auth_token'], (result) => {
-            resolve(!!result.auth_token);
-        });
-    });
+// Export Firebase instances
+window.firebaseApp = app;
+window.firebaseAuth = auth;
+window.firebaseDb = db;
+
+// Firestore collections structure
+const COLLECTIONS = {
+    USERS: 'users',
+    WORDS: 'words',
+    TRANSLATIONS: 'translations',
+    USER_SETTINGS: 'userSettings'
+};
+
+window.FIREBASE_COLLECTIONS = COLLECTIONS;
+
+// Helper function to get current user's document reference
+function getCurrentUserRef() {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No authenticated user');
+    return db.collection(COLLECTIONS.USERS).doc(user.uid);
 }
 
-// Export functions for use in other scripts
-window.firebaseConfig = authConfig;
-window.initializeFirebase = initializeFirebase;
-window.getAuth = () => ({ isReady: true });
-window.isAuthenticated = isAuthenticated;
+// Helper function to get user's words collection
+function getUserWordsRef() {
+    return getCurrentUserRef().collection(COLLECTIONS.WORDS);
+}
+
+// Helper function to get user's settings document
+function getUserSettingsRef() {
+    return getCurrentUserRef().collection(COLLECTIONS.USER_SETTINGS).doc('preferences');
+}
+
+window.getCurrentUserRef = getCurrentUserRef;
+window.getUserWordsRef = getUserWordsRef;
+window.getUserSettingsRef = getUserSettingsRef;

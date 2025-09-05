@@ -1,22 +1,12 @@
-const ENV = "prod";
-
-const config = {
-    dev: {
-        API_URL: "http://localhost:8080",
-    },
-    prod: {
-        API_URL: "https://sea-lion-app-ut382.ondigitalocean.app",
-    },
-};
-
-const API_URL = config[ENV].API_URL;
+// Firebase-enabled content script
 
 let settings = {};
 let originalTextContent = [];
 
+// Legacy function - no longer needed as we use Firebase directly
 async function getToken() {
-    const result = await chrome.storage.local.get(["token"]);
-    return result.token;
+    console.log('getToken called - using Firebase authentication instead');
+    return null;
 }
 
 // Saving/deleting words
@@ -46,19 +36,21 @@ async function runLogic(selectedText) {
 
 async function saveWordToDictionary(word) {
     try {
-        const token = await getToken();
-
-        await fetch(`${API_URL}/api/words`, {
-            method: "POST",
-            body: JSON.stringify({ word: word.toLowerCase(), ...settings }),
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
+        // Send message to background script to save word using Firebase
+        const response = await chrome.runtime.sendMessage({
+            action: "saveWordToFirebase",
+            word: word.toLowerCase(),
+            settings: settings
         });
+        
+        if (response && response.success) {
+            console.log('Word saved to Firebase:', response.data);
+        } else {
+            throw new Error('Failed to save word to Firebase');
+        }
     } catch (error) {
-        console.error("Error saving word:", error);
+        console.error("Error saving word to Firebase:", error);
+        throw error;
     }
 }
 

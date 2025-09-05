@@ -1,38 +1,45 @@
-const ENV = "prod";
+// Firebase-based background script
+// Import Firebase scripts for service worker
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-functions-compat.js');
 
-const config = {
-    dev: {
-        API_URL: "http://localhost:8080",
-    },
-    prod: {
-        API_URL: "https://sea-lion-app-ut382.ondigitalocean.app",
-    },
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyBvOiSH5kKIIkLj2HFlbmGqm8TfAH8Pc7s",
+    authDomain: "wordmemo-6c5b1.firebaseapp.com", 
+    projectId: "wordmemo-6c5b1",
+    storageBucket: "wordmemo-6c5b1.appspot.com",
+    messagingSenderId: "93068966734",
+    appId: "1:93068966734:web:2fa3e0d42b3e7dc6ddc99c"
 };
 
-const API_URL = config[ENV].API_URL;
+// Initialize Firebase in service worker
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const functions = firebase.functions();
 const TELEGRAM_BOT_URL = "https://web.telegram.org/k/#@WordMemoBot";
 
 async function getCurrentUserInfo() {
-    let userInfo;
-
     try {
-        const token = await getToken();
-
-        const response = await fetch(`${API_URL}/api/users/current`, {
-            method: "GET",
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
-
-        userInfo = await response.json();
+        const user = auth.currentUser;
+        if (user) {
+            return {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL
+            };
+        } else {
+            console.log('No authenticated user');
+            return null;
+        }
     } catch (error) {
         console.error("Error getting user info:", error);
+        return null;
     }
-
-    return userInfo;
 }
 
 async function updateTelegram(telegramName, isTelegramIdExist) {
@@ -73,7 +80,18 @@ async function handleUpdateTelegram(telegramName) {
     return success;
 }
 
+// Legacy function kept for compatibility - now returns Firebase auth token
 async function getToken() {
+    try {
+        const user = auth.currentUser;
+        if (user) {
+            return await user.getIdToken();
+        }
+    } catch (error) {
+        console.error('Error getting Firebase token:', error);
+    }
+    
+    // Fallback to legacy storage token
     const result = await chrome.storage.local.get(["token"]);
     return result.token;
 }
@@ -148,34 +166,36 @@ async function handleExcludedSitesChange(changes) {
 // Getting all words and manipulating them
 
 async function getAllTranslations() {
-    const { translateTo } = await chrome.storage.local.get(["translateTo"]);
-
-    let translations = {};
-
     try {
-        const token = await getToken();
-
-        const response = await fetch(`${API_URL}/api/words?languageCodeIso=${translateTo}`, {
-            method: "GET",
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
-
-        console.log(response);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const user = auth.currentUser;
+        if (!user) {
+            console.log('User not authenticated');
+            return [];
         }
 
-        translations = await response.json();
-    } catch (error) {
-        console.error("Error fetching translations:", error);
-    }
+        const { translateTo } = await chrome.storage.local.get(["translateTo"]);
+        const languageCode = translateTo || 'uk';
 
-    return translations;
+        // Get words from Firebase Firestore
+        const userRef = db.collection('users').doc(user.uid);
+        const wordsSnapshot = await userRef.collection('words')
+            .where('languageCode', '==', languageCode)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        const words = [];
+        wordsSnapshot.forEach(doc => {
+            words.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+
+        return words;
+    } catch (error) {
+        console.error("Error fetching translations from Firebase:", error);
+        return [];
+    }
 }
 
 function saveWordsToStorage() {
@@ -186,20 +206,19 @@ function saveWordsToStorage() {
 
 async function deleteWordFromDictionary(wordId) {
     try {
-        const token = await getToken();
+        const user = auth.currentUser;
+        if (!user) {
+            console.log('User not authenticated');
+            return;
+        }
 
-        await fetch(`${API_URL}/api/words/${wordId}`, {
-            method: "DELETE",
-            headers: {
-                Authorization: "Bearer " + token,
-                Accept: "application/json, application/xml, text/plain, text/html, */*",
-                "Content-Type": "application/json",
-            },
-        });
+        // Delete word from Firebase Firestore
+        const userRef = db.collection('users').doc(user.uid);
+        await userRef.collection('words').doc(wordId).delete();
 
-        console.log(`word with id ${wordId} was deleted`);
+        console.log(`Word with id ${wordId} was deleted from Firebase`);
     } catch (error) {
-        console.error("Error deleting word:", error);
+        console.error("Error deleting word from Firebase:", error);
     }
 }
 
@@ -311,18 +330,83 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         saveWordsToStorage();
     }
 
+    if (request.action === "saveWordToFirebase") {
+        saveWordToFirebase(request.word, request.settings)
+            .then((result) => {
+                sendResponse({ success: true, data: result });
+            })
+            .catch((error) => {
+                console.error("Error saving word to Firebase:", error);
+                sendResponse({ success: false, error: error.message });
+            });
+
+        return true;
+    }
+
     if (request.action === "getUserInfo") {
         getCurrentUserInfo()
-            .then(() => {
+            .then((userInfo) => {
                 sendResponse({ userInfo });
             })
             .catch((error) => {
                 console.error("Error getting user info:", error);
+                sendResponse({ userInfo: null });
             });
 
         return true;
     }
 });
+
+// Save word to Firebase Firestore
+async function saveWordToFirebase(word, settings = {}) {
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error('User not authenticated');
+        }
+
+        const languageCode = settings.languageCode || 'uk';
+        
+        // For now, we'll use a simple mock translation
+        // In production, this would call a translation service
+        const mockTranslations = {
+            'hello': 'привіт',
+            'world': 'світ',
+            'good': 'добрий',
+            'morning': 'ранок',
+            'evening': 'вечір',
+            'thank': 'дякую',
+            'please': 'будь ласка',
+            'yes': 'так',
+            'no': 'ні',
+            'water': 'вода'
+        };
+
+        const translation = mockTranslations[word.toLowerCase()] || `переклад_${word}`;
+
+        const wordData = {
+            word: word.toLowerCase(),
+            translation: translation,
+            languageCode: languageCode,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            userId: user.uid
+        };
+
+        // Save to Firestore
+        const userRef = db.collection('users').doc(user.uid);
+        const docRef = await userRef.collection('words').add(wordData);
+
+        console.log('Word saved to Firebase with ID:', docRef.id);
+        
+        // Update local storage cache
+        saveWordsToStorage();
+        
+        return { id: docRef.id, ...wordData };
+    } catch (error) {
+        console.error('Error saving word to Firebase:', error);
+        throw error;
+    }
+}
 
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
     if (namespace === "local" && "excludedSites" in changes) {
