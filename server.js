@@ -81,5 +81,5 @@ app.get('/extension-info', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`WordMemo Extension development server running on http://0.0.0.0:${PORT}`);
     console.log('Extension files are being served for development purposes');
-    console.log('Visit http://localhost:${PORT}/extension-info for installation instructions');
+    console.log(`Visit http://localhost:${PORT}/extension-info for installation instructions`);
 });
