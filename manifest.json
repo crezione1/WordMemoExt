@@ -42,7 +42,7 @@
         }
     },
     "content_security_policy": {
-        "extension_pages": "script-src 'self' https://www.gstatic.com; object-src 'self';"
+        "extension_pages": "script-src 'self'; object-src 'self';"
     },
     "action": {
         "default_popup": "popup.html",

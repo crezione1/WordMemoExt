@@ -74,12 +74,12 @@ function isTokenValid(token) {
 
 async function getUserInfo() {
     try {
-        // Get current user from Chrome storage
-        const user = await window.firebaseAuth.getCurrentUser();
-        if (user && userEmailContainer) {
-            console.log('Current user:', user);
-            userEmailContainer.textContent = user.email || 'Authenticated User';
-            return user;
+        // Get user info from background script
+        const response = await chrome.runtime.sendMessage({ action: "getUserInfo" });
+        if (response && response.userInfo && userEmailContainer) {
+            console.log('Current user:', response.userInfo);
+            userEmailContainer.textContent = response.userInfo.email || 'Authenticated User';
+            return response.userInfo;
         } else {
             console.log('No user signed in');
             return null;
@@ -175,17 +175,7 @@ function createWordsList(words) {
 
 async function displayDictionary() {
     try {
-        // Try to get words from Firebase first, fallback to local storage
-        if (window.firebaseFirestore && firebase.auth().currentUser) {
-            const words = await window.firebaseFirestore.getAllWordsFromFirestore();
-            if (words && words.length > 0) {
-                const wordsList = createWordsList(words);
-                wordListContainer.appendChild(wordsList);
-                return;
-            }
-        }
-        
-        // Fallback to local storage
+        // Get words from local storage (background script syncs with Firebase)
         const { words } = await chrome.storage.local.get(["words"]);
         if (words && words.length > 0) {
             const wordsList = createWordsList(words);
@@ -193,13 +183,6 @@ async function displayDictionary() {
         }
     } catch (error) {
         console.error('Error displaying dictionary:', error);
-        
-        // Fallback to local storage on error
-        const { words } = await chrome.storage.local.get(["words"]);
-        if (words && words.length > 0) {
-            const wordsList = createWordsList(words);
-            wordListContainer.appendChild(wordsList);
-        }
     }
 }
 
@@ -211,12 +194,7 @@ function deleteWordFromPopupDictionary(changedWordId) {
 
 async function deleteWordFromStorage(wordId) {
     try {
-        // Delete from Firebase if user is authenticated
-        if (window.firebaseFirestore && firebase.auth().currentUser) {
-            await window.firebaseFirestore.deleteWordFromFirestore(wordId);
-        }
-        
-        // Also update local storage cache
+        // Update local storage (background script will sync with Firebase)
         const { words } = await chrome.storage.local.get(["words"]);
         if (words) {
             const updatedWords = words.filter((word) => word.id !== wordId && word.id !== Number(wordId));
@@ -224,13 +202,6 @@ async function deleteWordFromStorage(wordId) {
         }
     } catch (error) {
         console.error('Error deleting word:', error);
-        
-        // Fallback to just updating local storage
-        const { words } = await chrome.storage.local.get(["words"]);
-        if (words) {
-            const updatedWords = words.filter((word) => word.id !== wordId && word.id !== Number(wordId));
-            chrome.storage.local.set({ words: updatedWords });
-        }
     }
 }
 
@@ -450,10 +421,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             googleSignInBtn.disabled = true;
             googleSignInBtn.textContent = "Signing in...";
             
-            const result = await window.firebaseAuth.signInWithGoogle();
-            console.log('Sign in successful:', result);
+            // Send sign-in request to background script
+            const response = await chrome.runtime.sendMessage({ action: "signInWithGoogle" });
             
-            // The auth state change listener will handle showing main content
+            if (response && response.success) {
+                console.log('Sign in successful:', response.user);
+                showMainContent();
+            } else {
+                throw new Error(response?.error || 'Sign in failed');
+            }
         } catch (error) {
             console.error('Sign in failed:', error);
             showNotification('Sign in failed. Please try again.');
@@ -465,17 +441,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     logoutButton.addEventListener("click", async () => {
         try {
-            // Sign out from Firebase
-            await window.firebaseAuth.signOut();
+            // Send sign-out request to background script
+            const response = await chrome.runtime.sendMessage({ action: "signOut" });
             
             // Clear local storage
-            chrome.storage.local.remove(["token", "words"]);
+            chrome.storage.local.remove(["token", "words", "auth_token", "user_info"]);
             
             showLoginPage();
         } catch (error) {
             console.error('Logout error:', error);
-            // Fallback to clearing storage even if Firebase logout fails
-            chrome.storage.local.remove(["token", "words"]);
+            // Fallback to clearing storage
+            chrome.storage.local.remove(["token", "words", "auth_token", "user_info"]);
             showLoginPage();
         }
     });
@@ -526,51 +502,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateTelegram();
     });
 
-    // Initialize Firebase and authentication system
-    setTimeout(() => {
-        if (firebase && firebase.auth) {
-            console.log('Firebase loaded, initializing authentication...');
-            
-            // Initialize Firestore operations
-            if (window.firebaseFirestore) {
-                window.firebaseFirestore.initializeFirestore();
-            }
-            
-            // Listen for auth state changes
-            firebase.auth().onAuthStateChanged((user) => {
-                if (user) {
-                    console.log('User is signed in:', user);
-                    showMainContent();
-                    // Refresh the dictionary from Firebase
-                    displayDictionary().catch(console.error);
-                } else {
-                    console.log('User is signed out');
-                    showLoginPage();
-                }
-            });
-            
-            // Check current auth state
-            const currentUser = firebase.auth().currentUser;
-            if (currentUser) {
-                console.log('User already authenticated:', currentUser);
-                showMainContent();
-            } else {
-                // Check if we have tokens in storage
-                chrome.storage.local.get(['auth_token', 'token'], (result) => {
-                    if (result.auth_token || isTokenValid(result.token)) {
-                        console.log('Found valid token in storage');
-                        showMainContent();
-                    } else {
-                        console.log('No valid authentication found');
-                        showLoginPage();
-                    }
-                });
-            }
+    // Check authentication state via background script
+    chrome.runtime.sendMessage({ action: "checkAuthState" }, (response) => {
+        if (response && response.isAuthenticated) {
+            console.log('User is authenticated');
+            showMainContent();
+            displayDictionary().catch(console.error);
         } else {
-            console.error('Firebase not loaded properly');
+            console.log('User is not authenticated');
             showLoginPage();
         }
-    }, 1000); // Wait for Firebase to load
+    });
 
     excludedSites = await getExcludedSites();
     currentSite = await getCurrentSite();

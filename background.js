@@ -313,6 +313,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.action === "checkAuthState") {
+        checkAuthenticationState()
+            .then((isAuthenticated) => {
+                sendResponse({ isAuthenticated });
+            })
+            .catch((error) => {
+                console.error("Error checking auth state:", error);
+                sendResponse({ isAuthenticated: false });
+            });
+
+        return true;
+    }
+
+    if (request.action === "signInWithGoogle") {
+        handleFirebaseSignIn()
+            .then((result) => {
+                sendResponse({ success: true, user: result });
+            })
+            .catch((error) => {
+                console.error("Error with Firebase sign in:", error);
+                sendResponse({ success: false, error: error.message });
+            });
+
+        return true;
+    }
+
+    if (request.action === "signOut") {
+        handleFirebaseSignOut()
+            .then(() => {
+                sendResponse({ success: true });
+            })
+            .catch((error) => {
+                console.error("Error with Firebase sign out:", error);
+                sendResponse({ success: false, error: error.message });
+            });
+
+        return true;
+    }
+
     if (request.action === "updateTelegram") {
         handleUpdateTelegram(request.telegramName)
             .then((success) => {
@@ -356,6 +395,137 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 });
+
+// Authentication helper functions
+async function checkAuthenticationState() {
+    try {
+        const user = auth.currentUser;
+        return user !== null;
+    } catch (error) {
+        console.error('Error checking authentication:', error);
+        return false;
+    }
+}
+
+async function handleFirebaseSignIn() {
+    try {
+        return new Promise((resolve, reject) => {
+            chrome.identity.getAuthToken({ interactive: true }, async (token) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+                
+                if (token) {
+                    try {
+                        // Create a Google credential using the token
+                        const credential = firebase.auth.GoogleAuthProvider.credential(null, token);
+                        
+                        // Sign in to Firebase with the credential
+                        const result = await firebase.auth().signInWithCredential(credential);
+                        
+                        // Store user info in Chrome storage
+                        const userInfo = {
+                            uid: result.user.uid,
+                            email: result.user.email,
+                            displayName: result.user.displayName,
+                            photoURL: result.user.photoURL
+                        };
+                        
+                        chrome.storage.local.set({ 
+                            'auth_token': token,
+                            'user_info': userInfo 
+                        });
+                        
+                        // Create user document in Firestore if it doesn't exist
+                        await createUserDocument(result.user);
+                        
+                        // Load user's words
+                        saveWordsToStorage();
+                        
+                        resolve(userInfo);
+                    } catch (error) {
+                        console.error('Firebase auth error:', error);
+                        reject(error);
+                    }
+                } else {
+                    reject(new Error('No token received'));
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Sign in error:', error);
+        throw error;
+    }
+}
+
+async function handleFirebaseSignOut() {
+    try {
+        // Sign out from Firebase
+        await firebase.auth().signOut();
+        
+        // Get current token and remove it from Chrome identity
+        const token = await getCachedToken();
+        if (token) {
+            chrome.identity.removeCachedAuthToken({ token }, () => {
+                console.log('Token removed from cache');
+            });
+        }
+        
+        // Clear local storage
+        chrome.storage.local.remove(['auth_token', 'user_info', 'words'], () => {
+            console.log('Signed out successfully');
+        });
+    } catch (error) {
+        console.error('Sign out error:', error);
+        throw error;
+    }
+}
+
+async function getCachedToken() {
+    return new Promise((resolve) => {
+        chrome.identity.getAuthToken({ interactive: false }, (token) => {
+            resolve(token);
+        });
+    });
+}
+
+async function createUserDocument(user) {
+    try {
+        const userRef = db.collection('users').doc(user.uid);
+        const userDoc = await userRef.get();
+        
+        if (!userDoc.exists) {
+            await userRef.set({
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Create default user settings
+            await userRef.collection('userSettings').doc('preferences').set({
+                translateTo: 'UK',
+                languageFull: 'Ukrainian',
+                animationToggle: true,
+                sentenceCounter: 1,
+                excludedSites: [],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log('User document created');
+        } else {
+            // Update last login time
+            await userRef.update({
+                lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    } catch (error) {
+        console.error('Error creating user document:', error);
+    }
+}
 
 // Save word to Firebase Firestore
 async function saveWordToFirebase(word, settings = {}) {
