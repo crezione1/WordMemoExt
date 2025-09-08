@@ -73,11 +73,14 @@ async function saveWordToDictionary(word) {
         // Get current words
         const { words } = await chrome.storage.local.get({ words: [] });
 
-        // Use new API for translation
+        // Use Firebase Cloud Function for translation (Google Translation API)
         const translation = await translateWithTAS(word, settings["languageCode"] || "uk");
-        // Create new word object
+        // Create new word object with unique id (avoid same-ms collisions)
+        let newId = Date.now();
+        const ids = new Set((words || []).map(w => Number(w.id)));
+        while (ids.has(newId)) newId += 1;
         const newWord = {
-            id: Date.now(),
+            id: newId,
             word: word.toLowerCase(),
             translation: translation,
             dateAdded: Date.now(), // Add current date
@@ -92,6 +95,27 @@ async function saveWordToDictionary(word) {
         console.log('[WordMemoExt] Updated words list:', updatedWords);
     } catch (error) {
         console.error("Error saving word:", error);
+    }
+}
+
+// Implement translateWithTAS by delegating to Firebase callable function (minimal change)
+async function translateWithTAS(word, targetLang) {
+    try {
+        console.log('[WordMemoExt] translateWithTAS request', { word, targetLang });
+        const response = await chrome.runtime.sendMessage({
+            action: 'translateWord',
+            word,
+            targetLanguage: targetLang || 'uk'
+        });
+        if (response && response.success && response.result && response.result.translation) {
+            console.log('[WordMemoExt] translateWithTAS success', { word, translation: response.result.translation });
+            return response.result.translation;
+        }
+        throw new Error(response?.error || 'Translate failed');
+    } catch (e) {
+        console.warn('[WordMemoExt] translateWithTAS fallback due to error:', e?.message || e);
+        // Fallback: return original word if function failed
+        return word;
     }
 }
 

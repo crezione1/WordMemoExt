@@ -12,14 +12,15 @@
     "host_permissions": [
         "https://*.firebaseapp.com/*",
         "https://*.googleapis.com/*",
-        "https://*.google.com/*"
+        "https://*.google.com/*",
+        "https://*.cloudfunctions.net/*"
     ],
     "oauth2": {
         "client_id": "318380438947-3479ec2jak6a0kapl8q8icip78am6o01.apps.googleusercontent.com",
         "scopes": [
-            "openid",
             "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/userinfo.profile"
+            "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/datastore"
         ]
     },
     "background": {
