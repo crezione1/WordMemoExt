@@ -4,6 +4,10 @@ modules = ["nodejs-20", "python-3.11"]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 45651
+externalPort = 3000
+
 [agent]
 expertMode = true
 

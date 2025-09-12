@@ -1,3 +1,9 @@
+// Prevent popup.js from running on non-popup pages (like onboarding)
+if (window.location.pathname.includes('onboarding')) {
+    // Skip popup.js execution on onboarding page
+} else {
+    // Run popup.js on popup page
+
 const loginPage = document.getElementById("loginPage");
 const mainContent = document.getElementById("mainContent");
 const settingsButton = document.getElementById("settingsBtn");
@@ -927,4 +933,7 @@ async function renderWordDetailsById(wordId) {
     } catch (e) {
         console.error('renderWordDetailsById failed:', e);
     }
+}
+
+// End of popup.js main code
 }

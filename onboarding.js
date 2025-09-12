@@ -45,6 +45,7 @@ const defaultWords = {
 
 // Initialize onboarding
 document.addEventListener('DOMContentLoaded', function() {
+    
     // Add event listeners for all buttons
     document.getElementById('step1NextBtn').addEventListener('click', nextStep);
     document.getElementById('step2BackBtn').addEventListener('click', prevStep);
@@ -58,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateProgressBar();
     setupLevelSelection();
     setupMinimalisticToggle();
+    
     setupHowItWorksDemo();
 });
 
@@ -335,6 +337,7 @@ function setupHowItWorksDemo() {
 }
 
 function selectWord(wordElement, event) {
+    
     // Remove previous selections
     document.querySelectorAll('.selectable-word.selected').forEach(word => {
         word.classList.remove('selected');
@@ -344,6 +347,7 @@ function selectWord(wordElement, event) {
     wordElement.classList.add('selected');
     demoState.selectedWord = wordElement.dataset.word;
     demoState.selectedWordElement = wordElement;
+    
     
     // Show the Add popover near the word
     showAddPopover(wordElement);
