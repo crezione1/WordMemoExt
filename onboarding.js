@@ -70,6 +70,11 @@ function nextStep() {
             return;
         }
         
+        // Reset demo when leaving Step 2
+        if (currentStep === 2) {
+            resetHowItWorksDemo();
+        }
+        
         // Hide current step
         document.getElementById(`step${currentStep}`).classList.remove('active');
         
@@ -88,12 +93,22 @@ function nextStep() {
 
 function prevStep() {
     if (currentStep > 1) {
+        // Reset demo when leaving Step 2
+        if (currentStep === 2) {
+            resetHowItWorksDemo();
+        }
+        
         // Hide current step
         document.getElementById(`step${currentStep}`).classList.remove('active');
         
         // Show previous step
         currentStep--;
         document.getElementById(`step${currentStep}`).classList.add('active');
+        
+        // Reset demo when entering Step 2
+        if (currentStep === 2) {
+            setTimeout(() => resetHowItWorksDemo(), 100);
+        }
         
         updateProgressBar();
     }
@@ -446,6 +461,10 @@ function completeDemoStep() {
 }
 
 function resetHowItWorksDemo() {
+    // Return early if elements don't exist (not on Step 2)
+    const nextBtn = document.getElementById('step2NextBtn');
+    if (!nextBtn) return;
+    
     // Reset demo state
     demoState = {
         selectedWord: null,
@@ -454,16 +473,37 @@ function resetHowItWorksDemo() {
         isCompleted: false
     };
     
-    // Reset UI elements
+    // Clear all word states
     document.querySelectorAll('.selectable-word').forEach(word => {
         word.classList.remove('selected', 'saved');
     });
     
+    // Hide and cleanup popover
     hideAddPopover();
+    const addPopover = document.getElementById('addPopover');
+    if (addPopover) {
+        addPopover.classList.remove('visible');
+        addPopover.style.display = 'none';
+    }
     
+    // Remove any flying clones and clear animations
+    document.querySelectorAll('.flying-clone').forEach(clone => clone.remove());
+    
+    // Remove pulse effect from extension icon
+    const extIcon = document.getElementById('extIcon');
+    if (extIcon) {
+        extIcon.classList.remove('pulse');
+    }
+    
+    // Clear animation overlay
+    const animationOverlay = document.getElementById('animationOverlay');
+    if (animationOverlay) {
+        animationOverlay.innerHTML = '';
+    }
+    
+    // Reset completion message and instruction text
     const demoCompletion = document.getElementById('demoCompletion');
     const instructionText = document.querySelector('.instruction-text');
-    const nextBtn = document.getElementById('step2NextBtn');
     
     if (demoCompletion) demoCompletion.style.display = 'none';
     if (instructionText) {
@@ -471,7 +511,7 @@ function resetHowItWorksDemo() {
         instructionText.innerHTML = '<i class="fas fa-hand-pointer"></i> Click on any highlighted word above to try it!';
     }
     
-    // Disable Continue button
+    // Always disable and reset Continue button
     nextBtn.disabled = true;
     nextBtn.style.opacity = '0.5';
     nextBtn.textContent = 'Try the Demo Above';
