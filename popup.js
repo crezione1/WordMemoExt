@@ -24,6 +24,8 @@ const userEmailContainer = document.getElementById("userEmail");
 const learnedWordsCounter = document.getElementById("learnedWordsCounter");
 const newWordsCounter = document.getElementById("newWordsCounter");
 const allWordsCounter = document.getElementById("allWordsCounter");
+const addWordInput = document.getElementById('addWordInput');
+const addWordBtn = document.getElementById('addWordBtn');
 
 let excludedSites;
 let currentSite;
@@ -212,7 +214,10 @@ function filterWords(words, filter) {
             return words.filter(word => word.status === 'learned');
         case 'today':
             return words.filter(word => {
-                const wordDate = new Date(word.dateAdded || Date.now()).toDateString();
+                const ts = typeof word.dateAdded === 'string' || typeof word.dateAdded === 'number'
+                  ? new Date(word.dateAdded)
+                  : new Date();
+                const wordDate = ts.toDateString();
                 return wordDate === today && word.status !== 'learned';
             });
         case 'all':
@@ -231,11 +236,17 @@ function updateActiveFilterTab(activeFilter) {
 function updateWordCounters(words) {
     const allCount = words.length;
     const learnedCount = words.filter(word => word.status === 'learned').length;
-    const newWordsCount = allCount - learnedCount;
+    const todayStr = new Date().toDateString();
+    const todayCount = words.filter(word => {
+        const ts = typeof word.dateAdded === 'string' || typeof word.dateAdded === 'number'
+          ? new Date(word.dateAdded)
+          : new Date();
+        return ts.toDateString() === todayStr && word.status !== 'learned';
+    }).length;
 
-    learnedWordsCounter.textContent = learnedCount;
-    newWordsCounter.textContent = newWordsCount;
-    allWordsCounter.textContent = allCount;
+    if (learnedWordsCounter) learnedWordsCounter.textContent = learnedCount;
+    if (newWordsCounter) newWordsCounter.textContent = todayCount;
+    if (allWordsCounter) allWordsCounter.textContent = allCount;
 
     // Update counter displays
     const allTab = document.querySelector('[data-filter="all"]');
@@ -254,18 +265,28 @@ function updateWordCounters(words) {
 
     if (todayTab) {
         const counter = todayTab.querySelector('.filter-counter');
-        if (counter) counter.textContent = newWordsCount;
+        if (counter) counter.textContent = todayCount;
     }
 }
 
 async function displayDictionary() {
-    const {words} = await chrome.storage.local.get(["words"]);
-
-    if (words === undefined) return;
-
-    allWords = words;
-    createWordsList(words, currentFilter);
-    updateWordCounters(words);
+    try {
+        let { words } = await chrome.storage.local.get(["words"]);
+        if (!Array.isArray(words)) {
+            // Try to trigger background sync then re-read
+            chrome.runtime.sendMessage({ action: "saveWordsToStorage" });
+            const retry = await new Promise((resolve) => setTimeout(async () => {
+                const data = await chrome.storage.local.get(["words"]);
+                resolve(data.words || []);
+            }, 250));
+            words = retry;
+        }
+        allWords = Array.isArray(words) ? words : [];
+        createWordsList(allWords, currentFilter);
+        updateWordCounters(allWords);
+    } catch (e) {
+        console.error('displayDictionary failed:', e);
+    }
 }
 
 async function markWordAsLearned(wordId) {
@@ -521,6 +542,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const tab = e.target.closest(".tab-action");
                 if (!tab) return;
                 showTab(tab.id);
+                if (tab.id === 'dictionaryTab') {
+                    displayDictionary().catch(console.error);
+                }
             });
         }
 
@@ -638,7 +662,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!action) return;
 
         if (action === "showSynonym") {
-            console.log("Synonyms");
+            try {
+                const wordId = Number(button.dataset.wordId);
+                renderWordDetailsById(wordId);
+            } catch (e) {
+                console.error('Open word details failed:', e);
+            }
         } else if (action === "playPronunciation") {
             playWordPronunciation(button.dataset.wordId);
         } else if (action === "markAsLearned") {
@@ -661,10 +690,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (request.action === "wordsChanged") {
             console.log("words were changed: ", request.newValue);
 
-            if (request.newValue.operation === "getAllWords") {
+            const op = request.newValue.operation;
+            if (op === "getAllWords") {
                 displayDictionary().catch(console.error);
-            } else if (request.newValue.operation === "deleteWord") {
+            } else if (op === "deleteWord") {
                 deleteWordFromPopupDictionary(request.newValue.wordId);
+                // refresh counters after delete
+                displayDictionary().catch(console.error);
+            } else if (op === "add" || op === "update" || op === "reload") {
+                // simple refresh to keep list and counters in sync
+                displayDictionary().catch(console.error);
             }
         }
     });
@@ -714,3 +749,142 @@ document.addEventListener("DOMContentLoaded", async () => {
     displayExclusionList(excludedSites);
     await displayDictionary();
 });
+
+// Add New Word from Home
+function toggleAddButton() {
+    if (!addWordBtn || !addWordInput) return;
+    const hasText = addWordInput.value.trim().length > 0;
+    addWordBtn.disabled = !hasText;
+}
+
+async function addNewWordFromPopup() {
+    try {
+        if (!addWordInput) return;
+        const raw = addWordInput.value.trim();
+        if (!raw) return;
+        const wordLower = raw.toLowerCase();
+
+        // Get target language
+        const { translateTo } = await chrome.storage.local.get(['translateTo']);
+        const targetLanguage = (translateTo || 'uk');
+
+        // Ask background to translate (also returns synonyms/examples)
+        const resp = await chrome.runtime.sendMessage({
+            action: 'translateWord',
+            word: wordLower,
+            targetLanguage
+        });
+
+        const tr = (resp && resp.success && resp.result) ? resp.result : { translation: wordLower, synonyms: [], examples: [] };
+        const translation = tr.translation || wordLower;
+        const synonyms = Array.isArray(tr.synonyms) ? tr.synonyms : [];
+        const examples = Array.isArray(tr.examples) ? tr.examples : [];
+
+        // Load current words and ensure unique id
+        const { words = [] } = await chrome.storage.local.get(['words']);
+        let newId = Date.now();
+        const ids = new Set((words || []).map(w => Number(w.id)));
+        while (ids.has(newId)) newId += 1;
+
+        const newWord = {
+            id: newId,
+            word: wordLower,
+            translation,
+            dateAdded: Date.now(),
+            status: 'new',
+            learned: false,
+            synonyms,
+            examples
+        };
+
+        const updated = [...words, newWord];
+        await chrome.storage.local.set({ words: updated });
+        allWords = updated;
+        createWordsList(updated, currentFilter);
+        updateWordCounters(updated);
+
+        addWordInput.value = '';
+        toggleAddButton();
+        showNotification('Word added');
+    } catch (e) {
+        console.error('Add new word failed:', e);
+        showNotification('Failed to add word');
+    }
+}
+
+if (addWordInput) {
+    addWordInput.addEventListener('input', toggleAddButton);
+    addWordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !addWordBtn.disabled) {
+            addNewWordFromPopup();
+        }
+    });
+}
+if (addWordBtn) {
+    addWordBtn.addEventListener('click', addNewWordFromPopup);
+}
+
+// ---- Word details SPA rendering ----
+function showSection(sectionId) {
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(c => c.style.display = 'none');
+    const target = document.getElementById(sectionId);
+    if (target) target.style.display = 'flex';
+}
+
+async function renderWordDetailsById(wordId) {
+    try {
+        const { words = [] } = await chrome.storage.local.get(['words']);
+        const found = words.find(w => Number(w.id) === Number(wordId));
+        if (!found) return;
+
+        const titleEl = document.getElementById('detailsTitle');
+        const trEl = document.getElementById('detailsTranslation');
+        const synList = document.getElementById('detailsSynonyms');
+        const synEmpty = document.getElementById('detailsSynonymsEmpty');
+        const exList = document.getElementById('detailsExamples');
+
+        titleEl.textContent = found.word || 'Word';
+        trEl.textContent = found.translation || '';
+
+        // Synonyms
+        synList.innerHTML = '';
+        const synonyms = Array.isArray(found.synonyms) ? found.synonyms : [];
+        if (synonyms.length === 0) {
+            synEmpty.style.display = 'block';
+        } else {
+            synEmpty.style.display = 'none';
+            synonyms.forEach(s => {
+                const li = document.createElement('li');
+                li.className = 'synonym-item';
+                li.textContent = `${s?.source || ''} — ${s?.translation || ''}`;
+                synList.appendChild(li);
+            });
+        }
+
+        // Examples: prefer stored, else placeholders
+        exList.innerHTML = '';
+        const ex = Array.isArray(found.examples) && found.examples.length > 0
+          ? found.examples
+          : [
+              `This is a sample sentence using "${found.word}" in context to demonstrate usage and meaning.`,
+              `Another example for "${found.word}" that shows how it may appear in a paragraph.`,
+              `A third placeholder sentence with "${found.word}" for future API-generated examples.`
+            ];
+        ex.forEach(t => {
+            const li = document.createElement('li');
+            li.textContent = t;
+            exList.appendChild(li);
+        });
+
+        showSection('wordDetailsContent');
+
+        const backBtn = document.getElementById('backToDictionaryBtn');
+        if (backBtn && !backBtn._handlerAttached) {
+            backBtn.addEventListener('click', () => showTab('dictionaryTab'));
+            backBtn._handlerAttached = true;
+        }
+    } catch (e) {
+        console.error('renderWordDetailsById failed:', e);
+    }
+}

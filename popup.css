@@ -63,6 +63,9 @@ button:disabled {
     box-shadow: rgba(14, 30, 37, 0.12) 0px 2px 4px 0px, rgba(14, 30, 37, 0.32) 0px 2px 16px 0px;
 }
 
+/* Ensure main content area can shrink and allow inner scroll containers */
+
+
 /* Login page */
 
 .login-page {
@@ -219,6 +222,56 @@ button:disabled {
     flex-direction: column;
     gap: 20px;
 }
+
+/* Add-word controls (home) */
+.add-word-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 8px 0 12px;
+}
+
+.add-word-input {
+    flex: 1 1 auto;
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.add-word-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 157, 123, 0.25);
+    border-color: var(--accent-color);
+}
+
+.add-word-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 8px;
+    transition: transform 0.08s ease, box-shadow 0.12s ease, background-color 0.12s ease, opacity 0.12s ease;
+    width: auto;
+}
+
+.add-word-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.add-word-btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    filter: brightness(1.03);
+}
+
+.add-word-btn:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: none;
+    filter: brightness(0.98);
+}
+
+/* Make only the words list scrollable inside dictionary tab */
+
 
 .word-category-list {
     display: flex;

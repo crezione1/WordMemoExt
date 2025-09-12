@@ -73,18 +73,26 @@ async function saveWordToDictionary(word) {
         // Get current words
         const { words } = await chrome.storage.local.get({ words: [] });
 
+        // Normalize the word to lowercase for consistent storage and Firebase
+        const baseWord = (word || '').toLowerCase();
+
         // Use Firebase Cloud Function for translation (Google Translation API)
-        const translation = await translateWithTAS(word, settings["languageCode"] || "uk");
+        const tr = await translateWithTAS(baseWord, settings["languageCode"] || "uk");
+        const translation = typeof tr === 'string' ? tr : (tr?.translation || word);
+        const synonyms = Array.isArray(tr?.synonyms) ? tr.synonyms : [];
+        const examples = Array.isArray(tr?.examples) ? tr.examples : [];
         // Create new word object with unique id (avoid same-ms collisions)
         let newId = Date.now();
         const ids = new Set((words || []).map(w => Number(w.id)));
         while (ids.has(newId)) newId += 1;
         const newWord = {
             id: newId,
-            word: word.toLowerCase(),
+            word: baseWord,
             translation: translation,
             dateAdded: Date.now(), // Add current date
-            learned: false // Default learned status
+            learned: false, // Default learned status
+            synonyms: synonyms,
+            examples: examples
         };
         chrome.runtime.sendMessage({ action: "saveWordsToStorage" });
         // addHighlightForWord(newWord);
@@ -108,14 +116,14 @@ async function translateWithTAS(word, targetLang) {
             targetLanguage: targetLang || 'uk'
         });
         if (response && response.success && response.result && response.result.translation) {
-            console.log('[WordMemoExt] translateWithTAS success', { word, translation: response.result.translation });
-            return response.result.translation;
+            console.log('[WordMemoExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
+            return response.result;
         }
         throw new Error(response?.error || 'Translate failed');
     } catch (e) {
         console.warn('[WordMemoExt] translateWithTAS fallback due to error:', e?.message || e);
         // Fallback: return original word if function failed
-        return word;
+        return { translation: word, synonyms: [] };
     }
 }
 
@@ -316,11 +324,11 @@ function replaceTextNode(node, targetWords, translations) {
                 highlightedSpan.classList.add("animate-background");
             }, 10);
 
+            wrapper.appendChild(highlightedSpan);
+
             const translationNode = document.createElement("span");
             translationNode.classList.add("translation");
             translationNode.textContent = `[${translations[lowerPart].translation}]`;
-
-            wrapper.appendChild(highlightedSpan);
             wrapper.appendChild(translationNode);
             fragment.appendChild(wrapper);
         } else {
@@ -612,53 +620,22 @@ window.addEventListener("message", (event) => {
 
 loadInitialSettings();
 
-async function translateWithTAS(text, targetLang) {
-    const endpointsUrl = 'https://raw.githubusercontent.com/Uncover-F/TAS/Uncover/.data/endpoints.json';
-    const proxyUrl = 'https://api.allorigins.win/get?url=';
-
-    const params = {
-        text: text,
-        source_lang: 'en',
-        target_lang: targetLang
-    };
-
+async function translateWithTAS(word, targetLang) {
     try {
-        const endpointsResponse = await fetch(endpointsUrl);
-        if (!endpointsResponse.ok) {
-            console.error(`Error fetching endpoints: ${endpointsResponse.status} - ${endpointsResponse.statusText}`);
-            return '[translation service unavailable]';
+        console.log('[WordMemoExt] translateWithTAS request', { word, targetLang });
+        const response = await chrome.runtime.sendMessage({
+            action: 'translateWord',
+            word,
+            targetLanguage: targetLang || 'uk'
+        });
+        if (response && response.success && response.result && response.result.translation) {
+            console.log('[WordMemoExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
+            return response.result;
         }
-        const endpoints = await endpointsResponse.json();
-
-        for (const endpoint of endpoints) {
-            let targetUrl = new URL(endpoint);
-            targetUrl.search = new URLSearchParams(params).toString();
-
-            const proxiedUrl = proxyUrl + encodeURIComponent(targetUrl);
-
-            try {
-                const response = await fetch(proxiedUrl);
-                if (response.ok) {
-                    const proxyResult = await response.json();
-                    if (proxyResult.contents) {
-                        const result = JSON.parse(proxyResult.contents);
-                        if (result && result.response && result.response.translated_text) {
-                            return result.response.translated_text;
-                        }
-                    }
-                } else {
-                    console.error(`Error at ${proxiedUrl}: ${response.status} - ${response.statusText}`);
-                }
-            } catch (error) {
-                console.error(`Request exception at ${proxiedUrl}:`, error);
-            }
-        }
-
-        console.error('All translation endpoints failed.');
-        return '[translation failed]';
-    } catch (error) {
-        console.error('Error during translation process:', error);
-        return '[translation error]';
+        throw new Error(response?.error || 'Translate failed');
+    } catch (e) {
+        console.warn('[WordMemoExt] translateWithTAS fallback due to error:', e?.message || e);
+        return { translation: word, synonyms: [], examples: [] };
     }
 }
 

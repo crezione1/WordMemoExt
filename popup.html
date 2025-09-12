@@ -134,6 +134,10 @@
         <div id="homeContent" class="tab-content home-content">
             <div>
                 <h2 class="title-large">My Word Lists</h2>
+                <div class="add-word-container">
+                    <input id="addWordInput" class="input add-word-input" type="text" placeholder="Add a new word…" />
+                    <button id="addWordBtn" class="btn accent add-word-btn" disabled>Add</button>
+                </div>
                 <div class="word-category-list" id="wordCategoryList">
                     <button class="word-category-btn" id="newWordsList">
                         <div class="word-category">
@@ -226,6 +230,20 @@
             </div>
 
             <ul class="word-list list" id="wordList"></ul>
+        </div>
+
+        <!-- Word details (SPA panel) -->
+        <div id="wordDetailsContent" class="tab-content" style="display: none; flex-direction: column; gap: 8px;">
+            <button type="button" class="icon-btn" id="backToDictionaryBtn" style="align-self:flex-start;">← Back</button>
+            <h2 class="title-large" id="detailsTitle">Word</h2>
+            <div class="desc" id="detailsTranslation">Translation</div>
+
+            <h3 class="title-small" style="margin-top:8px;">Synonyms</h3>
+            <ul class="list" id="detailsSynonyms"></ul>
+            <div class="desc" id="detailsSynonymsEmpty" style="display:none;">No synonyms found for this word.</div>
+
+            <h3 class="title-small" style="margin-top:8px;">Example Sentences</h3>
+            <ul class="list" id="detailsExamples"></ul>
         </div>
 
         <div id="settingsContent" class="tab-content settings-content">

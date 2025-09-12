@@ -207,8 +207,17 @@ async function getAllTranslations() {
     }, {});
 }
 
-function saveWordsToStorage() {
-    // Already handled by getAllTranslations and chrome.storage.local
+async function saveWordsToStorage() {
+    try {
+        const { words = [] } = await chrome.storage.local.get(['words']);
+        if (Array.isArray(words) && words.length > 0) {
+            await chrome.storage.local.set({ words });
+        } else {
+            await fsSyncWordsFromCloudIfEmpty();
+        }
+    } catch (e) {
+        console.warn('saveWordsToStorage failed:', e?.message || e);
+    }
 }
 
 async function deleteWordFromDictionary(wordId) {
@@ -219,28 +228,56 @@ async function deleteWordFromDictionary(wordId) {
 }
 
 // ---- Firestore helpers (minimal, additive) ----
+function fsEncodeValue(v) {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (typeof v === 'string') return { stringValue: v };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    if (v instanceof Date) return { timestampValue: v.toISOString() };
+    if (Array.isArray(v)) return { arrayValue: { values: v.map(fsEncodeValue) } };
+    if (typeof v === 'object') {
+        const m = {};
+        Object.entries(v).forEach(([mk, mv]) => { m[mk] = fsEncodeValue(mv); });
+        return { mapValue: { fields: m } };
+    }
+    return { stringValue: String(v) };
+}
+
 function fsEncodeFields(obj) {
     const out = {};
     Object.entries(obj).forEach(([k, v]) => {
-        if (v === null || v === undefined) return;
-        if (typeof v === 'string') out[k] = { stringValue: v };
-        else if (typeof v === 'boolean') out[k] = { booleanValue: v };
-        else if (typeof v === 'number') out[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-        else if (v instanceof Date) out[k] = { timestampValue: v.toISOString() };
-        else out[k] = { stringValue: String(v) };
+        if (v === undefined) return;
+        out[k] = fsEncodeValue(v);
     });
     return { fields: out };
+}
+
+function fsDecodeValue(v) {
+    if (v == null) return null;
+    if ('nullValue' in v) return null;
+    if ('stringValue' in v) return v.stringValue;
+    if ('booleanValue' in v) return v.booleanValue;
+    if ('integerValue' in v) return parseInt(v.integerValue);
+    if ('doubleValue' in v) return v.doubleValue;
+    if ('timestampValue' in v) return new Date(v.timestampValue).getTime();
+    if ('arrayValue' in v) {
+        const arr = v.arrayValue.values || [];
+        return arr.map(fsDecodeValue);
+    }
+    if ('mapValue' in v) {
+        const m = {};
+        const fields = v.mapValue.fields || {};
+        for (const [mk, mv] of Object.entries(fields)) m[mk] = fsDecodeValue(mv);
+        return m;
+    }
+    return undefined;
 }
 
 function fsDecodeFields(doc) {
     const data = {};
     if (!doc || !doc.fields) return data;
     for (const [k, v] of Object.entries(doc.fields)) {
-        if ('stringValue' in v) data[k] = v.stringValue;
-        else if ('booleanValue' in v) data[k] = v.booleanValue;
-        else if ('integerValue' in v) data[k] = parseInt(v.integerValue);
-        else if ('doubleValue' in v) data[k] = v.doubleValue;
-        else if ('timestampValue' in v) data[k] = new Date(v.timestampValue).getTime();
+        data[k] = fsDecodeValue(v);
     }
     return data;
 }
@@ -311,7 +348,9 @@ async function fsUpsertWord(changedWord) {
         translation: String(changedWord.translation || ''),
         learned: !!changedWord.learned,
         dateAdded: Number(changedWord.dateAdded || Date.now()),
-        userId: String(uid)
+        userId: String(uid),
+        synonyms: Array.isArray(changedWord.synonyms) ? changedWord.synonyms : [],
+        examples: Array.isArray(changedWord.examples) ? changedWord.examples : []
     });
     const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     console.log('CCCCCCCCCCCCCCCCC')
