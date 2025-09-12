@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Extension Settings</title>
     <link rel="stylesheet" href="popup.css">
+    <script src="word-io-manager.js"></script>
     <style>
         body {
             height: auto;
@@ -297,6 +298,27 @@
 <!--                <option value="10">10</option>-->
 <!--            </select>-->
 <!--        </div>-->
+
+        <div class="setting-group">
+            <label class="setting-title">Import/Export Words</label>
+            <p class="setting-description">Export your words to a text file or import words from a text file. Format: word - translation (one per line)</p>
+            
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
+                <button type="button" id="exportWordsBtn" class="save-btn" style="flex: 1; background: var(--accent-color); margin: 0;">
+                    Export Words
+                </button>
+                <button type="button" id="importWordsBtn" class="save-btn" style="flex: 1; background: #6c757d; margin: 0;">
+                    Import Words
+                </button>
+            </div>
+            
+            <input type="file" id="importFileInput" accept=".txt" style="display: none;" />
+            
+            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 11px; color: #666;">
+                <strong>Export:</strong> Downloads all your words as a text file<br>
+                <strong>Import:</strong> Adds words from a text file (duplicates will be skipped)
+            </div>
+        </div>
 
         <button id="save" class="save-btn">Save Settings</button>
     </div>
