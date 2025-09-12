@@ -144,24 +144,39 @@ class TxtFormatHandler extends FormatHandler {
             return [];
         }
 
+        const words = [];
+        let currentId = Date.now(); // Simple ID generation for imported words
+
+        // Split content into lines
         const lines = content.split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 0);
 
-        const words = [];
-        let currentId = Date.now(); // Simple ID generation for imported words
-
         for (const line of lines) {
-            const parts = line.split(' - ');
-            if (parts.length >= 2) {
-                const word = parts[0].trim();
-                const translation = parts.slice(1).join(' - ').trim(); // Handle cases where translation contains " - "
+            // Check for comma or semicolon separated entries within a line
+            let entries = [];
+            
+            if (line.includes(',') && this._hasWordTranslationPattern(line, ',')) {
+                // Comma separated format: word - translation, word1 - translation1
+                entries = line.split(',').map(entry => entry.trim());
+            } else if (line.includes(';') && this._hasWordTranslationPattern(line, ';')) {
+                // Semicolon separated format: word - translation; word1 - translation1
+                entries = line.split(';').map(entry => entry.trim());
+            } else {
+                // Single entry per line
+                entries = [line];
+            }
+
+            // Process each entry
+            for (const entry of entries) {
+                if (!entry.trim()) continue;
                 
-                if (word && translation) {
+                const wordData = this._parseWordTranslationEntry(entry.trim());
+                if (wordData) {
                     words.push({
                         id: currentId++,
-                        word: word,
-                        translation: translation,
+                        word: wordData.word,
+                        translation: wordData.translation,
                         status: 'new',
                         imported: true,
                         importedAt: new Date().toISOString(),
@@ -172,6 +187,59 @@ class TxtFormatHandler extends FormatHandler {
         }
 
         return words;
+    }
+
+    /**
+     * Check if a line contains word-translation patterns for the given separator
+     * @param {string} line - The line to check
+     * @param {string} separator - The separator to check for (',' or ';')
+     * @returns {boolean} True if the line appears to contain multiple word-translation pairs
+     */
+    _hasWordTranslationPattern(line, separator) {
+        const parts = line.split(separator);
+        if (parts.length < 2) return false;
+        
+        // Check if each part looks like it could contain a word-translation pair
+        return parts.every(part => 
+            part.trim().includes(' - ') || part.trim().includes(' - - ')
+        );
+    }
+
+    /**
+     * Parse a single word-translation entry, supporting both single and double dash formats
+     * @param {string} entry - The entry to parse (e.g., "word - translation" or "word - - translation")
+     * @returns {Object|null} Object with word and translation properties, or null if invalid
+     */
+    _parseWordTranslationEntry(entry) {
+        if (!entry || typeof entry !== 'string') {
+            return null;
+        }
+
+        // Handle double dash format first: word - - translation
+        if (entry.includes(' - - ')) {
+            const parts = entry.split(' - - ');
+            if (parts.length >= 2) {
+                const word = parts[0].trim();
+                const translation = parts.slice(1).join(' - - ').trim();
+                if (word && translation) {
+                    return { word, translation };
+                }
+            }
+        }
+        
+        // Handle single dash format: word - translation
+        if (entry.includes(' - ')) {
+            const parts = entry.split(' - ');
+            if (parts.length >= 2) {
+                const word = parts[0].trim();
+                const translation = parts.slice(1).join(' - ').trim(); // Handle cases where translation contains " - "
+                if (word && translation) {
+                    return { word, translation };
+                }
+            }
+        }
+
+        return null;
     }
 }
 
