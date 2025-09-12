@@ -502,9 +502,12 @@ async function handleWordsChange(changes) {
 
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install") {
-        // This is a first install!
-        chrome.tabs.create({ url: "popup.html" });
-        chrome.storage.local.set({ token: "" });
+        // This is a first install! Show onboarding instead of popup
+        chrome.tabs.create({ url: "onboarding.html" });
+        chrome.storage.local.set({ 
+            token: "",
+            onboardingCompleted: false
+        });
     } else if (details.reason === "update") {
         // This is an update. You can also handle updates here if needed.
     }
