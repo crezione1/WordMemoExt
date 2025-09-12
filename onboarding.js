@@ -86,6 +86,35 @@ function prevStep() {
 function updateProgressBar() {
     const progress = (currentStep / totalSteps) * 100;
     document.getElementById('progressBar').style.width = progress + '%';
+    updateBreadcrumbs();
+}
+
+function updateBreadcrumbs() {
+    const breadcrumbSteps = document.querySelectorAll('.breadcrumb-step');
+    const breadcrumbDividers = document.querySelectorAll('.breadcrumb-divider');
+    
+    breadcrumbSteps.forEach((step, index) => {
+        const stepNumber = index + 1;
+        
+        // Remove existing classes
+        step.classList.remove('active', 'completed');
+        
+        if (stepNumber < currentStep) {
+            // Completed steps
+            step.classList.add('completed');
+        } else if (stepNumber === currentStep) {
+            // Current active step
+            step.classList.add('active');
+        }
+    });
+    
+    // Update dividers
+    breadcrumbDividers.forEach((divider, index) => {
+        divider.classList.remove('completed');
+        if (index + 1 < currentStep) {
+            divider.classList.add('completed');
+        }
+    });
 }
 
 // Level selection setup

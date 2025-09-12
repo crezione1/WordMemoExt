@@ -258,6 +258,84 @@
             z-index: 1000;
         }
 
+        .breadcrumbs {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+
+        .breadcrumb-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .breadcrumb-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            border: 2px solid var(--border-color);
+            background: white;
+            color: var(--text-light);
+            transition: all 0.3s;
+        }
+
+        .breadcrumb-step.active .breadcrumb-circle {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .breadcrumb-step.completed .breadcrumb-circle {
+            background: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+
+        .breadcrumb-label {
+            font-size: 12px;
+            color: var(--text-light);
+            font-weight: 500;
+            display: none;
+        }
+
+        .breadcrumb-step.active .breadcrumb-label {
+            color: var(--primary-color);
+        }
+
+        .breadcrumb-step.completed .breadcrumb-label {
+            color: var(--success-color);
+        }
+
+        .breadcrumb-divider {
+            width: 30px;
+            height: 2px;
+            background: var(--border-color);
+            transition: background 0.3s;
+        }
+
+        .breadcrumb-divider.completed {
+            background: var(--success-color);
+        }
+
+        @media (min-width: 600px) {
+            .breadcrumb-label {
+                display: block;
+            }
+            
+            .breadcrumbs {
+                gap: 15px;
+            }
+        }
+
         .demo-preview {
             background: #f8f9fa;
             border-radius: 12px;
@@ -313,6 +391,33 @@
     
     <div class="onboarding-container">
         <div class="onboarding-card">
+            <!-- Breadcrumbs -->
+            <div class="breadcrumbs" id="breadcrumbs">
+                <div class="breadcrumb-step active" data-step="1">
+                    <div class="breadcrumb-circle">1</div>
+                    <div class="breadcrumb-label">Welcome</div>
+                </div>
+                <div class="breadcrumb-divider"></div>
+                <div class="breadcrumb-step" data-step="2">
+                    <div class="breadcrumb-circle">2</div>
+                    <div class="breadcrumb-label">How it Works</div>
+                </div>
+                <div class="breadcrumb-divider"></div>
+                <div class="breadcrumb-step" data-step="3">
+                    <div class="breadcrumb-circle">3</div>
+                    <div class="breadcrumb-label">Level</div>
+                </div>
+                <div class="breadcrumb-divider"></div>
+                <div class="breadcrumb-step" data-step="4">
+                    <div class="breadcrumb-circle">4</div>
+                    <div class="breadcrumb-label">Settings</div>
+                </div>
+                <div class="breadcrumb-divider"></div>
+                <div class="breadcrumb-step" data-step="5">
+                    <div class="breadcrumb-circle">✓</div>
+                    <div class="breadcrumb-label">Complete</div>
+                </div>
+            </div>
             <!-- Step 1: Welcome -->
             <div class="step active" id="step1">
                 <div class="step-number">1</div>
