@@ -503,7 +503,7 @@ async function handleWordsChange(changes) {
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install") {
         // This is a first install! Show onboarding instead of popup
-        chrome.tabs.create({ url: "onboarding.html" });
+        chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
         chrome.storage.local.set({ 
             token: "",
             onboardingCompleted: false

@@ -184,6 +184,7 @@ async function addDefaultWords(level) {
             imported: false,
             isDefault: true,
             level: level,
+            dateAdded: Date.now(),
             createdAt: new Date().toISOString(),
             addedDuringOnboarding: true
         }));
@@ -217,12 +218,11 @@ async function applyMinimalisticSettings() {
             // Disable animations
             animationToggle: false,
             
-            // Set grey translation color
-            customTranslationColor: '#999999',
+            // Set grey translation color  
             translationColor: '#999999',
             
             // Disable word highlighting
-            highlightingToggle: false,
+            highlightingEnabled: false,
             
             // Save minimalistic preference
             minimalisticMode: true

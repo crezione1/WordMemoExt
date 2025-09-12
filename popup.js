@@ -728,26 +728,38 @@ document.addEventListener("DOMContentLoaded", async () => {
     //     }
     // });
 
-    const currentUser = await getUserInfo();
-    if (currentUser) {
-        showMainContent();
-    } else {
-        chrome.storage.local.get(["token"], (result) => {
-            if (isTokenValid(result.token)) {
-                showMainContent();
-            } else {
-                showLoginPage();
-            }
-        });
-    }
-
-    excludedSites = await getExcludedSites();
-    currentSite = await getCurrentSite();
-    isEnabled = checkIfCurrentSiteEnabled();
-    enableExtensionCheckbox.checked = isEnabled;
-    showTab("homeTab");
-    displayExclusionList(excludedSites);
-    await displayDictionary();
+    // Check if onboarding is completed before proceeding with authentication
+    chrome.storage.local.get({onboardingCompleted: false}, async (onboardingResult) => {
+        if (!onboardingResult.onboardingCompleted) {
+            // Redirect to onboarding if not completed
+            chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
+            window.close();
+            return;
+        }
+        
+        // Continue with normal authentication flow
+        const currentUser = await getUserInfo();
+        if (currentUser) {
+            showMainContent();
+        } else {
+            chrome.storage.local.get(["token"], (result) => {
+                if (isTokenValid(result.token)) {
+                    showMainContent();
+                } else {
+                    showLoginPage();
+                }
+            });
+        }
+        
+        // Initialize extension state after authentication
+        excludedSites = await getExcludedSites();
+        currentSite = await getCurrentSite();
+        isEnabled = checkIfCurrentSiteEnabled();
+        enableExtensionCheckbox.checked = isEnabled;
+        showTab("homeTab");
+        displayExclusionList(excludedSites);
+        await displayDictionary();
+    });
 });
 
 // Add New Word from Home
