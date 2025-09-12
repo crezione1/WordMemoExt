@@ -179,16 +179,14 @@ async function completeOnboarding() {
             await applyMinimalisticSettings();
         }
         
-        // Close onboarding and open extension popup
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            chrome.tabs.remove(tabs[0].id);
-        });
+        console.log('Onboarding completed successfully!', settings);
         
-        // Optional: Open the extension popup
-        chrome.action.openPopup().catch(() => {
-            // Fallback: create a new tab with the popup
-            chrome.tabs.create({ url: 'popup.html' });
-        });
+        // Small delay to ensure all storage operations are fully committed
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Notify that onboarding is completed and ask background to close this tab
+        chrome.runtime.sendMessage({ action: 'onboardingCompleted' });
+        chrome.runtime.sendMessage({ action: 'closeSelf' });
         
     } catch (error) {
         console.error('Error completing onboarding:', error);

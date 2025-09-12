@@ -728,38 +728,66 @@ document.addEventListener("DOMContentLoaded", async () => {
     //     }
     // });
 
-    // Check if onboarding is completed before proceeding with authentication
-    chrome.storage.local.get({onboardingCompleted: false}, async (onboardingResult) => {
-        if (!onboardingResult.onboardingCompleted) {
-            // Redirect to onboarding if not completed
-            chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
+    // Check if onboarding is completed with robust double-check
+    const checkOnboardingCompletion = async () => {
+        // First check
+        const firstCheck = await new Promise(resolve => {
+            chrome.storage.local.get({onboardingCompleted: false}, resolve);
+        });
+        
+        console.log('First onboarding check:', firstCheck);
+        
+        if (firstCheck.onboardingCompleted) {
+            console.log('Onboarding completed, continuing with popup...');
+            return true;
+        }
+        
+        // Wait a bit for storage to settle, then check again
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const secondCheck = await new Promise(resolve => {
+            chrome.storage.local.get({onboardingCompleted: false}, resolve);
+        });
+        
+        console.log('Second onboarding check:', secondCheck);
+        
+        if (!secondCheck.onboardingCompleted) {
+            console.log('Onboarding not completed after double-check, requesting redirect...');
+            // Ask background to handle onboarding redirect
+            chrome.runtime.sendMessage({action: 'needOnboarding'});
             window.close();
-            return;
+            return false;
         }
         
-        // Continue with normal authentication flow
-        const currentUser = await getUserInfo();
-        if (currentUser) {
-            showMainContent();
-        } else {
-            chrome.storage.local.get(["token"], (result) => {
-                if (isTokenValid(result.token)) {
-                    showMainContent();
-                } else {
-                    showLoginPage();
-                }
-            });
-        }
+        console.log('Onboarding completed on second check, continuing...');
+        return true;
+    };
+    
+    const onboardingCompleted = await checkOnboardingCompletion();
+    if (!onboardingCompleted) return;
         
-        // Initialize extension state after authentication
-        excludedSites = await getExcludedSites();
-        currentSite = await getCurrentSite();
-        isEnabled = checkIfCurrentSiteEnabled();
-        enableExtensionCheckbox.checked = isEnabled;
-        showTab("homeTab");
-        displayExclusionList(excludedSites);
-        await displayDictionary();
-    });
+    // Continue with normal authentication flow
+    const currentUser = await getUserInfo();
+    if (currentUser) {
+        showMainContent();
+    } else {
+        chrome.storage.local.get(["token"], (result) => {
+            if (isTokenValid(result.token)) {
+                showMainContent();
+            } else {
+                showLoginPage();
+            }
+        });
+    }
+    
+    // Initialize extension state after authentication
+    excludedSites = await getExcludedSites();
+    currentSite = await getCurrentSite();
+    isEnabled = checkIfCurrentSiteEnabled();
+    enableExtensionCheckbox.checked = isEnabled;
+    showTab("homeTab");
+    displayExclusionList(excludedSites);
+    await displayDictionary();
 });
 
 // Add New Word from Home

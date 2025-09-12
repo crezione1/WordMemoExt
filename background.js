@@ -57,6 +57,24 @@ function notifyPopupAboutChanges(actionName, content) {
     });
 }
 
+// Handle onboarding redirect requests and tab closure
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'needOnboarding') {
+        console.log('Opening onboarding from background...');
+        chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
+        return true;
+    } else if (request.action === 'closeSelf') {
+        console.log('Closing onboarding tab from background...');
+        if (sender.tab && sender.tab.id) {
+            chrome.tabs.remove(sender.tab.id);
+        }
+        return true;
+    } else if (request.action === 'onboardingCompleted') {
+        console.log('Onboarding completed notification received');
+        return true;
+    }
+});
+
 // Firebase ID token helpers (for backend integration)
 const FIREBASE_API_KEY_BG = "AIzaSyDhSsOp7mkwf4NVeYIhk_RZZNaHpC0ZUho";
 const FIREBASE_PROJECT_ID = "lazylex-9d161";
