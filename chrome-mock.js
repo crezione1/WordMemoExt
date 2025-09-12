@@ -8,6 +8,27 @@
 console.log('Chrome mock script loading...');
 console.log('Current chrome object:', typeof chrome !== 'undefined' ? chrome : 'undefined');
 
+// Create robust event object factory
+const createEvent = () => {
+    const listeners = [];
+    return {
+        addListener: function(fn) {
+            console.log('Mock event addListener called');
+            listeners.push(fn);
+        },
+        removeListener: function(fn) {
+            const index = listeners.indexOf(fn);
+            if (index > -1) listeners.splice(index, 1);
+        },
+        hasListener: function(fn) {
+            return listeners.includes(fn);
+        },
+        _dispatch: function(...args) {
+            listeners.slice().forEach(listener => listener(...args));
+        }
+    };
+};
+
 if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessage) {
     console.log('Initializing Chrome API mocks for web development...');
     
@@ -62,14 +83,7 @@ if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessag
                 }
             },
             
-            onChanged: {
-                addListener: function(callback) {
-                    console.log('Mock chrome.storage.onChanged.addListener registered');
-                    // Store the callback for potential future use
-                    window._chromeStorageListeners = window._chromeStorageListeners || [];
-                    window._chromeStorageListeners.push(callback);
-                }
-            }
+            onChanged: createEvent()
         },
         
         runtime: {
@@ -82,19 +96,20 @@ if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessag
                 return Promise.resolve({ success: true });
             },
             
-            onMessage: {
-                addListener: function(callback) {
-                    console.log('Mock chrome.runtime.onMessage.addListener registered');
-                    // Store the callback for potential future use
-                    window._chromeMessageListeners = window._chromeMessageListeners || [];
-                    window._chromeMessageListeners.push(callback);
-                }
-            },
+            onMessage: createEvent(),
+            onInstalled: createEvent(),
+            onStartup: createEvent(),
+            onConnect: createEvent(),
             
             openOptionsPage: function() {
                 console.log('Mock chrome.runtime.openOptionsPage called');
                 // In development, open options.html in new tab
                 window.open('/options.html', '_blank');
+            },
+            
+            getURL: function(path) {
+                console.log('Mock chrome.runtime.getURL called with:', path);
+                return window.location.origin + '/' + path.replace(/^\//, '');
             }
         },
         
@@ -123,8 +138,38 @@ if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.onMessag
                 }
                 return Promise.resolve(null);
             }
+        },
+        
+        i18n: {
+            getMessage: function(messageName, substitutions) {
+                console.log('Mock chrome.i18n.getMessage called with:', messageName);
+                // Return the key as fallback
+                return messageName;
+            }
+        },
+        
+        contextMenus: {
+            create: function(options, callback) {
+                console.log('Mock chrome.contextMenus.create called with:', options);
+                if (callback) callback();
+            },
+            remove: function(menuItemId, callback) {
+                console.log('Mock chrome.contextMenus.remove called');
+                if (callback) callback();
+            },
+            onClicked: createEvent()
+        },
+        
+        scripting: {
+            executeScript: function(details, callback) {
+                console.log('Mock chrome.scripting.executeScript called with:', details);
+                if (callback) callback([]);
+                return Promise.resolve([]);
+            }
         }
     };
     
     console.log('Chrome API mocks initialized successfully');
+} else {
+    console.log('Chrome APIs already exist, skipping mock initialization');
 }
