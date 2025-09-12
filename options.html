@@ -301,22 +301,40 @@
 
         <div class="setting-group">
             <label class="setting-title">Import/Export Words</label>
-            <p class="setting-description">Export your words to a text file or import words from a text file. Format: word - translation (one per line)</p>
+            <p class="setting-description">Export your words to a text file or import words from a text file</p>
             
             <div style="display: flex; gap: 15px; margin-top: 15px;">
-                <button type="button" id="exportWordsBtn" class="save-btn" style="flex: 1; background: var(--accent-color); margin: 0;">
-                    Export Words
-                </button>
-                <button type="button" id="importWordsBtn" class="save-btn" style="flex: 1; background: #6c757d; margin: 0;">
+                <button type="button" id="importWordsBtn" class="save-btn" style="flex: 1; background: var(--accent-color); margin: 0;">
                     Import Words
+                </button>
+                <button type="button" id="exportWordsBtn" class="save-btn" style="flex: 1; background: #6c757d; margin: 0;">
+                    Export Words
                 </button>
             </div>
             
             <input type="file" id="importFileInput" accept=".txt" style="display: none;" />
             
-            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 11px; color: #666;">
-                <strong>Export:</strong> Downloads all your words as a text file<br>
-                <strong>Import:</strong> Adds words from a text file (duplicates will be skipped)
+            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--accent-color);">
+                <div style="font-size: 12px; color: #666; margin-bottom: 12px;">
+                    <strong>📤 Export:</strong> Downloads all your words as a text file<br>
+                    <strong>📥 Import:</strong> Adds words from a text file (duplicates will be skipped)
+                </div>
+                
+                <div style="margin-top: 12px;">
+                    <strong style="color: var(--text-dark-color); font-size: 13px;">Supported Import Formats:</strong>
+                    <div style="margin-top: 8px; font-family: monospace; font-size: 11px; line-height: 1.6;">
+                        <div style="color: #2d5016; margin-bottom: 4px;"><strong>• Single dash:</strong> word - translation</div>
+                        <div style="color: #2d5016; margin-bottom: 4px;"><strong>• Double dash:</strong> word1 - - translation1</div>
+                        <div style="color: #2d5016; margin-bottom: 4px;"><strong>• Comma separated:</strong> word - translation, word1 - translation1</div>
+                        <div style="color: #2d5016;"><strong>• Semicolon separated:</strong> word - translation; word1 - translation1</div>
+                    </div>
+                    
+                    <div style="margin-top: 10px; padding: 8px; background: #e7f3ff; border-radius: 4px; font-size: 10px; color: #1565c0;">
+                        <strong>💡 Example:</strong> hello - привіт<br>
+                        computer - - комп'ютер<br>
+                        book - книга, pen - ручка
+                    </div>
+                </div>
             </div>
         </div>
 
