@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateProgressBar();
     setupLevelSelection();
     setupMinimalisticToggle();
+    setupHowItWorksDemo();
 });
 
 // Step navigation
@@ -75,6 +76,11 @@ function nextStep() {
         // Show next step
         currentStep++;
         document.getElementById(`step${currentStep}`).classList.add('active');
+        
+        // Reset demo when entering Step 2
+        if (currentStep === 2) {
+            setTimeout(() => resetHowItWorksDemo(), 100);
+        }
         
         updateProgressBar();
     }
@@ -271,6 +277,204 @@ async function applyMinimalisticSettings() {
     } catch (error) {
         console.error('Error applying minimalistic settings:', error);
     }
+}
+
+// Interactive Demo State
+let demoState = {
+    selectedWord: null,
+    selectedWordElement: null,
+    isAnimating: false,
+    isCompleted: false
+};
+
+// Setup How It Works Interactive Demo
+function setupHowItWorksDemo() {
+    const selectableWords = document.querySelectorAll('.selectable-word');
+    const addPopover = document.getElementById('addPopover');
+    const addWordBtn = document.getElementById('addWordBtn');
+    
+    // Add click listeners to selectable words
+    selectableWords.forEach(word => {
+        word.addEventListener('click', function(e) {
+            if (demoState.isAnimating || word.classList.contains('saved')) {
+                return;
+            }
+            
+            selectWord(word, e);
+        });
+    });
+    
+    // Add click listener to Add button
+    addWordBtn.addEventListener('click', function() {
+        if (demoState.selectedWordElement && !demoState.isAnimating) {
+            animateWordToExtension();
+        }
+    });
+    
+    // Hide popover when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.selectable-word') && !e.target.closest('.add-popover')) {
+            hideAddPopover();
+        }
+    });
+}
+
+function selectWord(wordElement, event) {
+    // Remove previous selections
+    document.querySelectorAll('.selectable-word.selected').forEach(word => {
+        word.classList.remove('selected');
+    });
+    
+    // Select the clicked word
+    wordElement.classList.add('selected');
+    demoState.selectedWord = wordElement.dataset.word;
+    demoState.selectedWordElement = wordElement;
+    
+    // Show the Add popover near the word
+    showAddPopover(wordElement);
+    
+    // Update instruction text
+    const instructionText = document.querySelector('.instruction-text');
+    instructionText.innerHTML = '<i class="fas fa-plus-circle"></i> Now click "Add Word" to save it!';
+}
+
+function showAddPopover(wordElement) {
+    const addPopover = document.getElementById('addPopover');
+    const rect = wordElement.getBoundingClientRect();
+    const demoRect = document.getElementById('howitworksDemo').getBoundingClientRect();
+    
+    // Position popover above the word
+    const left = rect.left - demoRect.left + (rect.width / 2) - 50; // Center the popover
+    const top = rect.top - demoRect.top - 45; // Position above the word
+    
+    addPopover.style.left = left + 'px';
+    addPopover.style.top = top + 'px';
+    addPopover.classList.add('visible');
+}
+
+function hideAddPopover() {
+    const addPopover = document.getElementById('addPopover');
+    addPopover.classList.remove('visible');
+    
+    // Remove selection from words
+    document.querySelectorAll('.selectable-word.selected').forEach(word => {
+        word.classList.remove('selected');
+    });
+    
+    demoState.selectedWord = null;
+    demoState.selectedWordElement = null;
+}
+
+function animateWordToExtension() {
+    if (!demoState.selectedWordElement || demoState.isAnimating) {
+        return;
+    }
+    
+    demoState.isAnimating = true;
+    hideAddPopover();
+    
+    const wordElement = demoState.selectedWordElement;
+    const extIcon = document.getElementById('extIcon');
+    const animationOverlay = document.getElementById('animationOverlay');
+    
+    // Get positions
+    const wordRect = wordElement.getBoundingClientRect();
+    const iconRect = extIcon.getBoundingClientRect();
+    const overlayRect = animationOverlay.getBoundingClientRect();
+    
+    // Create flying clone
+    const flyingClone = document.createElement('div');
+    flyingClone.classList.add('flying-clone');
+    flyingClone.textContent = demoState.selectedWord;
+    
+    // Set initial position (relative to overlay)
+    const startX = wordRect.left - overlayRect.left;
+    const startY = wordRect.top - overlayRect.top;
+    const endX = iconRect.left - overlayRect.left + (iconRect.width / 2);
+    const endY = iconRect.top - overlayRect.top + (iconRect.height / 2);
+    
+    flyingClone.style.left = startX + 'px';
+    flyingClone.style.top = startY + 'px';
+    flyingClone.style.transform = `translate(0, 0)`;
+    
+    animationOverlay.appendChild(flyingClone);
+    
+    // Animate to extension icon
+    setTimeout(() => {
+        flyingClone.style.transform = `translate(${endX - startX}px, ${endY - startY}px) scale(0.3)`;
+        flyingClone.style.opacity = '0';
+    }, 50);
+    
+    // Complete animation after delay
+    setTimeout(() => {
+        // Remove flying clone
+        flyingClone.remove();
+        
+        // Pulse the extension icon
+        extIcon.classList.add('pulse');
+        setTimeout(() => extIcon.classList.remove('pulse'), 600);
+        
+        // Mark word as saved and show translation
+        wordElement.classList.remove('selected');
+        wordElement.classList.add('saved');
+        
+        // Complete the demo
+        completeDemoStep();
+        
+        demoState.isAnimating = false;
+        
+    }, 1000);
+}
+
+function completeDemoStep() {
+    if (demoState.isCompleted) return;
+    
+    demoState.isCompleted = true;
+    
+    // Show completion message
+    const demoCompletion = document.getElementById('demoCompletion');
+    const instructionText = document.querySelector('.instruction-text');
+    
+    demoCompletion.style.display = 'block';
+    instructionText.style.display = 'none';
+    
+    // Enable Continue button
+    const nextBtn = document.getElementById('step2NextBtn');
+    nextBtn.disabled = false;
+    nextBtn.style.opacity = '1';
+    nextBtn.textContent = 'Continue';
+}
+
+function resetHowItWorksDemo() {
+    // Reset demo state
+    demoState = {
+        selectedWord: null,
+        selectedWordElement: null,
+        isAnimating: false,
+        isCompleted: false
+    };
+    
+    // Reset UI elements
+    document.querySelectorAll('.selectable-word').forEach(word => {
+        word.classList.remove('selected', 'saved');
+    });
+    
+    hideAddPopover();
+    
+    const demoCompletion = document.getElementById('demoCompletion');
+    const instructionText = document.querySelector('.instruction-text');
+    const nextBtn = document.getElementById('step2NextBtn');
+    
+    if (demoCompletion) demoCompletion.style.display = 'none';
+    if (instructionText) {
+        instructionText.style.display = 'block';
+        instructionText.innerHTML = '<i class="fas fa-hand-pointer"></i> Click on any highlighted word above to try it!';
+    }
+    
+    // Disable Continue button
+    nextBtn.disabled = true;
+    nextBtn.style.opacity = '0.5';
+    nextBtn.textContent = 'Try the Demo Above';
 }
 
 // Handle browser back/forward buttons

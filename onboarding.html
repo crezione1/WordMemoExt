@@ -372,6 +372,284 @@
             color: white;
             font-size: 35px;
         }
+
+        /* Interactive Demo Styles */
+        .interactive-demo {
+            position: relative;
+            margin: 30px 0;
+            padding: 20px;
+            background: var(--bg-light);
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+        }
+
+        .browser-window {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .browser-toolbar {
+            height: 45px;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .browser-controls {
+            display: flex;
+            gap: 8px;
+            margin-right: 15px;
+        }
+
+        .browser-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .browser-dot.red { background: #ff5f56; }
+        .browser-dot.yellow { background: #ffbd2e; }
+        .browser-dot.green { background: #27ca3f; }
+
+        .address-bar {
+            flex: 1;
+            height: 28px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            margin-right: 15px;
+        }
+
+        .url-text {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .browser-actions {
+            display: flex;
+            align-items: center;
+        }
+
+        .ext-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .ext-icon.pulse {
+            animation: iconPulse 0.6s ease-out;
+        }
+
+        @keyframes iconPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); box-shadow: 0 0 20px rgba(255, 157, 123, 0.5); }
+            100% { transform: scale(1); }
+        }
+
+        .page-content {
+            padding: 25px;
+            background: white;
+        }
+
+        .article-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 15px;
+        }
+
+        .article-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+        }
+
+        .selectable-word {
+            background: rgba(255, 157, 123, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            border: 2px solid transparent;
+        }
+
+        .selectable-word:hover {
+            background: rgba(255, 157, 123, 0.3);
+            border-color: var(--primary-color);
+        }
+
+        .selectable-word.selected {
+            background: rgba(255, 157, 123, 0.4);
+            border-color: var(--primary-color);
+        }
+
+        .selectable-word.saved {
+            background: rgba(40, 167, 69, 0.2);
+            border-color: var(--success-color);
+        }
+
+        .selectable-word.saved:after {
+            content: " (" attr(data-translation) ")";
+            color: #666;
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .instruction-text {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 14px;
+            font-weight: 500;
+            padding: 10px;
+            background: rgba(255, 157, 123, 0.1);
+            border-radius: 8px;
+            border: 1px dashed var(--primary-color);
+        }
+
+        .instruction-text i {
+            margin-right: 8px;
+        }
+
+        .add-popover {
+            position: absolute;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.2s;
+            display: none;
+        }
+
+        .add-popover.visible {
+            opacity: 1;
+            transform: scale(1);
+            display: block;
+        }
+
+        .btn-add {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+
+        .btn-add:hover {
+            background: var(--primary-dark);
+        }
+
+        .popover-arrow {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid white;
+        }
+
+        .popover-arrow:after {
+            content: '';
+            position: absolute;
+            top: -7px;
+            left: -6px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid var(--border-color);
+        }
+
+        .animation-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .flying-clone {
+            position: absolute;
+            background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            pointer-events: none;
+            z-index: 1001;
+            animation: flyToIcon 1s ease-out forwards;
+        }
+
+        @keyframes flyToIcon {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            70% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        .demo-completion {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .completion-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid var(--success-color);
+            border-radius: 8px;
+            padding: 15px 20px;
+            color: var(--success-color);
+            font-weight: 500;
+        }
+
+        .completion-message i {
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
@@ -445,41 +723,70 @@
 
             <!-- Step 2: How it works -->
             <div class="step" id="step2">
-                <h1 class="step-title">How It Works</h1>
+                <h1 class="step-title">Try It Yourself!</h1>
                 <p class="step-description">
-                    Here's how WordMemo integrates seamlessly into your browsing experience:
+                    Click on any word in the text below to see how WordMemo works in action:
                 </p>
 
-                <div class="demo-preview">
-                    <div class="demo-text">
-                        This is a sample webpage text. When you <span class="demo-word">highlight<span class="demo-translation">(виділити)</span></span> 
-                        any word, it gets saved to your <span class="demo-word">dictionary<span class="demo-translation">(словник)</span></span> 
-                        and will appear highlighted on future visits to help you learn.
+                <div id="howitworksDemo" class="interactive-demo">
+                    <!-- Simulated Browser Window -->
+                    <div class="browser-window">
+                        <div class="browser-toolbar">
+                            <div class="browser-controls">
+                                <span class="browser-dot red"></span>
+                                <span class="browser-dot yellow"></span>
+                                <span class="browser-dot green"></span>
+                            </div>
+                            <div class="address-bar">
+                                <span class="url-text">https://example.com/article</span>
+                            </div>
+                            <div class="browser-actions">
+                                <div class="ext-icon" id="extIcon">
+                                    <i class="fas fa-puzzle-piece"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="page-content">
+                            <h3 class="article-title">Learning English Made Simple</h3>
+                            <p class="article-text">
+                                Reading articles online is a great way to 
+                                <span class="selectable-word" data-word="improve" data-translation="покращувати">improve</span> 
+                                your English vocabulary. When you encounter an 
+                                <span class="selectable-word" data-word="unfamiliar" data-translation="незнайомий">unfamiliar</span> 
+                                word, you can easily save it for later study. This helps build your 
+                                <span class="selectable-word" data-word="knowledge" data-translation="знання">knowledge</span> 
+                                gradually over time.
+                            </p>
+                            <div class="instruction-text">
+                                <i class="fas fa-hand-pointer"></i>
+                                Click on any highlighted word above to try it!
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Add Word Popover (hidden by default) -->
+                    <div class="add-popover" id="addPopover">
+                        <button class="btn-add" id="addWordBtn">
+                            <i class="fas fa-plus"></i> Add Word
+                        </button>
+                        <div class="popover-arrow"></div>
+                    </div>
+
+                    <!-- Animation overlay for flying word effect -->
+                    <div class="animation-overlay" id="animationOverlay"></div>
                 </div>
 
-                <div style="margin: 30px 0; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto;">
-                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                        <div style="width: 30px; height: 30px; background: var(--primary-color); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold;">1</div>
-                        <span>Select any word on any webpage</span>
-                    </div>
-                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                        <div style="width: 30px; height: 30px; background: var(--primary-color); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold;">2</div>
-                        <span>Right-click and choose "Save word" or use Ctrl+Shift+S</span>
-                    </div>
-                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                        <div style="width: 30px; height: 30px; background: var(--primary-color); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold;">3</div>
-                        <span>Word gets auto-translated and saved to your dictionary</span>
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 30px; height: 30px; background: var(--primary-color); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold;">4</div>
-                        <span>Future encounters are highlighted for reinforcement</span>
+                <div class="demo-completion" id="demoCompletion" style="display: none;">
+                    <div class="completion-message">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Great! You've successfully saved a word. That's exactly how WordMemo works on any website!</span>
                     </div>
                 </div>
 
                 <div class="buttons-container">
                     <button class="btn btn-secondary" id="step2BackBtn">Back</button>
-                    <button class="btn btn-primary" id="step2NextBtn">Continue</button>
+                    <button class="btn btn-primary" id="step2NextBtn" disabled style="opacity: 0.5;">Try the Demo Above</button>
                 </div>
             </div>
 
