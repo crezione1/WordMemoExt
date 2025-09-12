@@ -193,6 +193,102 @@ document.addEventListener('DOMContentLoaded', function() {
     handleCustomColorChange(customHighlightColor, 'highlight');
     handleCustomColorChange(customTranslationColor, 'translation');
 
+    // Import/Export event listeners
+    document.getElementById('exportWordsBtn').addEventListener('click', handleExportWords);
+    document.getElementById('importWordsBtn').addEventListener('click', () => {
+        document.getElementById('importFileInput').click();
+    });
+    document.getElementById('importFileInput').addEventListener('change', handleImportWords);
+
     // Load settings on page load
     loadSettings();
 });
+
+// Import/Export functionality
+async function handleExportWords() {
+    try {
+        const { words } = await chrome.storage.local.get(["words"]);
+        
+        if (!words || words.length === 0) {
+            showNotificationWithMessage("No words to export", "warning");
+            return;
+        }
+
+        const exportContent = await window.wordIOManager.exportWords(words, 'txt');
+        const filename = window.wordIOManager.generateFilename('wordmemo-words', 'txt');
+        
+        window.wordIOManager.downloadFile(exportContent, filename, 'text/plain');
+        
+        showNotificationWithMessage(`Successfully exported ${words.length} words to ${filename}`, "success");
+    } catch (error) {
+        console.error('Export error:', error);
+        showNotificationWithMessage(`Export failed: ${error.message}`, "error");
+    }
+}
+
+async function handleImportWords(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        const content = await readFileContent(file);
+        const importedWords = await window.wordIOManager.importWords(content, 'txt');
+        
+        if (importedWords.length === 0) {
+            showNotificationWithMessage("No valid words found in the file", "warning");
+            return;
+        }
+
+        // Get existing words to avoid duplicates
+        const { words: existingWords = [] } = await chrome.storage.local.get(["words"]);
+        const existingWordTexts = new Set(existingWords.map(w => w.word.toLowerCase()));
+        
+        // Filter out duplicates
+        const newWords = importedWords.filter(word => 
+            !existingWordTexts.has(word.word.toLowerCase())
+        );
+        
+        if (newWords.length === 0) {
+            showNotificationWithMessage("All words already exist in your dictionary", "warning");
+            return;
+        }
+
+        // Merge with existing words
+        const updatedWords = [...existingWords, ...newWords];
+        await chrome.storage.local.set({ words: updatedWords });
+        
+        showNotificationWithMessage(`Successfully imported ${newWords.length} new words (${importedWords.length - newWords.length} duplicates skipped)`, "success");
+        
+    } catch (error) {
+        console.error('Import error:', error);
+        showNotificationWithMessage(`Import failed: ${error.message}`, "error");
+    } finally {
+        // Clear the file input
+        event.target.value = '';
+    }
+}
+
+function readFileContent(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+    });
+}
+
+function showNotificationWithMessage(message, type = "info") {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Update the existing notification element
+    const notification = document.getElementById('notification');
+    if (notification) {
+        notification.textContent = message;
+        notification.classList.add('show');
+        
+        // Auto-hide after 4 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 4000);
+    }
+}
