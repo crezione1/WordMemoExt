@@ -66,17 +66,6 @@
             display: flex;
         }
 
-        .step-number {
-            display: inline-block;
-            width: 40px;
-            height: 40px;
-            background: var(--primary-color);
-            color: white;
-            border-radius: 50%;
-            line-height: 40px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
 
         .step-title {
             font-size: 28px;
@@ -419,7 +408,6 @@
             </div>
             <!-- Step 1: Welcome -->
             <div class="step active" id="step1">
-                <div class="step-number">1</div>
                 <h1 class="step-title">Welcome to WordMemo! 🚀</h1>
                 <p class="step-description">
                     WordMemo is a powerful Chrome extension that helps you learn English vocabulary effortlessly while browsing the web. 
@@ -451,13 +439,12 @@
                 </div>
                 
                 <div class="buttons-container">
-                    <button class="btn btn-primary" onclick="nextStep()">Get Started</button>
+                    <button class="btn btn-primary" id="step1NextBtn">Get Started</button>
                 </div>
             </div>
 
             <!-- Step 2: How it works -->
             <div class="step" id="step2">
-                <div class="step-number">2</div>
                 <h1 class="step-title">How It Works</h1>
                 <p class="step-description">
                     Here's how WordMemo integrates seamlessly into your browsing experience:
@@ -491,14 +478,13 @@
                 </div>
 
                 <div class="buttons-container">
-                    <button class="btn btn-secondary" onclick="prevStep()">Back</button>
-                    <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+                    <button class="btn btn-secondary" id="step2BackBtn">Back</button>
+                    <button class="btn btn-primary" id="step2NextBtn">Continue</button>
                 </div>
             </div>
 
             <!-- Step 3: English Level Selection -->
             <div class="step" id="step3">
-                <div class="step-number">3</div>
                 <h1 class="step-title">Choose Your English Level</h1>
                 <p class="step-description">
                     We'll add some starter words to your dictionary based on your English level. 
@@ -525,14 +511,13 @@
                 </div>
 
                 <div class="buttons-container">
-                    <button class="btn btn-secondary" onclick="prevStep()">Back</button>
-                    <button class="btn btn-primary" onclick="nextStep()" id="levelNextBtn" disabled style="opacity: 0.5;">Continue</button>
+                    <button class="btn btn-secondary" id="step3BackBtn">Back</button>
+                    <button class="btn btn-primary" id="levelNextBtn" disabled style="opacity: 0.5;">Continue</button>
                 </div>
             </div>
 
             <!-- Step 4: Display Options -->
             <div class="step" id="step4">
-                <div class="step-number">4</div>
                 <h1 class="step-title">Customize Your Experience</h1>
                 <p class="step-description">
                     Choose how you want WordMemo to appear on webpages. You can always change these settings later.
@@ -559,8 +544,8 @@
                 </div>
 
                 <div class="buttons-container">
-                    <button class="btn btn-secondary" onclick="prevStep()">Back</button>
-                    <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+                    <button class="btn btn-secondary" id="step4BackBtn">Back</button>
+                    <button class="btn btn-primary" id="step4NextBtn">Continue</button>
                 </div>
             </div>
 
@@ -598,7 +583,7 @@
                 </div>
 
                 <div class="buttons-container">
-                    <button class="btn btn-primary" onclick="completeOnboarding()">Start Using WordMemo</button>
+                    <button class="btn btn-primary" id="completeBtn">Start Using WordMemo</button>
                 </div>
             </div>
         </div>

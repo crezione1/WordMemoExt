@@ -45,6 +45,16 @@ const defaultWords = {
 
 // Initialize onboarding
 document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners for all buttons
+    document.getElementById('step1NextBtn').addEventListener('click', nextStep);
+    document.getElementById('step2BackBtn').addEventListener('click', prevStep);
+    document.getElementById('step2NextBtn').addEventListener('click', nextStep);
+    document.getElementById('step3BackBtn').addEventListener('click', prevStep);
+    document.getElementById('levelNextBtn').addEventListener('click', nextStep);
+    document.getElementById('step4BackBtn').addEventListener('click', prevStep);
+    document.getElementById('step4NextBtn').addEventListener('click', nextStep);
+    document.getElementById('completeBtn').addEventListener('click', completeOnboarding);
+    
     updateProgressBar();
     setupLevelSelection();
     setupMinimalisticToggle();
