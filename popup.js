@@ -1,8 +1,12 @@
 // Prevent popup.js from running on non-popup pages (like onboarding)
-if (window.location.pathname.includes('onboarding')) {
-    // Skip popup.js execution on onboarding page
-} else {
-    // Run popup.js on popup page
+(function() {
+    // Use DOM-based detection - popup page has #mainContent, onboarding doesn't
+    const isPopupContext = !!document.getElementById('mainContent');
+    if (!isPopupContext) {
+        return; // Exit immediately - not the popup page
+    }
+
+    // Run popup.js on popup page only
 
 const loginPage = document.getElementById("loginPage");
 const mainContent = document.getElementById("mainContent");
@@ -692,7 +696,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     exclusionList.addEventListener("click", async (e) => removeSiteFromExclusion(e));
 
-    chrome.runtime.onMessage.addListener((request) => {
+    // Add defensive check for Chrome API availability
+    if (chrome.runtime && chrome.runtime.onMessage && chrome.runtime.onMessage.addListener) {
+        chrome.runtime.onMessage.addListener((request) => {
         if (request.action === "wordsChanged") {
             console.log("words were changed: ", request.newValue);
 
@@ -708,7 +714,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 displayDictionary().catch(console.error);
             }
         }
-    });
+        });
+    }
 
     closeNotificationBtn.addEventListener("click", closeNotification);
 
@@ -936,4 +943,4 @@ async function renderWordDetailsById(wordId) {
 }
 
 // End of popup.js main code
-}
+})(); // End of IIFE wrapper

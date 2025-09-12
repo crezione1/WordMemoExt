@@ -2,6 +2,33 @@
 
 WordMemoExt is a Chrome browser extension designed to help users learn foreign language vocabulary through unconscious repetition. The extension allows users to save English words while browsing the web, creating a personal dictionary that integrates seamlessly with their browsing experience. Users can highlight words on any webpage, save them with translations, and manage their vocabulary collection through an intuitive popup interface.
 
+## Development Status
+
+✅ **Project Successfully Set Up!**
+- Development server running on port 5000
+- Chrome API mocks implemented for web development
+- Onboarding demo add button issue **FIXED**
+- All critical bugs resolved
+
+## Testing Instructions
+
+To test the extension functionality:
+
+1. **Access the onboarding demo**: Visit `http://localhost:5000/onboarding` 
+2. **NOT the root URL** - make sure you use `/onboarding` at the end
+3. Click "Get Started" and proceed to Step 2 "Try It Yourself!"
+4. Click on any highlighted words (like "improve", "unfamiliar", "knowledge")
+5. **The add button should now appear** in a popover above the word
+6. Click "Add Word" to complete the demo
+
+## Recent Changes
+
+**2025-09-12**: Fixed critical onboarding demo bug
+- **Problem**: Add button wasn't appearing when users clicked on words, preventing progression
+- **Root Cause**: popup.js was executing on onboarding page causing Chrome API errors
+- **Solution**: Wrapped popup.js in IIFE with early exit for onboarding pages
+- **Status**: ✅ **RESOLVED** - Add button now works correctly in onboarding demo
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -15,6 +42,11 @@ The application follows the standard Chrome Extension Manifest V3 architecture w
 - **Content Script (content.js)**: Injected into web pages to handle word selection, highlighting, and user interactions
 - **Popup Interface (popup.html/js)**: Provides the main user interface for managing saved words and settings
 - **Options Page (options.html/js)**: Full-page settings interface for advanced configuration
+
+## Development Environment Setup
+- **Express.js Server**: Development server on port 5000 serving all extension files
+- **Chrome API Mocks**: Complete API compatibility layer (chrome-mock.js) for web development
+- **Script Isolation**: popup.js wrapped in IIFE to prevent conflicts with onboarding demo
 
 ## Authentication System
 The extension uses a hybrid authentication approach:
