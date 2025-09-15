@@ -18,6 +18,80 @@ async function getToken() {
     return result.token;
 }
 
+// Website communication handlers
+window.addEventListener('message', async (event) => {
+    // Only accept messages from the same origin (our website)
+    if (event.origin !== window.location.origin) {
+        return;
+    }
+    
+    // Handle authentication from website
+    if (event.data?.type === 'LAZYLEX_AUTH_FROM_WEBSITE' && event.data?.source === 'lazylex-website') {
+        try {
+            const authData = event.data.data;
+            if (authData && authData.idToken) {
+                // Store the authentication data in extension storage
+                await chrome.storage.local.set({
+                    firebase_id_token: authData.idToken,
+                    firebase_token_exp: authData.expiresAt,
+                    userInfo: {
+                        uid: authData.uid,
+                        email: authData.email,
+                        name: authData.displayName,
+                        picture: authData.photoURL,
+                        id: authData.uid
+                    },
+                    auth_token: authData.googleAccessToken || authData.idToken
+                });
+                console.log('[LazyLex] Authentication received from website');
+            }
+        } catch (error) {
+            console.error('[LazyLex] Error handling website auth:', error);
+        }
+    }
+    
+    // Handle sign out from website
+    if (event.data?.type === 'LAZYLEX_SIGNOUT_FROM_WEBSITE' && event.data?.source === 'lazylex-website') {
+        try {
+            // Clear extension authentication data
+            await chrome.storage.local.remove([
+                'firebase_id_token',
+                'firebase_refresh_token', 
+                'firebase_token_exp',
+                'auth_token',
+                'userInfo',
+                'user_info',
+                'token'
+            ]);
+            console.log('[LazyLex] Sign out received from website');
+        } catch (error) {
+            console.error('[LazyLex] Error handling website sign out:', error);
+        }
+    }
+});
+
+// Listen for messages from background script (extension → website communication)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'LAZYLEX_AUTH_FROM_EXTENSION') {
+        // Forward authentication data to website
+        window.postMessage({
+            type: 'AUTH_SUCCESS',
+            source: 'lazylex-extension',
+            data: message.data
+        }, '*');
+        return true;
+    }
+    
+    if (message.type === 'LAZYLEX_SIGNOUT_FROM_EXTENSION') {
+        // Forward sign out to website
+        window.postMessage({
+            type: 'AUTH_SIGNOUT',
+            source: 'lazylex-extension'
+        }, '*');
+        return true;
+    }
+});
+
 // Saving/deleting words
 
 async function deleteWordFromStorage(wordId) {

@@ -57,6 +57,70 @@ function notifyPopupAboutChanges(actionName, content) {
     });
 }
 
+// Notify website tabs about authentication from extension
+async function notifyWebsiteAuth() {
+    try {
+        const { auth_token, userInfo, firebase_id_token, firebase_token_exp } = await chrome.storage.local.get([
+            'auth_token', 'userInfo', 'firebase_id_token', 'firebase_token_exp'
+        ]);
+        
+        if (!auth_token || !userInfo) return;
+        
+        const authData = {
+            idToken: firebase_id_token,
+            userInfo: userInfo,
+            expiresAt: firebase_token_exp,
+            googleAccessToken: auth_token
+        };
+        
+        // Send to all tabs that might be our website
+        chrome.tabs.query({}, (tabs) => {
+            tabs.forEach(tab => {
+                if (tab.url && (
+                    tab.url.includes('localhost') || 
+                    tab.url.includes('sea-lion-app-ut382.ondigitalocean.app') ||
+                    tab.url.includes('your-website-domain.com') // Replace with actual domain
+                )) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        type: 'LAZYLEX_AUTH_FROM_EXTENSION',
+                        source: 'lazylex-extension',
+                        data: authData
+                    }).catch(() => {
+                        // Ignore errors for tabs without content script
+                    });
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Error notifying website about auth:', error);
+    }
+}
+
+// Notify website tabs about sign out from extension
+async function notifyWebsiteSignOut() {
+    try {
+        // Send to all tabs that might be our website
+        chrome.tabs.query({}, (tabs) => {
+            tabs.forEach(tab => {
+                if (tab.url && (
+                    tab.url.includes('localhost') || 
+                    tab.url.includes('sea-lion-app-ut382.ondigitalocean.app') ||
+                    tab.url.includes('your-website-domain.com') // Replace with actual domain
+                )) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        type: 'LAZYLEX_SIGNOUT_FROM_EXTENSION',
+                        source: 'lazylex-extension'
+                    }).catch(() => {
+                        // Ignore errors for tabs without content script
+                    });
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Error notifying website about sign out:', error);
+    }
+}
+
 // Handle onboarding redirect requests and tab closure
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'needOnboarding') {
@@ -71,6 +135,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     } else if (request.action === 'onboardingCompleted') {
         console.log('Onboarding completed notification received');
+        return true;
+    } else if (request.action === 'notifyWebsiteAuth') {
+        // Notify all website tabs about authentication
+        notifyWebsiteAuth();
+        return true;
+    } else if (request.action === 'notifyWebsiteSignOut') {
+        // Notify all website tabs about sign out
+        notifyWebsiteSignOut();
         return true;
     }
 });
@@ -636,6 +708,15 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
         try {
             await fsEnsureUserDoc(changes.userInfo.newValue);
             await fsSyncWordsFromCloudIfEmpty();
+            // Notify website about authentication
+            await notifyWebsiteAuth();
+        } catch (e) { /* ignore */ }
+    }
+    
+    // When user signs out, notify website
+    if (namespace === 'local' && 'userInfo' in changes && !changes.userInfo?.newValue && changes.userInfo?.oldValue) {
+        try {
+            await notifyWebsiteSignOut();
         } catch (e) { /* ignore */ }
     }
 

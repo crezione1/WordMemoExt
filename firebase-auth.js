@@ -103,6 +103,12 @@ async function signInWithGoogle() {
                                 // Best-effort exchange for Firebase ID token for backend/Firebase usage
                                 exchangeGoogleTokenForFirebaseIdToken(token)
                                     .catch((e) => console.warn('Firebase ID token exchange failed:', e?.message || e));
+                                
+                                // Notify website about authentication
+                                chrome.runtime.sendMessage({ action: 'notifyWebsiteAuth' }).catch(() => {
+                                    // Ignore if no listeners
+                                });
+                                
                                 resolve({
                                     user: {
                                         accessToken: token,
@@ -119,6 +125,12 @@ async function signInWithGoogle() {
                             chrome.storage.local.set({ 'auth_token': token, 'token': token }, () => {
                                 exchangeGoogleTokenForFirebaseIdToken(token)
                                     .catch((e) => console.warn('Firebase ID token exchange failed:', e?.message || e));
+                                
+                                // Notify website about authentication
+                                chrome.runtime.sendMessage({ action: 'notifyWebsiteAuth' }).catch(() => {
+                                    // Ignore if no listeners
+                                });
+                                
                                 resolve({
                                     user: {
                                         accessToken: token,
@@ -150,8 +162,13 @@ async function signOut() {
         }
 
         // Clear local storage
-        chrome.storage.local.remove(['auth_token', 'user_info', 'userInfo', 'token'], () => {
+        chrome.storage.local.remove(['auth_token', 'user_info', 'userInfo', 'token', 'firebase_id_token', 'firebase_refresh_token', 'firebase_token_exp'], () => {
             console.log('Signed out successfully');
+            
+            // Notify website about sign out
+            chrome.runtime.sendMessage({ action: 'notifyWebsiteSignOut' }).catch(() => {
+                // Ignore if no listeners
+            });
         });
     } catch (error) {
         console.error('Sign out error:', error);
