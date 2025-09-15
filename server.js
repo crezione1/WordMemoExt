@@ -43,7 +43,7 @@ app.get('/extension-info', (req, res) => {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>WordMemo Extension Development</title>
+            <title>LazyLex Extension Development</title>
             <style>
                 body { font-family: Arial, sans-serif; margin: 40px; }
                 .container { max-width: 800px; }
@@ -63,7 +63,7 @@ app.get('/extension-info', (req, res) => {
         </head>
         <body>
             <div class="container">
-                <h1>WordMemo Extension Development Server</h1>
+                <h1>LazyLex Extension Development Server</h1>
                 <p>This is a Chrome extension for learning English vocabulary. The extension helps users save and learn words while browsing.</p>
                 
                 <h2>Extension Files</h2>
@@ -103,7 +103,7 @@ app.get('/extension-info', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`WordMemo Extension development server running on http://0.0.0.0:${PORT}`);
+    console.log(`LazyLex Extension development server running on http://0.0.0.0:${PORT}`);
     console.log('Extension files are being served for development purposes');
     console.log(`Visit http://localhost:${PORT}/extension-info for installation instructions`);
     console.log(`Test onboarding: http://localhost:${PORT}/onboarding`);

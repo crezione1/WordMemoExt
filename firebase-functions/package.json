@@ -1,0 +1,16 @@
+{
+  "name": "wordmemo-functions",
+  "description": "Firebase Cloud Functions for LazyLex Extension",
+  "main": "index.js",
+  "engines": { "node": "20" },
+  "scripts": {
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.5.0",
+    "firebase-functions": "^5.1.0",
+    "@google-cloud/translate": "^8.3.0",
+    "openai": "^4.55.0"
+  },
+  "private": true
+}

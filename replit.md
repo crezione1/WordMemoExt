@@ -1,6 +1,6 @@
 # Overview
 
-WordMemoExt is a Chrome browser extension designed to help users learn foreign language vocabulary through unconscious repetition. The extension allows users to save English words while browsing the web, creating a personal dictionary that integrates seamlessly with their browsing experience. Users can highlight words on any webpage, save them with translations, and manage their vocabulary collection through an intuitive popup interface.
+LazyLexExt is a Chrome browser extension designed to help users learn foreign language vocabulary through unconscious repetition. The extension allows users to save English words while browsing the web, creating a personal dictionary that integrates seamlessly with their browsing experience. Users can highlight words on any webpage, save them with translations, and manage their vocabulary collection through an intuitive popup interface.
 
 ## Development Status
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to WordMemo - Setup Guide</title>
+    <title>Welcome to LazyLex - Setup Guide</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -530,11 +530,6 @@
 
         .add-popover {
             position: absolute;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 1000;
             opacity: 0;
             transform: scale(0.9);
@@ -548,48 +543,26 @@
             display: block;
         }
 
-        .btn-add {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
+        /* Match content script action button */
+        .action-button {
+            width: 24px;
+            height: 24px;
+            padding: 0;
             display: flex;
             align-items: center;
-            gap: 6px;
-            transition: background 0.2s;
+            justify-content: center;
+            color: white;
+            background-color: #4285f4;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            z-index: 9999;
+            line-height: 1;
+            font-weight: 600;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
         }
 
-        .btn-add:hover {
-            background: var(--primary-dark);
-        }
-
-        .popover-arrow {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 6px solid white;
-        }
-
-        .popover-arrow:after {
-            content: '';
-            position: absolute;
-            top: -7px;
-            left: -6px;
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 6px solid var(--border-color);
-        }
+        .popover-arrow { display: none; }
 
         .animation-overlay {
             position: absolute;
@@ -688,9 +661,9 @@
             </div>
             <!-- Step 1: Welcome -->
             <div class="step active" id="step1">
-                <h1 class="step-title">Welcome to WordMemo! 🚀</h1>
+                <h1 class="step-title">Welcome to LazyLex! 🚀</h1>
                 <p class="step-description">
-                    WordMemo is a powerful Chrome extension that helps you learn English vocabulary effortlessly while browsing the web. 
+                    LazyLex is a powerful Chrome extension that helps you learn English vocabulary effortlessly while browsing the web.
                     Let's take a quick tour to show you how it works and set up your preferences.
                 </p>
                 
@@ -727,7 +700,7 @@
             <div class="step" id="step2">
                 <h1 class="step-title">Try It Yourself!</h1>
                 <p class="step-description">
-                    Click on any word in the text below to see how WordMemo works in action:
+                    Click on any word in the text below to see how LazyLex works in action:
                 </p>
 
                 <div id="howitworksDemo" class="interactive-demo">
@@ -769,9 +742,7 @@
 
                     <!-- Add Word Popover (hidden by default) -->
                     <div class="add-popover" id="addPopover">
-                        <button class="btn-add" id="addWordBtn">
-                            <i class="fas fa-plus"></i> Add Word
-                        </button>
+                        <button class="action-button" id="addWordBtn">+</button>
                         <div class="popover-arrow"></div>
                     </div>
 
@@ -782,7 +753,7 @@
                 <div class="demo-completion" id="demoCompletion" style="display: none;">
                     <div class="completion-message">
                         <i class="fas fa-check-circle"></i>
-                        <span>Great! You've successfully saved a word. That's exactly how WordMemo works on any website!</span>
+                        <span>Great! You've successfully saved a word. That's exactly how LazyLex works on any website!</span>
                     </div>
                 </div>
 
@@ -829,7 +800,7 @@
             <div class="step" id="step4">
                 <h1 class="step-title">Customize Your Experience</h1>
                 <p class="step-description">
-                    Choose how you want WordMemo to appear on webpages. You can always change these settings later.
+                    Choose how you want LazyLex to appear on webpages. You can always change these settings later.
                 </p>
 
                 <div class="options-section">
@@ -865,7 +836,7 @@
                 </div>
                 <h1 class="step-title">You're All Set! 🎉</h1>
                 <p class="step-description">
-                    WordMemo is now ready to help you learn English vocabulary while you browse. 
+                    LazyLex is now ready to help you learn English vocabulary while you browse.
                     Your starter words have been added, and your preferences have been saved.
                 </p>
 

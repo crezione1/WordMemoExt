@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      // Owner can manage their user doc
+      allow get, list, create, update, delete: if isOwner(userId);
+
+      // Words subcollection
+      match /words/{wordId} {
+        allow get, list: if isOwner(userId);
+        // Require ownership and matching userId field
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isOwner(userId) && request.resource.data.userId == userId;
+        allow delete: if isOwner(userId);
+      }
+
+      // Settings subcollection
+      match /userSettings/{settingId} {
+        allow get, list, create, update, delete: if isOwner(userId);
+      }
+    }
+
+    // Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

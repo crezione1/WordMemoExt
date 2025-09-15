@@ -354,21 +354,26 @@ function selectWord(wordElement, event) {
     
     // Update instruction text
     const instructionText = document.querySelector('.instruction-text');
-    instructionText.innerHTML = '<i class="fas fa-plus-circle"></i> Now click "Add Word" to save it!';
+    instructionText.innerHTML = '<i class="fas fa-plus-circle"></i> Now click the + button to save it!';
 }
 
 function showAddPopover(wordElement) {
     const addPopover = document.getElementById('addPopover');
     const rect = wordElement.getBoundingClientRect();
     const demoRect = document.getElementById('howitworksDemo').getBoundingClientRect();
-    
-    // Position popover above the word
-    const left = rect.left - demoRect.left + (rect.width / 2) - 50; // Center the popover
-    const top = rect.top - demoRect.top - 45; // Position above the word
-    
+
+    // Make visible first to measure actual size
+    addPopover.classList.add('visible');
+
+    const popWidth = addPopover.offsetWidth || 24; // fallback to button size
+    const popHeight = addPopover.offsetHeight || 24;
+
+    // Center horizontally over the word; place slightly above
+    const left = rect.left - demoRect.left + (rect.width - popWidth) / 2;
+    const top = rect.top - demoRect.top - popHeight - 8;
+
     addPopover.style.left = left + 'px';
     addPopover.style.top = top + 'px';
-    addPopover.classList.add('visible');
 }
 
 function hideAddPopover() {
@@ -390,9 +395,9 @@ function animateWordToExtension() {
     }
     
     demoState.isAnimating = true;
-    hideAddPopover();
-    
+    // Capture the element before hiding the popover (which clears selection)
     const wordElement = demoState.selectedWordElement;
+    hideAddPopover();
     const extIcon = document.getElementById('extIcon');
     const animationOverlay = document.getElementById('animationOverlay');
     
@@ -487,7 +492,6 @@ function resetHowItWorksDemo() {
     const addPopover = document.getElementById('addPopover');
     if (addPopover) {
         addPopover.classList.remove('visible');
-        addPopover.style.display = 'none';
     }
     
     // Remove any flying clones and clear animations

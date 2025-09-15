@@ -43,7 +43,7 @@ async function runLogic(selectedText, rect) {
     const originalWord = selectedText.split('[')[0].trim();
     if (!originalWord) return;
 
-    console.log('[WordMemoExt] runLogic called with:', originalWord);
+    console.log('[LazyLexExt] runLogic called with:', originalWord);
 
     const { words } = await chrome.storage.local.get(["words"]) || [];
     const wordList = words || [];
@@ -69,7 +69,7 @@ async function runLogic(selectedText, rect) {
 // Replace saveWordToDictionary to use local storage and GPT API for translation
 async function saveWordToDictionary(word) {
     try {
-        console.log('[WordMemoExt] saveWordToDictionary called with:', word);
+        console.log('[LazyLexExt] saveWordToDictionary called with:', word);
         // Get current words
         const { words } = await chrome.storage.local.get({ words: [] });
 
@@ -100,7 +100,7 @@ async function saveWordToDictionary(word) {
         // Save to local storage
         const updatedWords = [...words, newWord];
         await chrome.storage.local.set({ words: updatedWords });
-        console.log('[WordMemoExt] Updated words list:', updatedWords);
+        console.log('[LazyLexExt] Updated words list:', updatedWords);
     } catch (error) {
         console.error("Error saving word:", error);
     }
@@ -109,19 +109,19 @@ async function saveWordToDictionary(word) {
 // Implement translateWithTAS by delegating to Firebase callable function (minimal change)
 async function translateWithTAS(word, targetLang) {
     try {
-        console.log('[WordMemoExt] translateWithTAS request', { word, targetLang });
+        console.log('[LazyLexExt] translateWithTAS request', { word, targetLang });
         const response = await chrome.runtime.sendMessage({
             action: 'translateWord',
             word,
             targetLanguage: targetLang || 'uk'
         });
         if (response && response.success && response.result && response.result.translation) {
-            console.log('[WordMemoExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
+            console.log('[LazyLexExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
             return response.result;
         }
         throw new Error(response?.error || 'Translate failed');
     } catch (e) {
-        console.warn('[WordMemoExt] translateWithTAS fallback due to error:', e?.message || e);
+        console.warn('[LazyLexExt] translateWithTAS fallback due to error:', e?.message || e);
         // Fallback: return original word if function failed
         return { translation: word, synonyms: [] };
     }
@@ -466,7 +466,7 @@ document.addEventListener("mouseup", function (event) {
             button.style.top = event.pageY + 20 + "px";
             button.style.left = event.pageX + 20 + "px";
             button.addEventListener("click", function () {
-                console.log('[WordMemoExt] + button clicked, selectedText:', selectedText);
+                console.log('[LazyLexExt] + button clicked, selectedText:', selectedText);
                 runLogic(selectedText, rect);
                 window.getSelection().empty();
                 window.getSelection().removeAllRanges();
@@ -581,7 +581,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
 chrome.runtime.onMessage.addListener((request) => {
     if (request.action === "wordsChanged") {
-        console.log('[WordMemoExt] Received wordsChanged message', request);
+        console.log('[LazyLexExt] Received wordsChanged message', request);
         const { operation, word, words } = request.newValue;
 
         switch (operation) {
@@ -605,7 +605,7 @@ chrome.runtime.onMessage.addListener((request) => {
     }
 
     if (request.action === "settingsChanged") {
-        console.log('[WordMemoExt] Settings changed:', request.settings);
+        console.log('[LazyLexExt] Settings changed:', request.settings);
         applySettings(request.settings);
     }
 });
@@ -622,21 +622,21 @@ loadInitialSettings();
 
 async function translateWithTAS(word, targetLang) {
     try {
-        console.log('[WordMemoExt] translateWithTAS request', { word, targetLang });
+        console.log('[LazyLexExt] translateWithTAS request', { word, targetLang });
         const response = await chrome.runtime.sendMessage({
             action: 'translateWord',
             word,
             targetLanguage: targetLang || 'uk'
         });
         if (response && response.success && response.result && response.result.translation) {
-            console.log('[WordMemoExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
+            console.log('[LazyLexExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
             return response.result;
         }
         throw new Error(response?.error || 'Translate failed');
     } catch (e) {
-        console.warn('[WordMemoExt] translateWithTAS fallback due to error:', e?.message || e);
+        console.warn('[LazyLexExt] translateWithTAS fallback due to error:', e?.message || e);
         return { translation: word, synonyms: [], examples: [] };
     }
 }
 
-console.log('[WordMemoExt] Content script loaded');
+console.log('[LazyLexExt] Content script loaded');

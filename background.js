@@ -78,7 +78,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Firebase ID token helpers (for backend integration)
 const FIREBASE_API_KEY_BG = "AIzaSyDhSsOp7mkwf4NVeYIhk_RZZNaHpC0ZUho";
 const FIREBASE_PROJECT_ID = "lazylex-9d161";
-const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/lazylexdb/documents`;
+const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
 async function refreshFirebaseIdTokenBg(refreshToken) {
     const url = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY_BG}`;
@@ -520,14 +520,14 @@ async function handleWordsChange(changes) {
 
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install") {
-        // This is a first install! Show onboarding instead of popup
-        chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
+        // First install: open popup (login) instead of onboarding
+        chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") });
         chrome.storage.local.set({ 
             token: "",
             onboardingCompleted: false
         });
     } else if (details.reason === "update") {
-        // This is an update. You can also handle updates here if needed.
+        // No auto-onboarding on update
     }
 });
 

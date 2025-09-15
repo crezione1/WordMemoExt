@@ -584,7 +584,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const result = await window.firebaseAuth.signInWithGoogle();
                     console.log('Sign in successful:', result);
 
-                    // Manually trigger the UI change to main content
+                    // After login, if onboarding not completed, open it immediately (once)
+                    const state = await new Promise(resolve => {
+                        chrome.storage.local.get({ onboardingCompleted: false, onboardingShownAfterLogin: false }, resolve);
+                    });
+                    if (!state.onboardingCompleted && !state.onboardingShownAfterLogin) {
+                        await chrome.storage.local.set({ onboardingShownAfterLogin: true });
+                        chrome.runtime.sendMessage({ action: 'needOnboarding' });
+                        window.close();
+                        return;
+                    }
+
+                    // Otherwise, show main content
                     showMainContent();
 
                     // Update user info display
@@ -741,57 +752,56 @@ document.addEventListener("DOMContentLoaded", async () => {
     //     }
     // });
 
-    // Check if onboarding is completed with robust double-check
+    // Authenticate first, then gate onboarding for authenticated users
+    const ensureAuthenticated = async () => {
+        const currentUser = await getUserInfo();
+        if (currentUser) return true;
+        return new Promise((resolve) => {
+            chrome.storage.local.get(["token"], (result) => {
+                if (isTokenValid(result.token)) {
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
+            });
+        });
+    };
+
+    const isAuthed = await ensureAuthenticated();
+    if (!isAuthed) {
+        // Not logged in: show login page, do NOT open onboarding yet
+        showLoginPage();
+        return;
+    }
+
+    // Logged in: check if onboarding is completed; if not, only show once after login
     const checkOnboardingCompletion = async () => {
-        // First check
-        const firstCheck = await new Promise(resolve => {
-            chrome.storage.local.get({onboardingCompleted: false}, resolve);
+        const state = await new Promise(resolve => {
+            chrome.storage.local.get({
+                onboardingCompleted: false,
+                onboardingShownAfterLogin: false
+            }, resolve);
         });
-        
-        console.log('First onboarding check:', firstCheck);
-        
-        if (firstCheck.onboardingCompleted) {
-            console.log('Onboarding completed, continuing with popup...');
-            return true;
-        }
-        
-        // Wait a bit for storage to settle, then check again
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const secondCheck = await new Promise(resolve => {
-            chrome.storage.local.get({onboardingCompleted: false}, resolve);
-        });
-        
-        console.log('Second onboarding check:', secondCheck);
-        
-        if (!secondCheck.onboardingCompleted) {
-            console.log('Onboarding not completed after double-check, requesting redirect...');
-            // Ask background to handle onboarding redirect
-            chrome.runtime.sendMessage({action: 'needOnboarding'});
+
+        if (state.onboardingCompleted) return true;
+
+        // Show onboarding only once after login; don't nag next time
+        if (!state.onboardingShownAfterLogin) {
+            await chrome.storage.local.set({ onboardingShownAfterLogin: true });
+            chrome.runtime.sendMessage({ action: 'needOnboarding' });
             window.close();
             return false;
         }
-        
-        console.log('Onboarding completed on second check, continuing...');
+
+        // Already shown once; skip redirect and continue to main content
         return true;
     };
-    
+
     const onboardingCompleted = await checkOnboardingCompletion();
     if (!onboardingCompleted) return;
-        
-    // Continue with normal authentication flow
-    const currentUser = await getUserInfo();
-    if (currentUser) {
-        showMainContent();
-    } else {
-        chrome.storage.local.get(["token"], (result) => {
-            if (isTokenValid(result.token)) {
-                showMainContent();
-            } else {
-                showLoginPage();
-            }
-        });
-    }
+
+    // Authenticated and onboarding completed: show main content
+    showMainContent();
     
     // Initialize extension state after authentication
     excludedSites = await getExcludedSites();
@@ -910,21 +920,69 @@ async function renderWordDetailsById(wordId) {
             synonyms.forEach(s => {
                 const li = document.createElement('li');
                 li.className = 'synonym-item';
-                li.textContent = `${s?.source || ''} — ${s?.translation || ''}`;
+                li.textContent = `${s?.source || ''} – ${s?.translation || ''}`;
                 synList.appendChild(li);
             });
         }
 
-        // Examples: prefer stored, else placeholders
+        // Examples: prefer stored; if empty, fetch from backend once and persist
         exList.innerHTML = '';
-        const ex = Array.isArray(found.examples) && found.examples.length > 0
-          ? found.examples
-          : [
-              `This is a sample sentence using "${found.word}" in context to demonstrate usage and meaning.`,
-              `Another example for "${found.word}" that shows how it may appear in a paragraph.`,
-              `A third placeholder sentence with "${found.word}" for future API-generated examples.`
-            ];
-        ex.forEach(t => {
+        let examples = Array.isArray(found.examples) && found.examples.length > 0 ? found.examples : [];
+
+        if (examples.length === 0) {
+            try {
+                const { translateTo } = await chrome.storage.local.get(['translateTo']);
+                const targetLanguage = (translateTo || 'uk');
+                const resp = await chrome.runtime.sendMessage({
+                    action: 'translateWord',
+                    word: found.word,
+                    targetLanguage
+                });
+                if (resp && resp.success && resp.result) {
+                    const tr = resp.result;
+                    const newExamples = Array.isArray(tr.examples) ? tr.examples.slice(0, 5) : [];
+                    const newSynonyms = Array.isArray(tr.synonyms) ? tr.synonyms.slice(0, 8) : [];
+                    if (newExamples.length > 0 || newSynonyms.length > 0) {
+                        // Persist back to storage for this word
+                        const updated = (words || []).map(w => {
+                            if (Number(w.id) === Number(wordId)) {
+                                return {
+                                    ...w,
+                                    examples: newExamples.length > 0 ? newExamples : w.examples,
+                                    synonyms: newSynonyms.length > 0 ? newSynonyms : w.synonyms,
+                                };
+                            }
+                            return w;
+                        });
+                        await chrome.storage.local.set({ words: updated });
+                        examples = newExamples.length > 0 ? newExamples : examples;
+
+                        // If synonyms were empty before, render them now
+                        if (synonyms.length === 0 && newSynonyms.length > 0) {
+                            synEmpty.style.display = 'none';
+                            newSynonyms.forEach(s => {
+                                const li = document.createElement('li');
+                                li.className = 'synonym-item';
+                                li.textContent = `${s?.source || ''} – ${s?.translation || ''}`;
+                                synList.appendChild(li);
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('On-demand examples fetch failed:', e?.message || e);
+            }
+        }
+
+        // Final render for examples (fallback to local placeholders if still empty)
+        const toRender = examples.length > 0
+            ? examples
+            : [
+                `This is a sample sentence using "${found.word}" in context to demonstrate usage and meaning.`,
+                `Another example for "${found.word}" that shows how it may appear in a paragraph.`,
+                `A third placeholder sentence with "${found.word}" for future API-generated examples.`
+              ];
+        toRender.forEach(t => {
             const li = document.createElement('li');
             li.textContent = t;
             exList.appendChild(li);
