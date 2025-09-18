@@ -39,7 +39,8 @@ window.addEventListener('message', async (event) => {
                         email: authData.email,
                         name: authData.displayName,
                         picture: authData.photoURL,
-                        id: authData.uid
+                        id: authData.uid,
+                        emailVerified: authData.emailVerified || false
                     },
                     auth_token: authData.googleAccessToken || authData.idToken
                 });
@@ -144,6 +145,16 @@ async function runLogic(selectedText, rect) {
 async function saveWordToDictionary(word) {
     try {
         console.log('[LazyLexExt] saveWordToDictionary called with:', word);
+        
+        // Check subscription limits before saving
+        const limitCheck = await chrome.runtime.sendMessage({ action: "checkSubscriptionLimits" });
+        if (!limitCheck.canAdd) {
+            if (limitCheck.reason === 'daily_limit_reached') {
+                showSubscriptionLimitNotification();
+                return;
+            }
+        }
+
         // Get current words
         const { words } = await chrome.storage.local.get({ words: [] });
 
@@ -199,6 +210,98 @@ async function translateWithTAS(word, targetLang) {
         // Fallback: return original word if function failed
         return { translation: word, synonyms: [] };
     }
+}
+
+function showSubscriptionLimitNotification() {
+    // Remove any existing notification
+    const existingNotification = document.getElementById('lazylex-limit-notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.id = 'lazylex-limit-notification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #ff9d7b, #e17e5d);
+        color: white;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(255, 157, 123, 0.4);
+        z-index: 999999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        max-width: 320px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        animation: slideInRight 0.3s ease-out;
+    `;
+
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <div style="font-size: 16px; font-weight: 700;">Daily Limit Reached</div>
+            <button id="lazylex-close-notification" style="background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0; width: 20px; height: 20px;">×</button>
+        </div>
+        <div style="margin-bottom: 12px; opacity: 0.9; line-height: 1.4;">
+            You've reached your daily limit of 5 words. Upgrade to Premium for unlimited words!
+        </div>
+        <button id="lazylex-upgrade-btn" style="
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            width: 100%;
+        ">Upgrade to Premium</button>
+    `;
+
+    // Add animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        #lazylex-upgrade-btn:hover {
+            background: rgba(255, 255, 255, 0.3) !important;
+            transform: translateY(-1px);
+        }
+    `;
+    document.head.appendChild(style);
+
+    document.body.appendChild(notification);
+
+    // Add event listeners
+    document.getElementById('lazylex-close-notification').addEventListener('click', () => {
+        notification.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    });
+
+    document.getElementById('lazylex-upgrade-btn').addEventListener('click', () => {
+        window.open('https://lazylex.com/#/pricing', '_blank');
+        notification.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    });
+
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+        if (document.getElementById('lazylex-limit-notification')) {
+            notification.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 8000);
 }
 
 function animateWordToToolbar(selectedText, rect) {

@@ -9,8 +9,56 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Owner can manage their user doc
-      allow get, list, create, update, delete: if isOwner(userId);
+      // Validation functions for subscription fields
+      function isValidSubscriptionStatus(status) {
+        return status in ['free', 'premium', 'lifetime'];
+      }
+      
+      function isValidDailyWordLimit(limit) {
+        return limit is number && limit >= 0;
+      }
+      
+      function isValidDailyWordsAdded(count) {
+        return count is number && count >= 0;
+      }
+      
+      function isValidDateString(dateStr) {
+        return dateStr is string && dateStr.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      }
+
+      // Owner can read their user doc
+      allow get, list: if isOwner(userId);
+      
+      // Owner can create their user doc with subscription fields
+      allow create: if isOwner(userId) && 
+        (
+          // Allow creation without subscription fields (for backwards compatibility)
+          !('subscriptionStatus' in request.resource.data) ||
+          // Or with valid subscription fields
+          (
+            isValidSubscriptionStatus(request.resource.data.subscriptionStatus) &&
+            (!('dailyWordLimit' in request.resource.data) || isValidDailyWordLimit(request.resource.data.dailyWordLimit)) &&
+            (!('dailyWordsAdded' in request.resource.data) || isValidDailyWordsAdded(request.resource.data.dailyWordsAdded)) &&
+            (!('dailyWordsResetDate' in request.resource.data) || isValidDateString(request.resource.data.dailyWordsResetDate))
+          )
+        );
+      
+      // Owner can update their user doc with subscription fields
+      allow update: if isOwner(userId) && 
+        (
+          // Allow updates without subscription fields (for backwards compatibility)
+          !('subscriptionStatus' in request.resource.data) ||
+          // Or with valid subscription fields
+          (
+            isValidSubscriptionStatus(request.resource.data.subscriptionStatus) &&
+            (!('dailyWordLimit' in request.resource.data) || isValidDailyWordLimit(request.resource.data.dailyWordLimit)) &&
+            (!('dailyWordsAdded' in request.resource.data) || isValidDailyWordsAdded(request.resource.data.dailyWordsAdded)) &&
+            (!('dailyWordsResetDate' in request.resource.data) || isValidDateString(request.resource.data.dailyWordsResetDate))
+          )
+        );
+      
+      // Owner can delete their user doc
+      allow delete: if isOwner(userId);
 
       // Words subcollection
       match /words/{wordId} {

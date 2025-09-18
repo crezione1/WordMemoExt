@@ -135,6 +135,22 @@
         <div id="homeContent" class="tab-content home-content">
             <div>
                 <h2 class="title-large">My Word Lists</h2>
+                
+                <!-- Subscription Status -->
+                <div class="subscription-status" id="subscriptionStatus" style="display: none;">
+                    <div class="subscription-info">
+                        <div class="subscription-plan" id="subscriptionPlan">Free Plan</div>
+                        <div class="subscription-limit" id="subscriptionLimit">5 words per day</div>
+                    </div>
+                    <div class="subscription-usage">
+                        <div class="usage-text" id="usageText">0 of 5 words used today</div>
+                        <div class="usage-bar">
+                            <div class="usage-progress" id="usageProgress" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                    <button class="btn upgrade-btn" id="upgradeBtn" style="display: none;">Upgrade to Premium</button>
+                </div>
+                
                 <div class="add-word-container">
                     <input id="addWordInput" class="input add-word-input" type="text" placeholder="Add a new word…" />
                     <button id="addWordBtn" class="btn accent add-word-btn" disabled>Add</button>
@@ -551,6 +567,9 @@
 <!-- Authentication configuration -->
 <script src="firebase-config.js"></script>
 <script src="firebase-auth.js"></script>
+
+<!-- Subscription management -->
+<script src="subscription-manager.js"></script>
 
 <!-- Main popup script -->
 <script src="popup.js?v=20250912"></script>

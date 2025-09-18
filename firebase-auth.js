@@ -214,12 +214,32 @@ function getCachedToken() {
     });
 }
 
+// Sign in with email and password (for extension compatibility with website)
+async function signInWithEmailPassword(email, password) {
+    // Extensions can't directly use Firebase Auth with email/password
+    // This is a placeholder - the website will handle email auth and sync to extension
+    throw new Error('Email/password authentication should be done through the website');
+}
+
+// Get user verification status
+async function getEmailVerificationStatus() {
+    try {
+        const { userInfo } = await chrome.storage.local.get(['userInfo']);
+        return userInfo?.emailVerified || false;
+    } catch (error) {
+        console.error('Error getting email verification status:', error);
+        return false;
+    }
+}
+
 // Export functions to global scope for use in other scripts
 window.firebaseAuth = {
     signInWithGoogle,
+    signInWithEmailPassword,
     signOut,
     getCurrentUser,
     onAuthStateChanged,
     createGoogleProvider,
-    getFirebaseIdToken
+    getFirebaseIdToken,
+    getEmailVerificationStatus
 };

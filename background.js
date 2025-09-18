@@ -68,7 +68,10 @@ async function notifyWebsiteAuth() {
         
         const authData = {
             idToken: firebase_id_token,
-            userInfo: userInfo,
+            userInfo: {
+                ...userInfo,
+                emailVerified: userInfo.emailVerified || false
+            },
             expiresAt: firebase_token_exp,
             googleAccessToken: auth_token
         };
@@ -390,14 +393,22 @@ async function fsEnsureUserDoc(userInfo) {
     try {
         const headers = await fsHeaders();
         if (!headers) return;
-    const uid = await getAuthUidBg();
+        const uid = await getAuthUidBg();
         if (!uid) return;
         const url = `${FIRESTORE_BASE}/users/${uid}`;
+        const today = new Date().toISOString().split('T')[0];
         const profile = fsEncodeFields({
             uid: String(uid),
             email: userInfo.email || '',
             displayName: userInfo.name || userInfo.displayName || '',
             photoURL: userInfo.picture || userInfo.photoURL || '',
+            subscriptionStatus: 'free',
+            dailyWordsAdded: 0,
+            dailyWordsResetDate: today,
+            dailyWordLimit: 5,
+            subscriptionExpiresAt: null,
+            subscriptionStartedAt: null,
+            createdAt: new Date(),
             lastLoginAt: new Date()
         });
         await fetch(url, { method: 'PATCH', headers, body: JSON.stringify(profile) });
@@ -565,7 +576,11 @@ async function handleWordsChange(changes) {
 
         // Mirror to Firestore (best-effort)
         try {
-            if (operation === 'add') await fsUpsertWord(changedWord);
+            if (operation === 'add') {
+                await fsUpsertWord(changedWord);
+                // Increment daily word count for new words
+                await incrementDailyWordCount();
+            }
             else if (operation === 'delete') await fsDeleteWord(changedWord);
             else if (operation === 'update') await fsPatchWord(changedWord);
         } catch (e) {
@@ -692,6 +707,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })();
         return true;
     }
+
+    if (request.action === "checkSubscriptionLimits") {
+        checkSubscriptionLimits()
+            .then((result) => sendResponse(result))
+            .catch((error) => {
+                console.error('Error checking subscription limits:', error);
+                sendResponse({ canAdd: true, reason: 'error' });
+            });
+        return true;
+    }
+
+    if (request.action === "incrementDailyWordCount") {
+        incrementDailyWordCount()
+            .then(() => sendResponse({ success: true }))
+            .catch((error) => {
+                console.error('Error incrementing daily word count:', error);
+                sendResponse({ success: false, error: error.message });
+            });
+        return true;
+    }
 });
 
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
@@ -752,6 +787,142 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
         }
     }
 });
+
+// Subscription management functions
+async function checkSubscriptionLimits() {
+    try {
+        const headers = await fsHeaders();
+        if (!headers) return { canAdd: true, reason: 'no_auth' };
+
+        const uid = await getAuthUidBg();
+        if (!uid) return { canAdd: true, reason: 'no_uid' };
+
+        const url = `${FIRESTORE_BASE}/users/${uid}`;
+        const response = await fetch(url, { headers });
+        
+        if (!response.ok) {
+            // User document doesn't exist, create default and allow
+            await createDefaultUserSubscription(uid);
+            return { canAdd: true, reason: 'new_user', dailyWordsAdded: 0, dailyWordLimit: 5 };
+        }
+
+        const userData = await response.json();
+        const fields = userData.fields || {};
+        
+        const subscriptionStatus = fields.subscriptionStatus?.stringValue || 'free';
+        const today = new Date().toISOString().split('T')[0];
+        const dailyWordsResetDate = fields.dailyWordsResetDate?.stringValue || today;
+        const dailyWordsAdded = fields.dailyWordsAdded?.integerValue || fields.dailyWordsAdded?.doubleValue || 0;
+        
+        // Reset daily count if it's a new day
+        const resetDailyCount = dailyWordsResetDate !== today;
+        const currentDailyCount = resetDailyCount ? 0 : Number(dailyWordsAdded);
+        
+        // Check if user has premium access
+        const isPremium = subscriptionStatus === 'premium' || subscriptionStatus === 'lifetime';
+        
+        if (isPremium) {
+            return { 
+                canAdd: true, 
+                reason: 'premium', 
+                dailyWordsAdded: currentDailyCount,
+                isPremium: true,
+                needsReset: resetDailyCount
+            };
+        }
+
+        // Free user - check daily limit
+        const dailyLimit = 5;
+        const canAdd = currentDailyCount < dailyLimit;
+        
+        return {
+            canAdd,
+            reason: canAdd ? 'within_limit' : 'daily_limit_reached',
+            dailyWordsAdded: currentDailyCount,
+            dailyWordLimit: dailyLimit,
+            isPremium: false,
+            needsReset: resetDailyCount
+        };
+    } catch (error) {
+        console.error('Error checking subscription limits:', error);
+        // Default to allowing on error to avoid blocking users
+        return { canAdd: true, reason: 'error' };
+    }
+}
+
+async function incrementDailyWordCount() {
+    try {
+        const headers = await fsHeaders();
+        if (!headers) return;
+
+        const uid = await getAuthUidBg();
+        if (!uid) return;
+
+        // Get current subscription data
+        const limitCheck = await checkSubscriptionLimits();
+        const today = new Date().toISOString().split('T')[0];
+        
+        let newCount = limitCheck.dailyWordsAdded + 1;
+        if (limitCheck.needsReset) {
+            newCount = 1; // Reset to 1 for new day
+        }
+
+        const url = `${FIRESTORE_BASE}/users/${uid}`;
+        const updateData = {
+            fields: {
+                dailyWordsAdded: { integerValue: String(newCount) },
+                dailyWordsResetDate: { stringValue: today }
+            }
+        };
+
+        await fetch(url, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(updateData)
+        });
+
+        console.log(`Daily word count updated to ${newCount} for ${today}`);
+    } catch (error) {
+        console.error('Error incrementing daily word count:', error);
+    }
+}
+
+async function createDefaultUserSubscription(uid) {
+    try {
+        const headers = await fsHeaders();
+        if (!headers) return;
+
+        const { userInfo } = await chrome.storage.local.get(['userInfo']);
+        const today = new Date().toISOString().split('T')[0];
+        const now = new Date().toISOString();
+
+        const url = `${FIRESTORE_BASE}/users/${uid}`;
+        const userData = {
+            fields: {
+                uid: { stringValue: uid },
+                email: { stringValue: userInfo?.email || '' },
+                displayName: { stringValue: userInfo?.name || userInfo?.displayName || '' },
+                photoURL: { stringValue: userInfo?.picture || userInfo?.photoURL || '' },
+                subscriptionStatus: { stringValue: 'free' },
+                dailyWordsAdded: { integerValue: '0' },
+                dailyWordsResetDate: { stringValue: today },
+                dailyWordLimit: { integerValue: '5' },
+                createdAt: { timestampValue: now },
+                lastLoginAt: { timestampValue: now }
+            }
+        };
+
+        await fetch(url, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(userData)
+        });
+
+        console.log('Created default user subscription document');
+    } catch (error) {
+        console.error('Error creating default user subscription:', error);
+    }
+}
 
 // Attempt to prepare Firebase ID token on service worker start
 (async () => { try { await ensureFirebaseIdTokenReady(); } catch (e) { /* ignore */ } })();

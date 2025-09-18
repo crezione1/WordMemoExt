@@ -36,6 +36,12 @@ const newWordsCounter = document.getElementById("newWordsCounter");
 const allWordsCounter = document.getElementById("allWordsCounter");
 const addWordInput = document.getElementById('addWordInput');
 const addWordBtn = document.getElementById('addWordBtn');
+const subscriptionStatus = document.getElementById('subscriptionStatus');
+const subscriptionPlan = document.getElementById('subscriptionPlan');
+const subscriptionLimit = document.getElementById('subscriptionLimit');
+const usageText = document.getElementById('usageText');
+const usageProgress = document.getElementById('usageProgress');
+const upgradeBtn = document.getElementById('upgradeBtn');
 
 let excludedSites;
 let currentSite;
@@ -279,6 +285,70 @@ function updateWordCounters(words) {
     }
 }
 
+async function updateSubscriptionDisplay() {
+    try {
+        if (!window.subscriptionManager) {
+            console.warn('Subscription manager not available');
+            return;
+        }
+
+        const displayInfo = await window.subscriptionManager.getSubscriptionDisplayInfo();
+        
+        if (!subscriptionStatus) return;
+
+        // Show subscription status
+        subscriptionStatus.style.display = 'block';
+
+        // Update plan display
+        const planText = displayInfo.isPremium ? 
+            (displayInfo.subscriptionStatus === 'lifetime' ? 'Lifetime Plan' : 'Premium Plan') : 
+            'Free Plan';
+        if (subscriptionPlan) subscriptionPlan.textContent = planText;
+
+        // Update limit display
+        const limitText = displayInfo.isPremium ? 'Unlimited words per day' : `${displayInfo.dailyWordLimit} words per day`;
+        if (subscriptionLimit) subscriptionLimit.textContent = limitText;
+
+        // Update usage display
+        if (displayInfo.isPremium) {
+            if (usageText) usageText.textContent = `${displayInfo.dailyWordsAdded} words added today`;
+            if (usageProgress) usageProgress.style.width = '100%';
+        } else {
+            if (usageText) usageText.textContent = `${displayInfo.dailyWordsAdded} of ${displayInfo.dailyWordLimit} words used today`;
+            const percentage = Math.min(100, (displayInfo.dailyWordsAdded / displayInfo.dailyWordLimit) * 100);
+            if (usageProgress) usageProgress.style.width = `${percentage}%`;
+        }
+
+        // Update CSS classes
+        subscriptionStatus.classList.remove('premium', 'limit-reached');
+        if (displayInfo.isPremium) {
+            subscriptionStatus.classList.add('premium');
+        } else if (!displayInfo.canAddWords) {
+            subscriptionStatus.classList.add('limit-reached');
+        }
+
+        // Show/hide upgrade button
+        if (upgradeBtn) {
+            upgradeBtn.style.display = displayInfo.isPremium ? 'none' : 'block';
+        }
+
+        // Update add word button state
+        if (addWordBtn && !displayInfo.canAddWords && !displayInfo.isPremium) {
+            addWordBtn.disabled = true;
+            addWordBtn.textContent = 'Daily Limit Reached';
+        } else if (addWordBtn) {
+            addWordBtn.textContent = 'Add';
+            // Re-enable if input has text and limit allows
+            if (addWordInput && addWordInput.value.trim()) {
+                addWordBtn.disabled = false;
+            }
+        }
+
+    } catch (error) {
+        console.error('Error updating subscription display:', error);
+    }
+}
+
 async function displayDictionary() {
     try {
         let { words } = await chrome.storage.local.get(["words"]);
@@ -294,6 +364,7 @@ async function displayDictionary() {
         allWords = Array.isArray(words) ? words : [];
         createWordsList(allWords, currentFilter);
         updateWordCounters(allWords);
+        await updateSubscriptionDisplay();
     } catch (e) {
         console.error('displayDictionary failed:', e);
     }
@@ -811,6 +882,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     showTab("homeTab");
     displayExclusionList(excludedSites);
     await displayDictionary();
+    
+    // Initialize subscription display
+    await updateSubscriptionDisplay();
 });
 
 // Add New Word from Home
@@ -826,6 +900,17 @@ async function addNewWordFromPopup() {
         const raw = addWordInput.value.trim();
         if (!raw) return;
         const wordLower = raw.toLowerCase();
+
+        // Check subscription limits before adding
+        if (window.subscriptionManager) {
+            const limitCheck = await window.subscriptionManager.canAddWord();
+            if (!limitCheck.canAdd) {
+                if (limitCheck.reason === 'daily_limit_reached') {
+                    showNotification('Daily word limit reached. Upgrade to Premium for unlimited words.');
+                    return;
+                }
+            }
+        }
 
         // Get target language
         const { translateTo } = await chrome.storage.local.get(['translateTo']);
@@ -862,13 +947,24 @@ async function addNewWordFromPopup() {
 
         const updated = [...words, newWord];
         await chrome.storage.local.set({ words: updated });
+        
+        // Increment daily word count after successful add
+        if (window.subscriptionManager) {
+            try {
+                await window.subscriptionManager.incrementDailyWordCount();
+            } catch (error) {
+                console.error('Error incrementing daily word count:', error);
+            }
+        }
+
         allWords = updated;
         createWordsList(updated, currentFilter);
         updateWordCounters(updated);
+        await updateSubscriptionDisplay(); // Update subscription display after adding word
 
         addWordInput.value = '';
         toggleAddButton();
-        showNotification('Word added');
+        showNotification('Word added successfully');
     } catch (e) {
         console.error('Add new word failed:', e);
         showNotification('Failed to add word');
@@ -885,6 +981,14 @@ if (addWordInput) {
 }
 if (addWordBtn) {
     addWordBtn.addEventListener('click', addNewWordFromPopup);
+}
+
+// Upgrade button event listener
+if (upgradeBtn) {
+    upgradeBtn.addEventListener('click', () => {
+        // Open pricing page
+        chrome.tabs.create({ url: 'https://lazylex.com/#/pricing' });
+    });
 }
 
 // ---- Word details SPA rendering ----

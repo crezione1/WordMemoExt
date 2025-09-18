@@ -781,3 +781,97 @@ input:checked + .slider:before {
 .uppercase {
     text-transform: uppercase;
 }
+
+/* Subscription Status */
+.subscription-status {
+    background: var(--bg-light-grey-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 157, 123, 0.2);
+}
+
+.subscription-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.subscription-plan {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--text-dark-color);
+}
+
+.subscription-limit {
+    font-size: 14px;
+    color: var(--text-dark-grey-color);
+    opacity: 0.8;
+}
+
+.subscription-usage {
+    margin-bottom: 12px;
+}
+
+.usage-text {
+    font-size: 14px;
+    color: var(--text-dark-grey-color);
+    margin-bottom: 8px;
+}
+
+.usage-bar {
+    height: 6px;
+    background: rgba(255, 157, 123, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.usage-progress {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.upgrade-btn {
+    background: var(--accent-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    width: 100%;
+    transition: background-color 0.2s ease;
+}
+
+.upgrade-btn:hover {
+    background: var(--accent-color-dark);
+}
+
+.subscription-status.premium {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.subscription-status.premium .subscription-plan {
+    color: #059669;
+}
+
+.subscription-status.premium .usage-progress {
+    background: #10b981;
+}
+
+.subscription-status.limit-reached {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.subscription-status.limit-reached .usage-text {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.subscription-status.limit-reached .usage-progress {
+    background: #ef4444;
+}
