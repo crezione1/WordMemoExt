@@ -311,7 +311,7 @@ function animateWordToToolbar(selectedText, rect) {
     floatingWord.textContent = selectedText;
     floatingWord.style.position = "fixed";
     floatingWord.style.zIndex = "999999";
-    floatingWord.style.background = "#68c2ff";
+    floatingWord.style.background = "#ff6b35";
     floatingWord.style.border = "1px solid #3A8FC9FF";
     floatingWord.style.borderRadius = "5px";
     floatingWord.style.left = `${rect.left}px`;

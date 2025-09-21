@@ -3,869 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to LazyLex - Setup Guide</title>
+    <title>LazyLex Setup</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="font-awesome/css/fontawesome.css">
-    <link rel="stylesheet" href="font-awesome/css/solid.css">
-    <style>
-        :root {
-            --primary-color: #ff9d7b;
-            --primary-dark: #e8855f;
-            --secondary-color: #4e43d5;
-            --text-dark: #18171e;
-            --text-light: #666;
-            --bg-light: #f8f9fa;
-            --border-color: #ecedef;
-            --success-color: #28a745;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Open Sans', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: var(--text-dark);
-            overflow-x: hidden;
-        }
-
-        .onboarding-container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .onboarding-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-            margin: 20px 0;
-        }
-
-        .step {
-            display: none;
-            padding: 40px;
-            text-align: center;
-            min-height: 500px;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .step.active {
-            display: flex;
-        }
-
-
-        .step-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--text-dark);
-            margin-bottom: 15px;
-        }
-
-        .step-description {
-            font-size: 16px;
-            color: var(--text-light);
-            line-height: 1.6;
-            margin-bottom: 30px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-
-        .feature-card {
-            background: var(--bg-light);
-            padding: 25px;
-            border-radius: 15px;
-            text-align: left;
-        }
-
-        .feature-icon {
-            width: 50px;
-            height: 50px;
-            background: var(--primary-color);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 15px;
-            color: white;
-            font-size: 20px;
-        }
-
-        .feature-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .feature-desc {
-            font-size: 14px;
-            color: var(--text-light);
-            line-height: 1.5;
-        }
-
-        .level-selection {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .level-card {
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: white;
-        }
-
-        .level-card:hover {
-            border-color: var(--primary-color);
-            transform: translateY(-2px);
-        }
-
-        .level-card.selected {
-            border-color: var(--primary-color);
-            background: rgba(255, 157, 123, 0.1);
-        }
-
-        .level-title {
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-dark);
-        }
-
-        .level-desc {
-            font-size: 14px;
-            color: var(--text-light);
-        }
-
-        .options-section {
-            background: var(--bg-light);
-            border-radius: 12px;
-            padding: 25px;
-            margin: 20px 0;
-            text-align: left;
-        }
-
-        .checkbox-container {
-            display: flex;
-            align-items: center;
-            margin: 15px 0;
-            cursor: pointer;
-        }
-
-        .checkbox-container input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin-right: 12px;
-            cursor: pointer;
-            accent-color: var(--primary-color);
-        }
-
-        .checkbox-label {
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .checkbox-desc {
-            font-size: 14px;
-            color: var(--text-light);
-            margin-top: 5px;
-            margin-left: 30px;
-        }
-
-        .buttons-container {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 30px;
-        }
-
-        .btn {
-            padding: 14px 28px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-primary {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--text-light);
-            border: 2px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-        }
-
-        .progress-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 4px;
-            background: var(--primary-color);
-            transition: width 0.3s;
-            z-index: 1000;
-        }
-
-        .breadcrumbs {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px 0;
-            margin-bottom: 20px;
-            gap: 20px;
-        }
-
-        .breadcrumb-step {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .breadcrumb-circle {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 14px;
-            border: 2px solid var(--border-color);
-            background: white;
-            color: var(--text-light);
-            transition: all 0.3s;
-        }
-
-        .breadcrumb-step.active .breadcrumb-circle {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .breadcrumb-step.completed .breadcrumb-circle {
-            background: var(--success-color);
-            color: white;
-            border-color: var(--success-color);
-        }
-
-        .breadcrumb-label {
-            font-size: 12px;
-            color: var(--text-light);
-            font-weight: 500;
-            display: none;
-        }
-
-        .breadcrumb-step.active .breadcrumb-label {
-            color: var(--primary-color);
-        }
-
-        .breadcrumb-step.completed .breadcrumb-label {
-            color: var(--success-color);
-        }
-
-        .breadcrumb-divider {
-            width: 30px;
-            height: 2px;
-            background: var(--border-color);
-            transition: background 0.3s;
-        }
-
-        .breadcrumb-divider.completed {
-            background: var(--success-color);
-        }
-
-        @media (min-width: 600px) {
-            .breadcrumb-label {
-                display: block;
-            }
-            
-            .breadcrumbs {
-                gap: 15px;
-            }
-        }
-
-        .demo-preview {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            border: 1px solid var(--border-color);
-        }
-
-        .demo-text {
-            font-size: 16px;
-            line-height: 1.6;
-            color: var(--text-dark);
-        }
-
-        .demo-word {
-            background: rgba(255, 157, 123, 0.3);
-            padding: 2px 4px;
-            border-radius: 3px;
-            position: relative;
-            cursor: pointer;
-        }
-
-        .demo-translation {
-            color: #999;
-            font-size: 14px;
-            margin-left: 4px;
-        }
-
-        .minimalistic .demo-word {
-            background: none;
-        }
-
-        .minimalistic .demo-translation {
-            color: #ccc;
-        }
-
-        .completion-icon {
-            width: 80px;
-            height: 80px;
-            background: var(--success-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 20px auto;
-            color: white;
-            font-size: 35px;
-        }
-
-        /* Interactive Demo Styles */
-        .interactive-demo {
-            position: relative;
-            margin: 30px 0;
-            padding: 20px;
-            background: var(--bg-light);
-            border-radius: 15px;
-            border: 1px solid var(--border-color);
-        }
-
-        .browser-window {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            overflow: hidden;
-            position: relative;
-        }
-
-        .browser-toolbar {
-            height: 45px;
-            background: #f5f5f5;
-            display: flex;
-            align-items: center;
-            padding: 0 15px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .browser-controls {
-            display: flex;
-            gap: 8px;
-            margin-right: 15px;
-        }
-
-        .browser-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .browser-dot.red { background: #ff5f56; }
-        .browser-dot.yellow { background: #ffbd2e; }
-        .browser-dot.green { background: #27ca3f; }
-
-        .address-bar {
-            flex: 1;
-            height: 28px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            padding: 0 12px;
-            margin-right: 15px;
-        }
-
-        .url-text {
-            color: #666;
-            font-size: 13px;
-        }
-
-        .browser-actions {
-            display: flex;
-            align-items: center;
-        }
-
-        .ext-icon {
-            width: 32px;
-            height: 32px;
-            background: var(--primary-color);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .ext-icon.pulse {
-            animation: iconPulse 0.6s ease-out;
-        }
-
-        @keyframes iconPulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); box-shadow: 0 0 20px rgba(255, 157, 123, 0.5); }
-            100% { transform: scale(1); }
-        }
-
-        .page-content {
-            padding: 25px;
-            background: white;
-        }
-
-        .article-title {
-            font-size: 22px;
-            font-weight: 600;
-            color: var(--text-dark);
-            margin-bottom: 15px;
-        }
-
-        .article-text {
-            font-size: 16px;
-            line-height: 1.6;
-            color: var(--text-dark);
-            margin-bottom: 20px;
-        }
-
-        .selectable-word {
-            background: rgba(255, 157, 123, 0.2);
-            padding: 2px 4px;
-            border-radius: 3px;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-            border: 2px solid transparent;
-        }
-
-        .selectable-word:hover {
-            background: rgba(255, 157, 123, 0.3);
-            border-color: var(--primary-color);
-        }
-
-        .selectable-word.selected {
-            background: rgba(255, 157, 123, 0.4);
-            border-color: var(--primary-color);
-        }
-
-        .selectable-word.saved {
-            background: rgba(40, 167, 69, 0.2);
-            border-color: var(--success-color);
-        }
-
-        .selectable-word.saved:after {
-            content: " (" attr(data-translation) ")";
-            color: #666;
-            font-size: 14px;
-            font-style: italic;
-        }
-
-        .instruction-text {
-            text-align: center;
-            color: var(--primary-color);
-            font-size: 14px;
-            font-weight: 500;
-            padding: 10px;
-            background: rgba(255, 157, 123, 0.1);
-            border-radius: 8px;
-            border: 1px dashed var(--primary-color);
-        }
-
-        .instruction-text i {
-            margin-right: 8px;
-        }
-
-        .add-popover {
-            position: absolute;
-            z-index: 1000;
-            opacity: 0;
-            transform: scale(0.9);
-            transition: all 0.2s;
-            display: none;
-        }
-
-        .add-popover.visible {
-            opacity: 1;
-            transform: scale(1);
-            display: block;
-        }
-
-        /* Match content script action button */
-        .action-button {
-            width: 24px;
-            height: 24px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            background-color: #4285f4;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            z-index: 9999;
-            line-height: 1;
-            font-weight: 600;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        }
-
-        .popover-arrow { display: none; }
-
-        .animation-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 999;
-        }
-
-        .flying-clone {
-            position: absolute;
-            background: var(--primary-color);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 500;
-            pointer-events: none;
-            z-index: 1001;
-            animation: flyToIcon 1s ease-out forwards;
-        }
-
-        @keyframes flyToIcon {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-            }
-            70% {
-                transform: scale(0.8);
-                opacity: 0.8;
-            }
-            100% {
-                transform: scale(0.3);
-                opacity: 0;
-            }
-        }
-
-        .demo-completion {
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .completion-message {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: rgba(40, 167, 69, 0.1);
-            border: 1px solid var(--success-color);
-            border-radius: 8px;
-            padding: 15px 20px;
-            color: var(--success-color);
-            font-weight: 500;
-        }
-
-        .completion-message i {
-            font-size: 18px;
-        }
-    </style>
-    <!-- Chrome API mocks for web development -->
-    <script src="chrome-mock.js"></script>
+    <link rel="stylesheet" href="onboarding.css">
 </head>
 <body>
-    <div class="progress-bar" id="progressBar"></div>
-    
     <div class="onboarding-container">
-        <div class="onboarding-card">
-            <!-- Breadcrumbs -->
-            <div class="breadcrumbs" id="breadcrumbs">
-                <div class="breadcrumb-step active" data-step="1">
-                    <div class="breadcrumb-circle">1</div>
-                    <div class="breadcrumb-label">Welcome</div>
-                </div>
-                <div class="breadcrumb-divider"></div>
-                <div class="breadcrumb-step" data-step="2">
-                    <div class="breadcrumb-circle">2</div>
-                    <div class="breadcrumb-label">How it Works</div>
-                </div>
-                <div class="breadcrumb-divider"></div>
-                <div class="breadcrumb-step" data-step="3">
-                    <div class="breadcrumb-circle">3</div>
-                    <div class="breadcrumb-label">Level</div>
-                </div>
-                <div class="breadcrumb-divider"></div>
-                <div class="breadcrumb-step" data-step="4">
-                    <div class="breadcrumb-circle">4</div>
-                    <div class="breadcrumb-label">Settings</div>
-                </div>
-                <div class="breadcrumb-divider"></div>
-                <div class="breadcrumb-step" data-step="5">
-                    <div class="breadcrumb-circle">✓</div>
-                    <div class="breadcrumb-label">Complete</div>
-                </div>
+        <!-- Progress Indicator -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
             </div>
-            <!-- Step 1: Welcome -->
-            <div class="step active" id="step1">
-                <h1 class="step-title">Welcome to LazyLex! 🚀</h1>
-                <p class="step-description">
-                    LazyLex is a powerful Chrome extension that helps you learn English vocabulary effortlessly while browsing the web.
-                    Let's take a quick tour to show you how it works and set up your preferences.
-                </p>
-                
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-mouse-pointer"></i>
-                        </div>
-                        <h3 class="feature-title">Select & Save</h3>
-                        <p class="feature-desc">Simply highlight any word on any webpage to save it to your personal dictionary</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-language"></i>
-                        </div>
-                        <h3 class="feature-title">Auto Translation</h3>
-                        <p class="feature-desc">Get instant translations in your preferred language with context</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">
-                            <i class="fas fa-brain"></i>
-                        </div>
-                        <h3 class="feature-title">Smart Learning</h3>
-                        <p class="feature-desc">Words appear highlighted on future visits to help reinforce your memory</p>
-                    </div>
+            <div class="progress-text">
+                <span id="currentStep">1</span> of <span id="totalSteps">4</span>
+            </div>
+        </div>
+
+        <!-- Step 1: Language Selection -->
+        <div class="step active" id="step1">
+            <div class="step-content">
+                <div class="step-header">
+                    <img src="./images/lazylex_logo.png" alt="LazyLex" class="step-logo">
+                    <h2>Choose Your Language</h2>
+                    <p>Select your native language for translations</p>
                 </div>
                 
-                <div class="buttons-container">
-                    <button class="btn btn-primary" id="step1NextBtn">Get Started</button>
+                <div class="language-grid">
+                    <button class="language-option" data-lang="uk" data-name="Ukrainian">
+                        <span class="flag">🇺🇦</span>
+                        <span class="lang-name">Українська</span>
+                    </button>
+                    <button class="language-option" data-lang="es" data-name="Spanish">
+                        <span class="flag">🇪🇸</span>
+                        <span class="lang-name">Español</span>
+                    </button>
+                    <button class="language-option" data-lang="fr" data-name="French">
+                        <span class="flag">🇫🇷</span>
+                        <span class="lang-name">Français</span>
+                    </button>
+                    <button class="language-option" data-lang="de" data-name="German">
+                        <span class="flag">🇩🇪</span>
+                        <span class="lang-name">Deutsch</span>
+                    </button>
+                    <button class="language-option" data-lang="pl" data-name="Polish">
+                        <span class="flag">🇵🇱</span>
+                        <span class="lang-name">Polski</span>
+                    </button>
+                    <button class="language-option" data-lang="it" data-name="Italian">
+                        <span class="flag">🇮🇹</span>
+                        <span class="lang-name">Italiano</span>
+                    </button>
                 </div>
             </div>
+        </div>
 
-            <!-- Step 2: How it works -->
-            <div class="step" id="step2">
-                <h1 class="step-title">Try It Yourself!</h1>
-                <p class="step-description">
-                    Click on any word in the text below to see how LazyLex works in action:
-                </p>
+        <!-- Step 2: Learning Goals -->
+        <div class="step" id="step2">
+            <div class="step-content">
+                <div class="step-header">
+                    <h2>What's Your Goal?</h2>
+                    <p>Help us personalize your learning experience</p>
+                </div>
+                
+                <div class="goals-grid">
+                    <button class="goal-option" data-goal="work">
+                        <span class="goal-icon">💼</span>
+                        <span class="goal-title">Professional</span>
+                        <span class="goal-desc">Improve work communication</span>
+                    </button>
+                    <button class="goal-option" data-goal="academic">
+                        <span class="goal-icon">🎓</span>
+                        <span class="goal-title">Academic</span>
+                        <span class="goal-desc">Study and research</span>
+                    </button>
+                    <button class="goal-option" data-goal="casual">
+                        <span class="goal-icon">📚</span>
+                        <span class="goal-title">Casual</span>
+                        <span class="goal-desc">General improvement</span>
+                    </button>
+                    <button class="goal-option" data-goal="travel">
+                        <span class="goal-icon">✈️</span>
+                        <span class="goal-title">Travel</span>
+                        <span class="goal-desc">Communication abroad</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
-                <div id="howitworksDemo" class="interactive-demo">
-                    <!-- Simulated Browser Window -->
-                    <div class="browser-window">
-                        <div class="browser-toolbar">
-                            <div class="browser-controls">
-                                <span class="browser-dot red"></span>
-                                <span class="browser-dot yellow"></span>
-                                <span class="browser-dot green"></span>
-                            </div>
-                            <div class="address-bar">
-                                <span class="url-text">https://example.com/article</span>
-                            </div>
-                            <div class="browser-actions">
-                                <div class="ext-icon" id="extIcon">
-                                    <i class="fas fa-puzzle-piece"></i>
-                                </div>
-                            </div>
+        <!-- Step 3: How it Works -->
+        <div class="step" id="step3">
+            <div class="step-content">
+                <div class="step-header">
+                    <h2>How LazyLex Works</h2>
+                    <p>Learn the basics in 30 seconds</p>
+                </div>
+                
+                <div class="demo-steps">
+                    <div class="demo-step">
+                        <div class="demo-number">1</div>
+                        <div class="demo-content">
+                            <h3>Select Text</h3>
+                            <p>Highlight any word while browsing</p>
                         </div>
-
-                        <div class="page-content">
-                            <h3 class="article-title">Learning English Made Simple</h3>
-                            <p class="article-text">
-                                Reading articles online is a great way to 
-                                <span class="selectable-word" data-word="improve" data-translation="покращувати">improve</span> 
-                                your English vocabulary. When you encounter an 
-                                <span class="selectable-word" data-word="unfamiliar" data-translation="незнайомий">unfamiliar</span> 
-                                word, you can easily save it for later study. This helps build your 
-                                <span class="selectable-word" data-word="knowledge" data-translation="знання">knowledge</span> 
-                                gradually over time.
-                            </p>
-                            <div class="instruction-text">
-                                <i class="fas fa-hand-pointer"></i>
-                                Click on any highlighted word above to try it!
-                            </div>
+                    </div>
+                    <div class="demo-step">
+                        <div class="demo-number">2</div>
+                        <div class="demo-content">
+                            <h3>Click Add Button</h3>
+                            <p>Orange + button appears next to selection</p>
                         </div>
                     </div>
-
-                    <!-- Add Word Popover (hidden by default) -->
-                    <div class="add-popover" id="addPopover">
-                        <button class="action-button" id="addWordBtn">+</button>
-                        <div class="popover-arrow"></div>
-                    </div>
-
-                    <!-- Animation overlay for flying word effect -->
-                    <div class="animation-overlay" id="animationOverlay"></div>
-                </div>
-
-                <div class="demo-completion" id="demoCompletion" style="display: none;">
-                    <div class="completion-message">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Great! You've successfully saved a word. That's exactly how LazyLex works on any website!</span>
-                    </div>
-                </div>
-
-                <div class="buttons-container">
-                    <button class="btn btn-secondary" id="step2BackBtn">Back</button>
-                    <button class="btn btn-primary" id="step2NextBtn" disabled style="opacity: 0.5;">Try the Demo Above</button>
-                </div>
-            </div>
-
-            <!-- Step 3: English Level Selection -->
-            <div class="step" id="step3">
-                <h1 class="step-title">Choose Your English Level</h1>
-                <p class="step-description">
-                    We'll add some starter words to your dictionary based on your English level. 
-                    This helps you get started with vocabulary that matches your learning needs.
-                </p>
-
-                <div class="level-selection">
-                    <div class="level-card" data-level="beginner">
-                        <h3 class="level-title">🌱 Beginner</h3>
-                        <p class="level-desc">Basic everyday words and common expressions</p>
-                    </div>
-                    <div class="level-card" data-level="intermediate">
-                        <h3 class="level-title">🎯 Intermediate</h3>
-                        <p class="level-desc">More complex vocabulary and business terms</p>
-                    </div>
-                    <div class="level-card" data-level="advanced">
-                        <h3 class="level-title">🚀 Advanced</h3>
-                        <p class="level-desc">Academic and sophisticated language</p>
-                    </div>
-                    <div class="level-card" data-level="none">
-                        <h3 class="level-title">📚 None</h3>
-                        <p class="level-desc">Start with an empty dictionary</p>
-                    </div>
-                </div>
-
-                <div class="buttons-container">
-                    <button class="btn btn-secondary" id="step3BackBtn">Back</button>
-                    <button class="btn btn-primary" id="levelNextBtn" disabled style="opacity: 0.5;">Continue</button>
-                </div>
-            </div>
-
-            <!-- Step 4: Display Options -->
-            <div class="step" id="step4">
-                <h1 class="step-title">Customize Your Experience</h1>
-                <p class="step-description">
-                    Choose how you want LazyLex to appear on webpages. You can always change these settings later.
-                </p>
-
-                <div class="options-section">
-                    <h3 style="margin-bottom: 20px; color: var(--text-dark);">Display Options</h3>
-                    
-                    <label class="checkbox-container">
-                        <input type="checkbox" id="minimalisticMode">
-                        <div>
-                            <div class="checkbox-label">Minimalistic Mode</div>
-                            <div class="checkbox-desc">Disable animations and use subtle grey translations without word highlighting</div>
+                    <div class="demo-step">
+                        <div class="demo-number">3</div>
+                        <div class="demo-content">
+                            <h3>Word Saved!</h3>
+                            <p>Access your dictionary anytime from the popup</p>
                         </div>
-                    </label>
-                </div>
-
-                <div class="demo-preview" id="stylePreview">
-                    <h4 style="margin-bottom: 10px;">Preview:</h4>
-                    <div class="demo-text">
-                        Sample text with a <span class="demo-word">highlighted<span class="demo-translation">(виділений)</span></span> 
-                        word showing how it will appear on websites.
                     </div>
                 </div>
-
-                <div class="buttons-container">
-                    <button class="btn btn-secondary" id="step4BackBtn">Back</button>
-                    <button class="btn btn-primary" id="step4NextBtn">Continue</button>
+                
+                <div class="demo-visual">
+                    <p class="demo-text">Try selecting this <span class="selectable-word">word</span> to see it in action!</p>
                 </div>
             </div>
+        </div>
 
-            <!-- Step 5: Completion -->
-            <div class="step" id="step5">
-                <div class="completion-icon">
-                    <i class="fas fa-check"></i>
+        <!-- Step 4: Ready to Go -->
+        <div class="step" id="step4">
+            <div class="step-content">
+                <div class="step-header">
+                    <img src="./images/lazylex_logo.png" alt="LazyLex" class="step-logo">
+                    <h2>You're All Set! 🎉</h2>
+                    <p>LazyLex is ready to help you learn English</p>
                 </div>
-                <h1 class="step-title">You're All Set! 🎉</h1>
-                <p class="step-description">
-                    LazyLex is now ready to help you learn English vocabulary while you browse.
-                    Your starter words have been added, and your preferences have been saved.
-                </p>
-
-                <div style="background: var(--bg-light); border-radius: 12px; padding: 20px; margin: 30px 0; text-align: left;">
-                    <h4 style="margin-bottom: 15px; color: var(--text-dark);">Quick Tips:</h4>
-                    <ul style="list-style: none; padding: 0;">
-                        <li style="margin-bottom: 10px; display: flex; align-items: center;">
-                            <span style="color: var(--primary-color); margin-right: 10px;">💡</span>
-                            Click the extension icon to view your saved words
-                        </li>
-                        <li style="margin-bottom: 10px; display: flex; align-items: center;">
-                            <span style="color: var(--primary-color); margin-right: 10px;">⚙️</span>
-                            Access settings to customize colors and languages
-                        </li>
-                        <li style="margin-bottom: 10px; display: flex; align-items: center;">
-                            <span style="color: var(--primary-color); margin-right: 10px;">📤</span>
-                            Export/import your words to keep them safe
-                        </li>
-                        <li style="display: flex; align-items: center;">
-                            <span style="color: var(--primary-color); margin-right: 10px;">🔄</span>
-                            Use Ctrl+Shift+S as a quick shortcut to save words
-                        </li>
-                    </ul>
+                
+                <div class="completion-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">Language:</span>
+                        <span class="summary-value" id="selectedLanguage">Ukrainian</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Goal:</span>
+                        <span class="summary-value" id="selectedGoal">Professional</span>
+                    </div>
                 </div>
-
-                <div class="buttons-container">
-                    <button class="btn btn-primary" id="completeBtn">Start Using WordMemo</button>
+                
+                <div class="final-actions">
+                    <button id="finishOnboardingBtn" class="btn btn-primary">
+                        Start Learning Now
+                    </button>
+                    <button id="openSettingsBtn" class="btn btn-secondary">
+                        Customize Settings
+                    </button>
                 </div>
             </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <button id="backBtn" class="nav-btn" disabled>
+                <span>← Back</span>
+            </button>
+            <button id="nextBtn" class="nav-btn">
+                <span>Next →</span>
+            </button>
         </div>
     </div>
 

@@ -34,6 +34,15 @@
             "css": ["styles.css"]
         }
     ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "widget/*",
+                "widget/localization/*"
+            ],
+            "matches": ["<all_urls>"]
+        }
+    ],
     "commands": {
         "_execute_action": {
             "suggested_key": {
@@ -45,12 +54,17 @@
     "content_security_policy": {
         "extension_pages": "script-src 'self'; object-src 'self';"
     },
+    "icons": {
+        "16": "images/lazylex_logo.png",
+        "48": "images/lazylex_logo.png",
+        "128": "images/lazylex_logo.png"
+    },
     "action": {
         "default_popup": "popup.html",
         "default_icon": {
-            "16": "images/favicon.svg",
-            "48": "images/favicon.svg",
-            "128": "images/favicon.svg"
+            "16": "images/lazylex_logo.png",
+            "48": "images/lazylex_logo.png",
+            "128": "images/lazylex_logo.png"
         }
     }
 }

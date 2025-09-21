@@ -924,5 +924,63 @@ async function createDefaultUserSubscription(uid) {
     }
 }
 
+// Welcome page and onboarding logic
+chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === 'install') {
+        // First time install - show welcome page
+        showWelcomePage();
+    } else if (details.reason === 'update') {
+        // Extension updated - check if user needs welcome
+        checkWelcomeStatus();
+    }
+});
+
+function showWelcomePage() {
+    chrome.storage.local.get(['welcomeShown', 'onboardingCompleted'], (result) => {
+        if (!result.welcomeShown && !result.onboardingCompleted) {
+            // Open welcome page in new tab
+            chrome.tabs.create({
+                url: chrome.runtime.getURL('welcome.html'),
+                active: true
+            });
+        }
+    });
+}
+
+function checkWelcomeStatus() {
+    chrome.storage.local.get(['welcomeShown', 'onboardingCompleted'], (result) => {
+        // If neither welcome nor onboarding was completed, show welcome
+        if (!result.welcomeShown && !result.onboardingCompleted) {
+            showWelcomePage();
+        }
+    });
+}
+
+// Handle welcome page requests
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'openWelcome') {
+        showWelcomePage();
+        sendResponse({ success: true });
+    }
+    
+    if (request.action === 'openOnboarding') {
+        chrome.tabs.create({
+            url: chrome.runtime.getURL('onboarding.html'),
+            active: true
+        });
+        sendResponse({ success: true });
+    }
+    
+    if (request.action === 'checkWelcomeStatus') {
+        chrome.storage.local.get(['welcomeShown', 'onboardingCompleted'], (result) => {
+            sendResponse({
+                welcomeShown: result.welcomeShown || false,
+                onboardingCompleted: result.onboardingCompleted || false
+            });
+        });
+        return true;
+    }
+});
+
 // Attempt to prepare Firebase ID token on service worker start
 (async () => { try { await ensureFirebaseIdTokenReady(); } catch (e) { /* ignore */ } })();

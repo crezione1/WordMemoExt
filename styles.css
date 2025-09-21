@@ -99,11 +99,11 @@
     align-items: center;
     justify-content: center;
     color: white;
-    background-color: #4285f4;
+    background-color: #ff6b35;
     border-radius: 50%;
     border: none;
     cursor: pointer;
-    z-index: 9999;
+    z-index: 999999;
 }
 
 #deleteWordBtn {
@@ -126,13 +126,13 @@
 
 .edit-translation-input:focus {
     outline: none;
-    border-color: #4285f4;
+    border-color: #ff6b35;
     box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
 }
 
 .translation-loader {
     border: 2px solid #f3f3f3; /* Light grey */
-    border-top: 2px solid #4285f4; /* Blue */
+    border-top: 2px solid #ff6b35; /* Blue */
     border-radius: 50%;
     width: 14px;
     height: 14px;
@@ -149,7 +149,7 @@
 
 .translation-loader {
     border: 2px solid #f3f3f3; /* Light grey */
-    border-top: 2px solid #4285f4; /* Blue */
+    border-top: 2px solid #ff6b35; /* Blue */
     border-radius: 50%;
     width: 14px;
     height: 14px;
