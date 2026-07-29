@@ -567,6 +567,228 @@ async function deleteWordMutation(wordId) {
     return id;
 }
 
+// Premium sentence storage (issue #28)
+//
+// Sentences are private per authenticated user and are deliberately kept
+// out of the word dictionary model and out of any shared word/phrase
+// cache: they live in their own chrome.storage.local key ("sentences",
+// scoped to the signed-in uid) and their own Firestore subcollection
+// (users/{uid}/sentences), mirroring the users/{uid}/words pattern above
+// but never touching the words collection, translateWord, or a shared
+// translations/lexicon store.
+
+async function getSubscriptionStatus() {
+    try {
+        const headers = await fsHeaders();
+        if (!headers) {
+            return { authenticated: false, isPremium: false, subscriptionStatus: "free" };
+        }
+
+        const uid = await getAuthUidBg();
+        if (!uid) {
+            return { authenticated: false, isPremium: false, subscriptionStatus: "free" };
+        }
+
+        const response = await fetch(`${FIRESTORE_BASE}/users/${uid}`, { headers });
+        if (!response.ok) {
+            return { authenticated: true, isPremium: false, subscriptionStatus: "free" };
+        }
+
+        const userData = await response.json();
+        const fields = userData.fields || {};
+        const subscriptionStatus = fields.subscriptionStatus?.stringValue || "free";
+        const isPremium = subscriptionStatus === "premium" || subscriptionStatus === "lifetime";
+
+        return { authenticated: true, isPremium, subscriptionStatus };
+    } catch (error) {
+        console.error("Error checking subscription status:", error);
+        // Fail closed for a gated, potentially billable feature: an error
+        // reading entitlement must not be treated as "premium".
+        return { authenticated: false, isPremium: false, subscriptionStatus: "free" };
+    }
+}
+
+function validateSentencePayload(candidate) {
+    if (!candidate || typeof candidate !== "object") {
+        throw new LazyLexApiError("The sentence payload is missing.", {
+            code: "validation/sentence"
+        });
+    }
+
+    const text = String(candidate.text || "").trim();
+    const translation = String(candidate.translation || "").trim();
+    if (!text || text.length > 500 || !translation) {
+        throw new LazyLexApiError("The sentence or its translation is invalid.", {
+            code: "validation/sentence"
+        });
+    }
+
+    const id = Number(candidate.id) || Date.now();
+
+    return {
+        id,
+        text,
+        translation,
+        sourceLanguage: String(candidate.sourceLanguage || "auto"),
+        targetLanguage: String(candidate.targetLanguage || "uk"),
+        dateAdded: Number(candidate.dateAdded) || Date.now()
+    };
+}
+
+async function fsUpsertSentence(sentence, required = false) {
+    const headers = await fsHeaders(required);
+    if (!headers) return false;
+    const uid = await getAuthUidBg();
+    if (!uid) {
+        if (required) {
+            throw new LazyLexApiError("The signed-in user could not be identified.", {
+                code: "auth/invalid",
+                status: 401
+            });
+        }
+        return false;
+    }
+
+    const docId = String(sentence.id);
+    // Deliberately users/{uid}/sentences -- never the shared words/
+    // translations/lexicon collections.
+    const url = `${FIRESTORE_BASE}/users/${uid}/sentences?documentId=${encodeURIComponent(docId)}`;
+    const body = fsEncodeFields({
+        id: Number(sentence.id),
+        text: sentence.text,
+        translation: sentence.translation,
+        sourceLanguage: sentence.sourceLanguage,
+        targetLanguage: sentence.targetLanguage,
+        dateAdded: Number(sentence.dateAdded || Date.now()),
+        userId: String(uid)
+    });
+
+    const res = await fetchWithTimeout(url, { method: "POST", headers, body: JSON.stringify(body) });
+    if (res.ok) return true;
+
+    const patchUrl = `${FIRESTORE_BASE}/users/${uid}/sentences/${docId}`;
+    const res2 = await fetchWithTimeout(patchUrl, { method: "PATCH", headers, body: JSON.stringify(body) });
+    await requireSuccessfulResponse(res2, "Saving the sentence");
+    return true;
+}
+
+async function fsDeleteSentence(sentenceId, required = false) {
+    const headers = await fsHeaders(required);
+    if (!headers) return false;
+    const uid = await getAuthUidBg();
+    if (!uid) {
+        if (required) {
+            throw new LazyLexApiError("The signed-in user could not be identified.", {
+                code: "auth/invalid",
+                status: 401
+            });
+        }
+        return false;
+    }
+
+    const url = `${FIRESTORE_BASE}/users/${uid}/sentences/${String(sentenceId)}`;
+    const response = await fetchWithTimeout(url, { method: "DELETE", headers });
+    if (response.status !== 404) {
+        await requireSuccessfulResponse(response, "Deleting the sentence");
+    }
+    return true;
+}
+
+async function persistSentenceMutation(candidate) {
+    const sentence = validateSentencePayload(candidate);
+    await fsUpsertSentence(sentence, true);
+
+    const { userInfo, sentences = [] } = await chrome.storage.local.get({ userInfo: null, sentences: [] });
+    const uid = userInfo?.uid || userInfo?.id || null;
+    const updatedSentences = [...sentences, sentence];
+    await chrome.storage.local.set({ sentences: updatedSentences, sentencesOwnerUid: uid });
+    notifyPopupAboutChanges("sentencesChanged", { operation: "add", sentence, sentences: updatedSentences });
+    return sentence;
+}
+
+async function deleteSentenceMutation(sentenceId) {
+    const id = Number(sentenceId);
+    if (!Number.isSafeInteger(id)) {
+        throw new LazyLexApiError("The sentence id is invalid.", {
+            code: "validation/sentence-id"
+        });
+    }
+
+    await fsDeleteSentence(id, true);
+
+    const { sentences = [] } = await chrome.storage.local.get({ sentences: [] });
+    const updatedSentences = sentences.filter((item) => Number(item.id) !== id);
+    await chrome.storage.local.set({ sentences: updatedSentences });
+    notifyPopupAboutChanges("sentencesChanged", { operation: "delete", sentenceId: id, sentences: updatedSentences });
+    return id;
+}
+
+async function translateSentenceMutation(text, targetLanguage) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed || trimmed.length > 500) {
+        throw new LazyLexApiError("Sentences are limited to 500 characters.", {
+            code: "validation/sentence-length",
+            status: 400
+        });
+    }
+
+    // Authoritative-as-possible check from the extension side: never call
+    // the (billable) translation backend for a non-premium account. The
+    // deployed callable function is expected to re-check this server side
+    // (see crezione1/LazyLexFunctions#1) -- that is the real authority.
+    const subscription = await getSubscriptionStatus();
+    if (!subscription.isPremium) {
+        throw new LazyLexApiError("Sentence translation requires Premium.", {
+            code: "entitlement",
+            status: 403
+        });
+    }
+
+    const idToken = await getFirebaseIdTokenBg();
+    if (!idToken) {
+        throw new LazyLexApiError("Please sign in to translate sentences.", {
+            code: "auth/required",
+            status: 401
+        });
+    }
+
+    // Deliberately a distinct callable from translateWord, and never
+    // shares the word/phrase translation cache -- see issue #28 and the
+    // backend contract in crezione1/LazyLexFunctions#1.
+    const url = `${functionsBaseUrl}/translateSentence`;
+    const res = await fetchWithTimeout(url, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            data: {
+                text: trimmed,
+                sourceLanguage: "auto",
+                targetLanguage: targetLanguage || "uk",
+                type: "sentence"
+            }
+        })
+    });
+    await requireSuccessfulResponse(res, "Sentence translation");
+    const json = await res.json();
+    const result = json.result || json;
+    const translation = String(result?.translation || "").trim();
+    if (!translation) {
+        throw new LazyLexApiError("LazyLex did not return a sentence translation.", {
+            code: "api/empty-translation"
+        });
+    }
+
+    return persistSentenceMutation({
+        text: trimmed,
+        translation,
+        sourceLanguage: "auto",
+        targetLanguage: targetLanguage || "uk"
+    });
+}
+
 async function updateTelegramMutation(telegramName) {
     const normalizedTelegram = String(telegramName || "")
         .trim()
@@ -859,6 +1081,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
         return true;
     }
+
+    if (request.action === "getSubscriptionStatus") {
+        getSubscriptionStatus()
+            .then((result) => sendResponse(result))
+            .catch((error) => {
+                console.error('Error getting subscription status:', error);
+                sendResponse({ authenticated: false, isPremium: false, subscriptionStatus: 'free' });
+            });
+        return true;
+    }
+
+    if (request.action === "translateSentence") {
+        translateSentenceMutation(request.text, request.targetLanguage)
+            .then((sentence) => sendResponse({ success: true, sentence }))
+            .catch((error) => {
+                console.error('translateSentence error:', error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
+    if (request.action === "deleteSentence") {
+        deleteSentenceMutation(request.sentenceId)
+            .then((sentenceId) => sendResponse({ success: true, sentenceId }))
+            .catch((error) => {
+                console.error('deleteSentence error:', error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
 });
 
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
@@ -875,6 +1128,22 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
         try {
             await fsEnsureUserDoc(changes.userInfo.newValue);
             await fsSyncWordsFromCloudIfEmpty();
+        } catch (e) { /* ignore */ }
+    }
+
+    // Locally mirrored sentences are private to one account. If the signed-in
+    // uid changes (account switch without an explicit logout) or auth is
+    // cleared, drop any locally cached sentences that belonged to a
+    // different (or no) uid so they can never be shown against the wrong
+    // account.
+    if (namespace === 'local' && 'userInfo' in changes) {
+        try {
+            const newUserInfo = changes.userInfo?.newValue || null;
+            const newUid = newUserInfo?.uid || newUserInfo?.id || null;
+            const { sentencesOwnerUid } = await chrome.storage.local.get(['sentencesOwnerUid']);
+            if (sentencesOwnerUid && sentencesOwnerUid !== newUid) {
+                await chrome.storage.local.set({ sentences: [], sentencesOwnerUid: newUid || null });
+            }
         } catch (e) { /* ignore */ }
     }
 

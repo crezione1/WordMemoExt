@@ -360,6 +360,87 @@ async function displayDictionary() {
     }
 }
 
+// Saved sentences (issue #28)
+//
+// Intentionally a separate render path/list from the word dictionary
+// above: sentence records are private per account and are never merged
+// into allWords/wordList.
+
+function createSentenceListItem(item) {
+    const safeSentenceId = Number(item?.id);
+    if (!Number.isSafeInteger(safeSentenceId)) {
+        return null;
+    }
+
+    const listItem = document.createElement("li");
+    listItem.dataset.sentenceId = String(safeSentenceId);
+
+    const text = document.createElement("span");
+    text.className = "word-list-origin";
+    text.textContent = String(item?.text || "");
+
+    const translation = document.createElement("span");
+    translation.className = "word-list-translation";
+    translation.textContent = String(item?.translation || "");
+
+    const actions = document.createElement("div");
+    actions.className = "word-list-actions";
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "icon-btn icon-btn-small";
+    deleteButton.dataset.sentenceAction = "deleteSentence";
+    deleteButton.dataset.sentenceId = String(safeSentenceId);
+    deleteButton.setAttribute("aria-label", "Delete sentence");
+    deleteButton.textContent = "×";
+    actions.appendChild(deleteButton);
+
+    listItem.append(text, translation, actions);
+    return listItem;
+}
+
+function renderSentences(sentences) {
+    const list = document.getElementById("sentenceList");
+    const emptyState = document.getElementById("sentenceListEmpty");
+    if (!list) return;
+
+    list.replaceChildren();
+    const items = Array.isArray(sentences) ? sentences : [];
+    items
+        .slice()
+        .sort((left, right) => Number(right?.dateAdded || 0) - Number(left?.dateAdded || 0))
+        .forEach((item) => {
+            const listItem = createSentenceListItem(item);
+            if (listItem) {
+                list.appendChild(listItem);
+            }
+        });
+
+    if (emptyState) {
+        emptyState.style.display = items.length ? "none" : "block";
+    }
+}
+
+async function displaySentences() {
+    try {
+        const { sentences } = await chrome.storage.local.get({ sentences: [] });
+        renderSentences(sentences);
+    } catch (error) {
+        console.error('displaySentences failed:', error);
+    }
+}
+
+async function deleteSentence(sentenceId) {
+    try {
+        const response = await chrome.runtime.sendMessage({ action: "deleteSentence", sentenceId });
+        if (!response?.success) {
+            throw new Error(response?.error?.message || "Unable to delete the sentence.");
+        }
+        await displaySentences();
+    } catch (error) {
+        console.error('deleteSentence failed:', error);
+    }
+}
+
 async function markWordAsLearned(wordId) {
     const {words = []} = await chrome.storage.local.get({ words: [] });
     const word = words.find((item) => Number(item.id) === Number(wordId));
@@ -646,6 +727,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showTab(tab.id);
                 if (tab.id === 'dictionaryTab') {
                     displayDictionary().catch(console.error);
+                } else if (tab.id === 'sentencesTab') {
+                    displaySentences().catch(console.error);
                 }
             });
         }
@@ -707,7 +790,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     "firebase_refresh_token",
                     "firebase_token_exp",
                     "user_info",
-                    "userInfo"
+                    "userInfo",
+                    // Sentences are private per account (issue #28) and must
+                    // not survive into the next session on this device.
+                    "sentences",
+                    "sentencesOwnerUid"
                 ];
                 try {
                     // Sign out from auth system
@@ -768,6 +855,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        // Handle sentence actions (kept separate from word actions above --
+        // sentences are a distinct model, see issue #28)
+        if (button.dataset.sentenceAction === "deleteSentence") {
+            await deleteSentence(button.dataset.sentenceId);
+            return;
+        }
+
         // Handle word actions
         const action = button.dataset.btnFunction;
         if (!action) return;
@@ -815,6 +909,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // simple refresh to keep list and counters in sync
                 displayDictionary().catch(console.error);
             }
+        }
+
+        if (request.action === "sentencesChanged") {
+            renderSentences(Array.isArray(request.newValue?.sentences) ? request.newValue.sentences : []);
         }
         });
     }
