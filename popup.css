@@ -63,6 +63,9 @@ button:disabled {
     box-shadow: rgba(14, 30, 37, 0.12) 0px 2px 4px 0px, rgba(14, 30, 37, 0.32) 0px 2px 16px 0px;
 }
 
+/* Ensure main content area can shrink and allow inner scroll containers */
+
+
 /* Login page */
 
 .login-page {
@@ -220,6 +223,56 @@ button:disabled {
     gap: 20px;
 }
 
+/* Add-word controls (home) */
+.add-word-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 8px 0 12px;
+}
+
+.add-word-input {
+    flex: 1 1 auto;
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.add-word-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 157, 123, 0.25);
+    border-color: var(--accent-color);
+}
+
+.add-word-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 8px;
+    transition: transform 0.08s ease, box-shadow 0.12s ease, background-color 0.12s ease, opacity 0.12s ease;
+    width: auto;
+}
+
+.add-word-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.add-word-btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    filter: brightness(1.03);
+}
+
+.add-word-btn:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: none;
+    filter: brightness(0.98);
+}
+
+/* Make only the words list scrollable inside dictionary tab */
+
+
 .word-category-list {
     display: flex;
     justify-content: center;
@@ -343,6 +396,56 @@ button:disabled {
 }
 
 /* Word List Tab */
+
+.word-filter-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 15px 0;
+    padding: 0 10px;
+}
+
+.filter-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--bg-light-grey-color);
+    border-radius: 8px;
+    background: var(--bg-light-grey-color);
+    color: var(--text-dark-grey-color);
+    font-size: 12px;
+    font-weight: 400;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.filter-tab:hover {
+    border-color: var(--accent-color);
+    background: var(--accent-color-light);
+}
+
+.filter-tab.active {
+    background-color: #FF9D7B;
+    color: white;
+}
+
+.filter-tab.active {
+    background-color: #FF9D7B;
+    color: white;
+}
+
+.filter-counter {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: 8px;
+    min-width: 20px;
+    text-align: center;
+    display: inline-block;
+}
+
+.filter-tab.active .filter-counter {
+    background-color: rgba(255, 255, 255, 0.3);
+}
 
 .list {
     padding: 0 10px;
@@ -677,4 +780,98 @@ input:checked + .slider:before {
 
 .uppercase {
     text-transform: uppercase;
+}
+
+/* Subscription Status */
+.subscription-status {
+    background: var(--bg-light-grey-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 157, 123, 0.2);
+}
+
+.subscription-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.subscription-plan {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--text-dark-color);
+}
+
+.subscription-limit {
+    font-size: 14px;
+    color: var(--text-dark-grey-color);
+    opacity: 0.8;
+}
+
+.subscription-usage {
+    margin-bottom: 12px;
+}
+
+.usage-text {
+    font-size: 14px;
+    color: var(--text-dark-grey-color);
+    margin-bottom: 8px;
+}
+
+.usage-bar {
+    height: 6px;
+    background: rgba(255, 157, 123, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.usage-progress {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.upgrade-btn {
+    background: var(--accent-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    width: 100%;
+    transition: background-color 0.2s ease;
+}
+
+.upgrade-btn:hover {
+    background: var(--accent-color-dark);
+}
+
+.subscription-status.premium {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.subscription-status.premium .subscription-plan {
+    color: #059669;
+}
+
+.subscription-status.premium .usage-progress {
+    background: #10b981;
+}
+
+.subscription-status.limit-reached {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.subscription-status.limit-reached .usage-text {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.subscription-status.limit-reached .usage-progress {
+    background: #ef4444;
 }
