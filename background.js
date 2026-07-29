@@ -421,4 +421,678 @@ async function fsSyncWordsFromCloudIfEmpty() {
     const uid = await getAuthUidBg();
     if (!uid) return;
     const url = `${FIRESTORE_BASE}/users/${uid}/words`;
-    consßm¹¶‰žËkºwµç@€€€€€€€€€€ô(€€€€€€€€€€€ô(€€€€€€€ô(€€€ô•±Í”ì(€€€€€€€½¹Í½±”¹±½œ ‰½Õ±¹½Ð‘•Ñ•Éµ¥¹”¡…¹•Ý½É°™½É¥¹œÉ•±½…¸ˆ¤ì(€€€€€€€…Ý…¥Ð¹½Ñ¥™å½¹Ñ•¹Ñ‰½ÕÑ¡…¹•Ì ‰Ý½É‘Í¡…¹•ˆ°ì½Á•É…Ñ¥½¸è€É•±½…œ°Ý½É‘Ìè¹•ÝY…±Õ”ô¤ì4(€€€€€€€€¼¼	•ÍÐµ•™™½ÉÐèÕÁÍ•ÉÐ…±°Ý½É‘ÌÑ¼•¹ÍÕÉ”±½Õ¥Ì¥¸Íå¹Œ4(€€€€€€€ÑÉäì4(€€€€€€€€€€€½¹ÍÐ¡•…‘•ÉÌ€ô…Ý…¥Ð™Í!•…‘•ÉÌ ¤ì4(€€€€€€€€€€€¥˜€¡¡•…‘•ÉÌ¤ì4(€€€€€€€€€€€€€€€™½È€¡½¹ÍÐÜ½˜¹•ÝY…±Õ”¤ì4(€€€€€€€€€€€€€€€€€€€…Ý…¥Ð™ÍUÁÍ•ÉÑ]½É¡Ü¤ì4(€€€€€€€€€€€€€€€ô4(€€€€€€€€€€€ô4(€€€€€€€ô…Ñ €¡”¤ì4(€€€€€€€€€€€½¹Í½±”¹Ý…É¸ I•±½…µ¥ÉÉ½È™…¥±•èœ°”ü¹µ•ÍÍ…”ñð”¤ì4(€€€€€€€ô4(€€€ô4)ô4(4(¼¼Ù•¹Ð±¥ÍÑ•¹•ÉÌ…¹¥¹¥Ñ¥…±¥é…Ñ¥½¸4(4)¡É½µ”¹ÉÕ¹Ñ¥µ”¹½¹%¹ÍÑ…±±•¹…‘‘1¥ÍÑ•¹•È ¡‘•Ñ…¥±Ì¤€ôøì4(€€€¥˜€¡‘•Ñ…¥±Ì¹É•…Í½¸€ôôô€‰¥¹ÍÑ…±°ˆ¤ì(€€€€€€€¡É½µ”¹Ñ…‰Ì¹É•…Ñ”¡ìÕÉ°è¡É½µ”¹ÉÕ¹Ñ¥µ”¹•ÑUI0 ‰½¹‰½…É‘¥¹œ¹¡Ñµ°ˆ¤ô¤ì(€€€€€€€¡É½µ”¹ÍÑ½É…”¹±½…°¹Í•Ð¡ì€4(€€€€€€€€€€€Ñ½­•¸è€ˆˆ°4(€€€€€€€€€€€½¹‰½…É‘¥¹½µÁ±•Ñ•è™…±Í”4(€€€€€€€ô¤ì4(€€€ô•±Í”¥˜€¡‘•Ñ…¥±Ì¹É•…Í½¸€ôôô€‰ÕÁ‘…Ñ”ˆ¤ì4(€€€€€€€€¼¼9¼…ÕÑ¼µ½¹‰½…É‘¥¹œ½¸ÕÁ‘…Ñ”4(€€€ô4)ô¤ì4(4)¡É½µ”¹ÉÕ¹Ñ¥µ”¹½¹%¹ÍÑ…±±•¹…‘‘1¥ÍÑ•¹•È  ¤€ôøì4(€€€¡É½µ”¹½¹Ñ•áÑ5•¹ÕÌ¹É•…Ñ”¡ì4(€€€€€€€¥è€‰Í…Ù•]½É‘½¹Ñ•áÑ5•¹Ôˆ°4(€€€€€€€Ñ¥Ñ±”è€‰M…Ù”€œ•Ìœˆ°4(€€€€€€€½¹Ñ•áÑÌèl‰Í•±•Ñ¥½¸‰t°4(€€€ô¤ì4)ô¤ì4(4)¡É½µ”¹½¹Ñ•áÑ5•¹ÕÌ¹½¹±¥­•¹…‘‘1¥ÍÑ•¹•È ¡¥¹™¼°Ñ…ˆ¤€ôøì4(€€€¥˜€¡¥¹™¼¹µ•¹Õ%Ñ•µ%€ôôô€‰Í…Ù•]½É‘½¹Ñ•áÑ5•¹Ôˆ¤ì4(€€€€€€€½¹ÍÐÍ•±•Ñ•‘Q•áÐ€ô¥¹™¼¹Í•±•Ñ¥½¹Q•áÐì4(€€€€€€€¡É½µ”¹Ñ…‰Ì¹Í•¹‘5•ÍÍ…”¡Ñ…ˆ¹¥°ì…Ñ¥½¸è€‰Í…Ù•]½É‘Q½¥Ñ¥½¹…Éäˆ°Ñ•áÐèÍ•±•Ñ•‘Q•áÐô°€¡É•ÍÁ½¹Í”¤€ôø4(€€€€€€€€€€€½¹Í½±”¹±½œ¡É•ÍÁ½¹Í”¤4(€€€€€€€€¤ì4(€€€ô4)ô¤ì4(4)¡É½µ”¹ÉÕ¹Ñ¥µ”¹½¹5•ÍÍ…”¹…‘‘1¥ÍÑ•¹•È ¡É•ÅÕ•ÍÐ°Í•¹‘•È°Í•¹‘I•ÍÁ½¹Í”¤€ôøì4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰¡•­áÑ•¹Í¥½¹MÑ…Ñ”ˆ¤ì4(€€€€€€€¡•­%™áÑ•¹Í¥½¹¹…‰±• ¤4(€€€€€€€€€€€€¹Ñ¡•¸ ¡•¹…‰±•¤€ôøì4(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ì•¹…‰±•ô¤ì4(€€€€€€€€€€€ô¤4(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì4(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ‰ÉÉ½È¡•­¥¹œ•áÑ•¹Í¥½¸ÍÑ…Ñ”èˆ°•ÉÉ½È¤ì4(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ì•¹…‰±•è™…±Í”ô¤ì4(€€€€€€€€€€€ô¤ì4(4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì4(€€€ô4(4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰Í…Ù•]½É‘ÍQ½MÑ½É…”ˆ¤ì4(€€€€€€€Í…Ù•]½É‘ÍQ½MÑ½É…” ¤ì4(€€€ô4(4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰•ÑUÍ•É%¹™¼ˆ¤ì(€€€€€€€•ÑÕÉÉ•¹ÑUÍ•É%¹™¼ ¤(€€€€€€€€€€€€¹Ñ¡•¸ ¡ÕÍ•É%¹™¼¤€ôøì(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÕÍ•É%¹™¼ô¤ì(€€€€€€€€€€€ô¤(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì4(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ‰ÉÉ½È•ÑÑ¥¹œÕÍ•È¥¹™¼èˆ°•ÉÉ½È¤ì4(€€€€€€€€€€€ô¤ì4(4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì4(€€€ô4(4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰•Ñ¥É•‰…Í•%‘Q½­•¸ˆ¤ì(€€€€€€€•Ñ¥É•‰…Í•%‘Q½­•¹	œ ¤4(€€€€€€€€€€€€¹Ñ¡•¸ ¡Ñ½­•¸¤€ôøÍ•¹‘I•ÍÁ½¹Í”¡ìÑ½­•¸ô¤¤4(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì4(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ÉÉ½È•ÑÑ¥¹œ¥É•‰…Í”%Ñ½­•¸èœ°•ÉÉ½È¤ì4(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÑ½­•¸è¹Õ±°ô¤ì4(€€€€€€€€€€€ô¤ì4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì(€€€ô((€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰Á•ÉÍ¥ÍÑ]½Éˆ¤ì(€€€€€€€Á•ÉÍ¥ÍÑ]½É‘5ÕÑ…Ñ¥½¸¡É•ÅÕ•ÍÐ¹Ý½É¤(€€€€€€€€€€€€¹Ñ¡•¸ ¡Ý½É¤€ôøÍ•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌèÑÉÕ”°Ý½Éô¤¤(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ‰Á•ÉÍ¥ÍÑ]½É™…¥±•èˆ°•ÉÉ½È¤ì(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌè™…±Í”°•ÉÉ½ÈèÍ•É¥…±¥é•Á¥ÉÉ½È¡•ÉÉ½È¤ô¤ì(€€€€€€€€€€€ô¤ì(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì(€€€ô((€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰‘•±•Ñ•]½Éˆ¤ì(€€€€€€€‘•±•Ñ•]½É‘5ÕÑ…Ñ¥½¸¡É•ÅÕ•ÍÐ¹Ý½É‘%¤(€€€€€€€€€€€€¹Ñ¡•¸ ¡Ý½É‘%¤€ôøÍ•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌèÑÉÕ”°Ý½É‘%ô¤¤(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ‰‘•±•Ñ•]½É™…¥±•èˆ°•ÉÉ½È¤ì(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌè™…±Í”°•ÉÉ½ÈèÍ•É¥…±¥é•Á¥ÉÉ½È¡•ÉÉ½È¤ô¤ì(€€€€€€€€€€€ô¤ì(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì(€€€ô((€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰ÕÁ‘…Ñ•Q•±•É…´ˆ¤ì(€€€€€€€ÕÁ‘…Ñ•Q•±•É…µ5ÕÑ…Ñ¥½¸¡É•ÅÕ•ÍÐ¹Ñ•±•É…µ9…µ”¤(€€€€€€€€€€€€¹Ñ¡•¸ ¡Ñ•±•É…µ9…µ”¤€ôøÍ•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌèÑÉÕ”°Ñ•±•É…µ9…µ”ô¤¤(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ‰ÕÁ‘…Ñ•Q•±•É…´™…¥±•èˆ°•ÉÉ½È¤ì(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌè™…±Í”°•ÉÉ½ÈèÍ•É¥…±¥é•Á¥ÉÉ½È¡•ÉÉ½È¤ô¤ì(€€€€€€€€€€€ô¤ì(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì(€€€ô((€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰ÑÉ…¹Í±…Ñ•]½Éˆ¤ì(€€€€€€€€¡…Íå¹Œ€ ¤€ôøì4(€€€€€€€€€€€ÑÉäì4(€€€€€€€€€€€€€€€½¹ÍÐ¥‘Q½­•¸€ô…Ý…¥Ð•Ñ¥É•‰…Í•%‘Q½­•¹	œ ¤ì4(€€€€€€€€€€€€€€€¥˜€ …¥‘Q½­•¸¤Ñ¡É½Ü¹•ÜÉÉ½È 9¼¥É•‰…Í”%Ñ½­•¸œ¤ì4(€€€€€€€€€€€€€€€½¹ÍÐÕÉ°€ô€‘í™Õ¹Ñ¥½¹Í	…Í•UÉ±ô½ÑÉ…¹Í±…Ñ•]½É‘€ì(€€€€€€€€€€€€€€€½¹ÍÐÉ•Ì€ô…Ý…¥Ð™•Ñ¡]¥Ñ¡Q¥µ•½ÕÐ¡ÕÉ°°ì(€€€€€€€€€€€€€€€€€€€µ•Ñ¡½è€A=MPœ°(€€€€€€€€€€€€€€€€€€€¡•…‘•ÉÌèì4(€€€€€€€€€€€€€€€€€€€€€€€€ÕÑ¡½É¥é…Ñ¥½¸œè	•…É•È€‘í¥‘Q½­•¹õ€°4(€€€€€€€€€€€€€€€€€€€€€€€€½¹Ñ•¹ÐµQåÁ”œè€…ÁÁ±¥…Ñ¥½¸½©Í½¸œ4(€€€€€€€€€€€€€€€€€€€ô°4(€€€€€€€€€€€€€€€€€€€‰½‘äè)M=8¹ÍÑÉ¥¹¥™ä¡ì‘…Ñ„èìÝ½ÉèÉ•ÅÕ•ÍÐ¹Ý½É°Ñ…É•Ñ1…¹Õ…”èÉ•ÅÕ•ÍÐ¹Ñ…É•Ñ1…¹Õ…”ôô¤4(€€€€€€€€€€€€€€€ô¤ì4(€€€€€€€€€€€€€€€…Ý…¥ÐÉ•ÅÕ¥É•MÕ•ÍÍ™Õ±I•ÍÁ½¹Í”¡É•Ì°€‰QÉ…¹Í±…Ñ¥½¸ˆ¤ì(€€€€€€€€€€€€€€€½¹ÍÐ©Í½¸€ô…Ý…¥ÐÉ•Ì¹©Í½¸ ¤ì(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌèÑÉÕ”°É•ÍÕ±Ðè©Í½¸¹É•ÍÕ±Ðñð©Í½¸ô¤ì(€€€€€€€€€€€ô…Ñ €¡”¤ì(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ÑÉ…¹Í±…Ñ•]½É•ÉÉ½Èèœ°”¤ì(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌè™…±Í”°•ÉÉ½ÈèÍ•É¥…±¥é•Á¥ÉÉ½È¡”¤ô¤ì(€€€€€€€€€€€ô4(€€€€€€€ô¤ ¤ì4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì4(€€€ô4(4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰¡•­MÕ‰ÍÉ¥ÁÑ¥½¹1¥µ¥ÑÌˆ¤ì4(€€€€€€€¡•­MÕ‰ÍÉ¥ÁÑ¥½¹1¥µ¥ÑÌ ¤4(€€€€€€€€€€€€¹Ñ¡•¸ ¡É•ÍÕ±Ð¤€ôøÍ•¹‘I•ÍÁ½¹Í”¡É•ÍÕ±Ð¤¤4(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì4(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ÉÉ½È¡•­¥¹œÍÕ‰ÍÉ¥ÁÑ¥½¸±¥µ¥ÑÌèœ°•ÉÉ½È¤ì4(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ì…¹‘èÑÉÕ”°É•…Í½¸è€•ÉÉ½Èœô¤ì4(€€€€€€€€€€€ô¤ì4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì4(€€€ô4(4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰¥¹É•µ•¹Ñ…¥±å]½É‘½Õ¹Ðˆ¤ì4(€€€€€€€¥¹É•µ•¹Ñ…¥±å]½É‘½Õ¹Ð ¤4(€€€€€€€€€€€€¹Ñ¡•¸  ¤€ôøÍ•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌèÑÉÕ”ô¤¤4(€€€€€€€€€€€€¹…Ñ  ¡•ÉÉ½È¤€ôøì4(€€€€€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È ÉÉ½È¥¹É•µ•¹Ñ¥¹œ‘…¥±äÝ½É½Õ¹Ðèœ°•ÉÉ½È¤ì4(€€€€€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌè™…±Í”°•ÉÉ½Èè•ÉÉ½È¹µ•ÍÍ…”ô¤ì4(€€€€€€€€€€€ô¤ì4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì4(€€€ô4)ô¤ì4(4)¡É½µ”¹ÍÑ½É…”¹½¹¡…¹•¹…‘‘1¥ÍÑ•¹•È¡…Íå¹Œ€¡¡…¹•Ì°¹…µ•ÍÁ…”¤€ôøì4(€€€¥˜€¡¹…µ•ÍÁ…”€ôôô€‰±½…°ˆ€˜˜€‰•á±Õ‘•‘M¥Ñ•Ìˆ¥¸¡…¹•Ì¤ì4(€€€€€€€…Ý…¥Ð¡…¹‘±•á±Õ‘•‘M¥Ñ•Í¡…¹”¡¡…¹•Ì¹•á±Õ‘•‘M¥Ñ•Ì¤ì4(€€€ô4(4(€€€¥˜€¡¹…µ•ÍÁ…”€ôôô€‰±½…°ˆ€˜˜€‰Ý½É‘Ìˆ¥¸¡…¹•Ì¤ì4(€€€€€€€…Ý…¥Ð¡…¹‘±•]½É‘Í¡…¹”¡¡…¹•Ì¹Ý½É‘Ì¤ì4(€€€ô4(4(€€€€¼¼]¡•¸ÕÍ•ÈÍ¥¹Ì¥¸°•¹ÍÕÉ”ÁÉ½™¥±”‘½Œ…¹¥¹¥Ñ¥…°Ý½É‘ÌÍå¹Œ(€€€¥˜€¡¹…µ•ÍÁ…”€ôôô€±½…°œ€˜˜€ÕÍ•É%¹™¼œ¥¸¡…¹•Ì€˜˜¡…¹•Ì¹ÕÍ•É%¹™¼ü¹¹•ÝY…±Õ”¤ì(€€€€€€€ÑÉäì(€€€€€€€€€€€…Ý…¥Ð™Í¹ÍÕÉ•UÍ•É½Œ¡¡…¹•Ì¹ÕÍ•É%¹™¼¹¹•ÝY…±Õ”¤ì(€€€€€€€€€€€…Ý…¥Ð™ÍMå¹]½É‘ÍÉ½µ±½Õ‘%™µÁÑä ¤ì(€€€€€€€ô…Ñ €¡”¤ì€¼¨¥¹½É”€¨¼ô(€€€ô((€€€€¼¼%˜½½±”Ñ½­•¸ÍÑ½É•½¡…¹•°•¹ÍÕÉ”¥É•‰…Í”%Ñ½­•¸•á¥ÍÑÌ(€€€¥˜€¡¹…µ•ÍÁ…”€ôôô€±½…°œ€˜˜€…ÕÑ¡}Ñ½­•¸œ¥¸¡…¹•Ì€˜˜¡…¹•Ì¹…ÕÑ¡}Ñ½­•¸ü¹¹•ÝY…±Õ”¤ì4(€€€€€€€ÑÉäì…Ý…¥Ð•¹ÍÕÉ•¥É•‰…Í•%‘Q½­•¹I•…‘ä ¤ìô…Ñ €¡”¤ì€¼¨¥¹½É”€¨¼ô4(€€€ô4(4(€€€€¼¼5¥ÉÉ½È½ÁÑ¥½¹ÌÑ¼¥É•ÍÑ½É”ÁÉ•™•É•¹•Ì4(€€€½¹ÍÐÍ•ÑÑ¥¹Í-•åÌ€ôlÑÉ…¹Í±…Ñ•Q¼œ°…¹¥µ…Ñ¥½¹Q½±”œ°Í•¹Ñ•¹•½Õ¹Ñ•Èœ°¡¥¡±¥¡Ñ¥¹¹…‰±•œ°™É•ÅÕ•¹å½±½É¥¹¹…‰±•œ°¡¥¡±¥¡Ñ½±½Èœ°ÑÉ…¹Í±…Ñ¥½¹½±½Ètì(€€€¥˜€¡¹…µ•ÍÁ…”€ôôô€±½…°œ€˜˜Í•ÑÑ¥¹Í-•åÌ¹Í½µ”¡¬€ôø¬¥¸¡…¹•Ì¤¤ì4(€€€€€€€ÑÉäì4(€€€€€€€€€€€½¹ÍÐìÕÍ•É%¹™¼ô€ô…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÕÍ•É%¹™¼t¤ì4(€€€€€€€€€€€¥˜€ …ÕÍ•É%¹™¼¤É•ÑÕÉ¸ì4(€€€€€€€€€€€½¹ÍÐ¡•…‘•ÉÌ€ô…Ý…¥Ð™Í!•…‘•ÉÌ ¤ì4(€€€€€€€€€€€¥˜€ …¡•…‘•ÉÌ¤É•ÑÕÉ¸ì4(€€€€€€€€€€€½¹ÍÐÕ¥€ôÕÍ•É%¹™¼¹¥ñðÕÍ•É%¹™¼¹Õ¥ì4(€€€€€€€€€€€¥˜€ …Õ¥¤É•ÑÕÉ¸ì4(€€€€€€€€€€€½¹ÍÐÕÉ°€ô€‘í%IMQ=I}	Mô½ÕÍ•ÉÌ¼‘íÕ¥‘ô½ÕÍ•ÉM•ÑÑ¥¹Ì½ÁÉ•™•É•¹•Í€ì4(€€€€€€€€€€€½¹ÍÐÕÉÉ•¹Ð€ô…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡Í•ÑÑ¥¹Í-•åÌ¤ì4(€€€€€€€€€€€½¹ÍÐ‰½‘ä€ô™Í¹½‘•¥•±‘Ì¡ì4(€€€€€€€€€€€€€€€ÑÉ…¹Í±…Ñ•Q¼èÕÉÉ•¹Ð¹ÑÉ…¹Í±…Ñ•Q¼ñð€Õ¬œ°(€€€€€€€€€€€€€€€…¹¥µ…Ñ¥½¹Q½±”è€¡ÕÉÉ•¹Ð¹…¹¥µ…Ñ¥½¹Q½±”€ôôô€ÑÉÕ”œ¤ñðÕÉÉ•¹Ð¹…¹¥µ…Ñ¥½¹Q½±”€ôôôÑÉÕ”°4(€€€€€€€€€€€€€€€Í•¹Ñ•¹•½Õ¹Ñ•Èè9Õµ‰•È¡ÕÉÉ•¹Ð¹Í•¹Ñ•¹•½Õ¹Ñ•Èñð€Ä¤°4(€€€€€€€€€€€€€€€¡¥¡±¥¡Ñ¥¹¹…‰±•èÕÉÉ•¹Ð¹¡¥¡±¥¡Ñ¥¹¹…‰±•€„ôô™…±Í”°(€€€€€€€€€€€€€€€™É•ÅÕ•¹å½±½É¥¹¹…‰±•èÕÉÉ•¹Ð¹™É•ÅÕ•¹å½±½É¥¹¹…‰±•€„ôô™…±Í”°(€€€€€€€€€€€€€€€¡¥¡±¥¡Ñ½±½ÈèÕÉÉ•¹Ð¹¡¥¡±¥¡Ñ½±½Èñð€É‰„ ÈÔÔ°€À°€À°€À¸ÈÈ¤œ°4(€€€€€€€€€€€€€€€ÑÉ…¹Í±…Ñ¥½¹½±½ÈèÕÉÉ•¹Ð¹ÑÉ…¹Í±…Ñ¥½¹½±½Èñð€œÁÁÀœ°4(€€€€€€€€€€€€€€€ÕÁ‘…Ñ•‘Ðè¹•Ü…Ñ” ¤4(€€€€€€€€€€€ô¤ì4(€€€€€€€€€€€…Ý…¥Ð™•Ñ ¡ÕÉ°°ìµ•Ñ¡½è€AQ œ°¡•…‘•ÉÌ°‰½‘äè)M=8¹ÍÑÉ¥¹¥™ä¡‰½‘ä¤ô¤ì4(€€€€€€€ô…Ñ €¡”¤ì4(€€€€€€€€€€€½¹Í½±”¹Ý…É¸ …¥±•Ñ¼µ¥ÉÉ½ÈÍ•ÑÑ¥¹Ìèœ°”ü¹µ•ÍÍ…”ñð”¤ì4(€€€€€€€ô4(€€€ô4)ô¤ì4(4(¼¼MÕ‰ÍÉ¥ÁÑ¥½¸µ…¹…•µ•¹Ð™Õ¹Ñ¥½¹Ì4)…Íå¹Œ™Õ¹Ñ¥½¸¡•­MÕ‰ÍÉ¥ÁÑ¥½¹1¥µ¥ÑÌ ¤ì4(€€€ÑÉäì4(€€€€€€€½¹ÍÐ¡•…‘•ÉÌ€ô…Ý…¥Ð™Í!•…‘•ÉÌ ¤ì4(€€€€€€€¥˜€ …¡•…‘•ÉÌ¤É•ÑÕÉ¸ì…¹‘èÑÉÕ”°É•…Í½¸è€¹½}…ÕÑ œôì4(4(€€€€€€€½¹ÍÐÕ¥€ô…Ý…¥Ð•ÑÕÑ¡U¥‘	œ ¤ì4(€€€€€€€¥˜€ …Õ¥¤É•ÑÕÉ¸ì…¹‘èÑÉÕ”°É•…Í½¸è€¹½}Õ¥œôì4(4(€€€€€€€½¹ÍÐÕÉ°€ô€‘í%IMQ=I}	Mô½ÕÍ•ÉÌ¼‘íÕ¥‘õ€ì4(€€€€€€€½¹ÍÐÉ•ÍÁ½¹Í”€ô…Ý…¥Ð™•Ñ ¡ÕÉ°°ì¡•…‘•ÉÌô¤ì4(€€€€€€€€4(€€€€€€€¥˜€ …É•ÍÁ½¹Í”¹½¬¤ì4(€€€€€€€€€€€€¼¼UÍ•È‘½Õµ•¹Ð‘½•Í¸Ð•á¥ÍÐ°É•…Ñ”‘•™…Õ±Ð…¹…±±½Ü4(€€€€€€€€€€€…Ý…¥ÐÉ•…Ñ••™…Õ±ÑUÍ•ÉMÕ‰ÍÉ¥ÁÑ¥½¸¡Õ¥¤ì4(€€€€€€€€€€€É•ÑÕÉ¸ì…¹‘èÑÉÕ”°É•…Í½¸è€¹•Ý}ÕÍ•Èœ°‘…¥±å]½É‘Í‘‘•è€À°‘…¥±å]½É‘1¥µ¥Ðè€Ôôì4(€€€€€€€ô4(4(€€€€€€€½¹ÍÐÕÍ•É…Ñ„€ô…Ý…¥ÐÉ•ÍÁ½¹Í”¹©Í½¸ ¤ì4(€€€€€€€½¹ÍÐ™¥•±‘Ì€ôÕÍ•É…Ñ„¹™¥•±‘Ìñðíôì4(€€€€€€€€4(€€€€€€€½¹ÍÐÍÕ‰ÍÉ¥ÁÑ¥½¹MÑ…ÑÕÌ€ô™¥•±‘Ì¹ÍÕ‰ÍÉ¥ÁÑ¥½¹MÑ…ÑÕÌü¹ÍÑÉ¥¹Y…±Õ”ñð€™É•”œì4(€€€€€€€½¹ÍÐÑ½‘…ä€ô¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¤¹ÍÁ±¥Ð Pœ¥lÁtì4(€€€€€€€½¹ÍÐ‘…¥±å]½É‘ÍI•Í•Ñ…Ñ”€ô™¥•±‘Ì¹‘…¥±å]½É‘ÍI•Í•Ñ…Ñ”ü¹ÍÑÉ¥¹Y…±Õ”ñðÑ½‘…äì4(€€€€€€€½¹ÍÐ‘…¥±å]½É‘Í‘‘•€ô™¥•±‘Ì¹‘…¥±å]½É‘Í‘‘•ü¹¥¹Ñ••ÉY…±Õ”ñð™¥•±‘Ì¹‘…¥±å]½É‘Í‘‘•ü¹‘½Õ‰±•Y…±Õ”ñð€Àì4(€€€€€€€€4(€€€€€€€€¼¼I•Í•Ð‘…¥±ä½Õ¹Ð¥˜¥ÐÌ„¹•Ü‘…ä4(€€€€€€€½¹ÍÐÉ•Í•Ñ…¥±å½Õ¹Ð€ô‘…¥±å]½É‘ÍI•Í•Ñ…Ñ”€„ôôÑ½‘…äì4(€€€€€€€½¹ÍÐÕÉÉ•¹Ñ…¥±å½Õ¹Ð€ôÉ•Í•Ñ…¥±å½Õ¹Ð€ü€À€è9Õµ‰•È¡‘…¥±å]½É‘Í‘‘•¤ì4(€€€€€€€€4(€€€€€€€€¼¼¡•¬¥˜ÕÍ•È¡…ÌÁÉ•µ¥Õ´…•ÍÌ4(€€€€€€€½¹ÍÐ¥ÍAÉ•µ¥Õ´€ôÍÕ‰ÍÉ¥ÁÑ¥½¹MÑ…ÑÕÌ€ôôô€ÁÉ•µ¥Õ´œñðÍÕ‰ÍÉ¥ÁÑ¥½¹MÑ…ÑÕÌ€ôôô€±¥™•Ñ¥µ”œì4(€€€€€€€€4(€€€€€€€¥˜€¡¥ÍAÉ•µ¥Õ´¤ì4(€€€€€€€€€€€É•ÑÕÉ¸ì€4(€€€€€€€€€€€€€€€…¹‘èÑÉÕ”°€4(€€€€€€€€€€€€€€€É•…Í½¸è€ÁÉ•µ¥Õ´œ°€4(€€€€€€€€€€€€€€€‘…¥±å]½É‘Í‘‘•èÕÉÉ•¹Ñ…¥±å½Õ¹Ð°4(€€€€€€€€€€€€€€€¥ÍAÉ•µ¥Õ´èÑÉÕ”°4(€€€€€€€€€€€€€€€¹••‘ÍI•Í•ÐèÉ•Í•Ñ…¥±å½Õ¹Ð4(€€€€€€€€€€€ôì4(€€€€€€€ô4(4(€€€€€€€€¼¼É•”ÕÍ•È€´¡•¬‘…¥±ä±¥µ¥Ð4(€€€€€€€½¹ÍÐ‘…¥±å1¥µ¥Ð€ô€Ôì4(€€€€€€€½¹ÍÐ…¹‘€ôÕÉÉ•¹Ñ…¥±å½Õ¹Ð€ð‘…¥±å1¥µ¥Ðì4(€€€€€€€€4(€€€€€€€É•ÑÕÉ¸ì4(€€€€€€€€€€€…¹‘°4(€€€€€€€€€€€É•…Í½¸è…¹‘€ü€Ý¥Ñ¡¥¹}±¥µ¥Ðœ€è€‘…¥±å}±¥µ¥Ñ}É•…¡•œ°4(€€€€€€€€€€€‘…¥±å]½É‘Í‘‘•èÕÉÉ•¹Ñ…¥±å½Õ¹Ð°4(€€€€€€€€€€€‘…¥±å]½É‘1¥µ¥Ðè‘…¥±å1¥µ¥Ð°4(€€€€€€€€€€€¥ÍAÉ•µ¥Õ´è™…±Í”°4(€€€€€€€€€€€¹••‘ÍI•Í•ÐèÉ•Í•Ñ…¥±å½Õ¹Ð4(€€€€€€€ôì4(€€€ô…Ñ €¡•ÉÉ½È¤ì4(€€€€€€€½¹Í½±”¹•ÉÉ½È ÉÉ½È¡•­¥¹œÍÕ‰ÍÉ¥ÁÑ¥½¸±¥µ¥ÑÌèœ°•ÉÉ½È¤ì4(€€€€€€€€¼¼•™…Õ±ÐÑ¼…±±½Ý¥¹œ½¸•ÉÉ½ÈÑ¼…Ù½¥‰±½­¥¹œÕÍ•ÉÌ4(€€€€€€€É•ÑÕÉ¸ì…¹‘èÑÉÕ”°É•…Í½¸è€•ÉÉ½Èœôì4(€€€ô4)ô4(4)…Íå¹Œ™Õ¹Ñ¥½¸¥¹É•µ•¹Ñ…¥±å]½É‘½Õ¹Ð ¤ì4(€€€ÑÉäì4(€€€€€€€½¹ÍÐ¡•…‘•ÉÌ€ô…Ý…¥Ð™Í!•…‘•ÉÌ ¤ì4(€€€€€€€¥˜€ …¡•…‘•ÉÌ¤É•ÑÕÉ¸ì4(4(€€€€€€€½¹ÍÐÕ¥€ô…Ý…¥Ð•ÑÕÑ¡U¥‘	œ ¤ì4(€€€€€€€¥˜€ …Õ¥¤É•ÑÕÉ¸ì4(4(€€€€€€€€¼¼•ÐÕÉÉ•¹ÐÍÕ‰ÍÉ¥ÁÑ¥½¸‘…Ñ„4(€€€€€€€½¹ÍÐ±¥µ¥Ñ¡•¬€ô…Ý…¥Ð¡•­MÕ‰ÍÉ¥ÁÑ¥½¹1¥µ¥ÑÌ ¤ì4(€€€€€€€½¹ÍÐÑ½‘…ä€ô¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¤¹ÍÁ±¥Ð Pœ¥lÁtì4(€€€€€€€€4(€€€€€€€±•Ð¹•Ý½Õ¹Ð€ô±¥µ¥Ñ¡•¬¹‘…¥±å]½É‘Í‘‘•€¬€Äì4(€€€€€€€¥˜€¡±¥µ¥Ñ¡•¬¹¹••‘ÍI•Í•Ð¤ì4(€€€€€€€€€€€¹•Ý½Õ¹Ð€ô€Äì€¼¼I•Í•ÐÑ¼€Ä™½È¹•Ü‘…ä4(€€€€€€€ô4(4(€€€€€€€½¹ÍÐÕÉ°€ô€‘í%IMQ=I}	Mô½ÕÍ•ÉÌ¼‘íÕ¥‘õ€ì4(€€€€€€€½¹ÍÐÕÁ‘…Ñ•…Ñ„€ôì4(€€€€€€€€€€€™¥•±‘Ìèì4(€€€€€€€€€€€€€€€‘…¥±å]½É‘Í‘‘•èì¥¹Ñ••ÉY…±Õ”èMÑÉ¥¹œ¡¹•Ý½Õ¹Ð¤ô°4(€€€€€€€€€€€€€€€‘…¥±å]½É‘ÍI•Í•Ñ…Ñ”èìÍÑÉ¥¹Y…±Õ”èÑ½‘…äô4(€€€€€€€€€€€ô4(€€€€€€€ôì4(4(€€€€€€€…Ý…¥Ð™•Ñ ¡ÕÉ°°ì4(€€€€€€€€€€€µ•Ñ¡½è€AQ œ°4(€€€€€€€€€€€¡•…‘•ÉÌ°4(€€€€€€€€€€€‰½‘äè)M=8¹ÍÑÉ¥¹¥™ä¡ÕÁ‘…Ñ•…Ñ„¤4(€€€€€€€ô¤ì4(4(€€€€€€€½¹Í½±”¹±½œ¡…¥±äÝ½É½Õ¹ÐÕÁ‘…Ñ•Ñ¼€‘í¹•Ý½Õ¹Ñô™½È€‘íÑ½‘…åõ€¤ì4(€€€ô…Ñ €¡•ÉÉ½È¤ì4(€€€€€€€½¹Í½±”¹•ÉÉ½È ÉÉ½È¥¹É•µ•¹Ñ¥¹œ‘…¥±äÝ½É½Õ¹Ðèœ°•ÉÉ½È¤ì4(€€€ô4)ô4(4)…Íå¹Œ™Õ¹Ñ¥½¸É•…Ñ••™…Õ±ÑUÍ•ÉMÕ‰ÍÉ¥ÁÑ¥½¸¡Õ¥¤ì4(€€€ÑÉäì4(€€€€€€€½¹ÍÐ¡•…‘•ÉÌ€ô…Ý…¥Ð™Í!•…‘•ÉÌ ¤ì4(€€€€€€€¥˜€ …¡•…‘•ÉÌ¤É•ÑÕÉ¸ì4(4(€€€€€€€½¹ÍÐìÕÍ•É%¹™¼ô€ô…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÕÍ•É%¹™¼t¤ì4(€€€€€€€½¹ÍÐÑ½‘…ä€ô¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¤¹ÍÁ±¥Ð Pœ¥lÁtì4(€€€€€€€½¹ÍÐ¹½Ü€ô¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¤ì4(4(€€€€€€€½¹ÍÐÕÉ°€ô€‘í%IMQ=I}	Mô½ÕÍ•ÉÌ¼‘íÕ¥‘õ€ì4(€€€€€€€½¹ÍÐÕÍ•É…Ñ„€ôì4(€€€€€€€€€€€™¥•±‘Ìèì4(€€€€€€€€€€€€€€€Õ¥èìÍÑÉ¥¹Y…±Õ”èÕ¥ô°4(€€€€€€€€€€€€€€€•µ…¥°èìÍÑÉ¥¹Y…±Õ”èÕÍ•É%¹™¼ü¹•µ…¥°ñð€œœô°4(€€€€€€€€€€€€€€€‘¥ÍÁ±…å9…µ”èìÍÑÉ¥¹Y…±Õ”èÕÍ•É%¹™¼ü¹¹…µ”ñðÕÍ•É%¹™¼ü¹‘¥ÍÁ±…å9…µ”ñð€œœô°4(€€€€€€€€€€€€€€€Á¡½Ñ½UI0èìÍÑÉ¥¹Y…±Õ”èÕÍ•É%¹™¼ü¹Á¥ÑÕÉ”ñðÕÍ•É%¹™¼ü¹Á¡½Ñ½UI0ñð€œœô°4(€€€€€€€€€€€€€€€ÍÕ‰ÍÉ¥ÁÑ¥½¹MÑ…ÑÕÌèìÍÑÉ¥¹Y…±Õ”è€™É•”œô°4(€€€€€€€€€€€€€€€‘…¥±å]½É‘Í‘‘•èì¥¹Ñ••ÉY…±Õ”è€œÀœô°4(€€€€€€€€€€€€€€€‘…¥±å]½É‘ÍI•Í•Ñ…Ñ”èìÍÑÉ¥¹Y…±Õ”èÑ½‘…äô°4(€€€€€€€€€€€€€€€‘…¥±å]½É‘1¥µ¥Ðèì¥¹Ñ••ÉY…±Õ”è€œÔœô°4(€€€€€€€€€€€€€€€É•…Ñ•‘ÐèìÑ¥µ•ÍÑ…µÁY…±Õ”è¹½Üô°4(€€€€€€€€€€€€€€€±…ÍÑ1½¥¹ÐèìÑ¥µ•ÍÑ…µÁY…±Õ”è¹½Üô4(€€€€€€€€€€€ô4(€€€€€€€ôì4(4(€€€€€€€…Ý…¥Ð™•Ñ ¡ÕÉ°°ì4(€€€€€€€€€€€µ•Ñ¡½è€AQ œ°4(€€€€€€€€€€€¡•…‘•ÉÌ°4(€€€€€€€€€€€‰½‘äè)M=8¹ÍÑÉ¥¹¥™ä¡ÕÍ•É…Ñ„¤4(€€€€€€€ô¤ì4(4(€€€€€€€½¹Í½±”¹±½œ É•…Ñ•‘•™…Õ±ÐÕÍ•ÈÍÕ‰ÍÉ¥ÁÑ¥½¸‘½Õµ•¹Ðœ¤ì4(€€€ô…Ñ €¡•ÉÉ½È¤ì4(€€€€€€€½¹Í½±”¹•ÉÉ½È ÉÉ½ÈÉ•…Ñ¥¹œ‘•™…Õ±ÐÕÍ•ÈÍÕ‰ÍÉ¥ÁÑ¥½¸èœ°•ÉÉ½È¤ì4(€€€ô4)ô4(4)™Õ¹Ñ¥½¸Í¡½Ý]•±½µ•A…” ¤ì(€€€¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÝ•±½µ•M¡½Ý¸œ°€½¹‰½…É‘¥¹½µÁ±•Ñ•t°€¡É•ÍÕ±Ð¤€ôøì(€€€€€€€¥˜€ …É•ÍÕ±Ð¹Ý•±½µ•M¡½Ý¸€˜˜€…É•ÍÕ±Ð¹½¹‰½…É‘¥¹½µÁ±•Ñ•¤ì(€€€€€€€€€€€¡É½µ”¹Ñ…‰Ì¹É•…Ñ”¡ì(€€€€€€€€€€€€€€€ÕÉ°è¡É½µ”¹ÉÕ¹Ñ¥µ”¹•ÑUI0 ½¹‰½…É‘¥¹œ¹¡Ñµ°œ¤°(€€€€€€€€€€€€€€€…Ñ¥Ù”èÑÉÕ”(€€€€€€€€€€€ô¤ì(€€€€€€€ô4(€€€ô¤ì4)ô4(4)™Õ¹Ñ¥½¸¡•­]•±½µ•MÑ…ÑÕÌ ¤ì4(€€€¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÝ•±½µ•M¡½Ý¸œ°€½¹‰½…É‘¥¹½µÁ±•Ñ•t°€¡É•ÍÕ±Ð¤€ôøì4(€€€€€€€€¼¼%˜¹•¥Ñ¡•ÈÝ•±½µ”¹½È½¹‰½…É‘¥¹œÝ…Ì½µÁ±•Ñ•°Í¡½ÜÝ•±½µ”4(€€€€€€€¥˜€ …É•ÍÕ±Ð¹Ý•±½µ•M¡½Ý¸€˜˜€…É•ÍÕ±Ð¹½¹‰½…É‘¥¹½µÁ±•Ñ•¤ì4(€€€€€€€€€€€Í¡½Ý]•±½µ•A…” ¤ì4(€€€€€€€ô4(€€€ô¤ì4)ô4(4(¼¼!…¹‘±”Ý•±½µ”Á…”É•ÅÕ•ÍÑÌ4)¡É½µ”¹ÉÕ¹Ñ¥µ”¹½¹5•ÍÍ…”¹…‘‘1¥ÍÑ•¹•È ¡É•ÅÕ•ÍÐ°Í•¹‘•È°Í•¹‘I•ÍÁ½¹Í”¤€ôøì4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€½Á•¹]•±½µ”œ¤ì4(€€€€€€€Í¡½Ý]•±½µ•A…” ¤ì4(€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌèÑÉÕ”ô¤ì4(€€€ô4(€€€€4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€½Á•¹=¹‰½…É‘¥¹œœ¤ì4(€€€€€€€¡É½µ”¹Ñ…‰Ì¹É•…Ñ”¡ì4(€€€€€€€€€€€ÕÉ°è¡É½µ”¹ÉÕ¹Ñ¥µ”¹•ÑUI0 ½¹‰½…É‘¥¹œ¹¡Ñµ°œ¤°4(€€€€€€€€€€€…Ñ¥Ù”èÑÉÕ”4(€€€€€€€ô¤ì4(€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ìÍÕ•ÍÌèÑÉÕ”ô¤ì4(€€€ô4(€€€€4(€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€¡•­]•±½µ•MÑ…ÑÕÌœ¤ì4(€€€€€€€¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÝ•±½µ•M¡½Ý¸œ°€½¹‰½…É‘¥¹½µÁ±•Ñ•t°€¡É•ÍÕ±Ð¤€ôøì4(€€€€€€€€€€€Í•¹‘I•ÍÁ½¹Í”¡ì4(€€€€€€€€€€€€€€€Ý•±½µ•M¡½Ý¸èÉ•ÍÕ±Ð¹Ý•±½µ•M¡½Ý¸ñð™…±Í”°4(€€€€€€€€€€€€€€€½¹‰½…É‘¥¹½µÁ±•Ñ•èÉ•ÍÕ±Ð¹½¹‰½…É‘¥¹½µÁ±•Ñ•ñð™…±Í”4(€€€€€€€€€€€ô¤ì4(€€€€€€€ô¤ì4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì4(€€€ô4)ô¤ì4(4(¼¼ÑÑ•µÁÐÑ¼ÁÉ•Á…É”¥É•‰…Í”%Ñ½­•¸½¸Í•ÉÙ¥”Ý½É­•ÈÍÑ…ÉÐ4(¡…Íå¹Œ€ ¤€ôøìÑÉäì…Ý…¥Ð•¹ÍÕÉ•¥É•‰…Í•%‘Q½­•¹I•…‘ä ¤ìô…Ñ €¡”¤ì€¼¨¥¹½É”€¨¼ôô¤ ¤ì4(
+    const res = await fetch(url, { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.documents) return;
+    const imported = data.documents.map(d => ({ id: Number(d.name.split('/').pop()), ...fsDecodeFields(d) }))
+        .filter(w => w && w.word && w.translation);
+    if (imported.length > 0) {
+        await chrome.storage.local.set({ words: imported });
+    }
+}
+
+async function fsUpsertWord(changedWord, required = false) {
+    const headers = await fsHeaders(required);
+    if (!headers) return false;
+    const uid = await getAuthUidBg();
+    if (!uid) {
+        if (required) {
+            throw new LazyLexApiError("The signed-in user could not be identified.", {
+                code: "auth/invalid",
+                status: 401
+            });
+        }
+        return false;
+    }
+    const docId = String(changedWord.id);
+    const url = `${FIRESTORE_BASE}/users/${uid}/words?documentId=${encodeURIComponent(docId)}`;
+    const body = fsEncodeFields({
+        id: Number(changedWord.id),
+        word: String(changedWord.word || '').toLowerCase(),
+        translation: String(changedWord.translation || ''),
+        learned: !!changedWord.learned,
+        status: String(changedWord.status || (changedWord.learned ? "learned" : "new")),
+        encounterCount: Number(changedWord.encounterCount || 0),
+        dateAdded: Number(changedWord.dateAdded || Date.now()),
+        userId: String(uid),
+        synonyms: Array.isArray(changedWord.synonyms) ? changedWord.synonyms : [],
+        examples: Array.isArray(changedWord.examples) ? changedWord.examples : []
+    });
+    const res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+    });
+    if (res.ok) return true;
+    const patchUrl = `${FIRESTORE_BASE}/users/${uid}/words/${docId}`;
+    const res2 = await fetchWithTimeout(patchUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body)
+    });
+    await requireSuccessfulResponse(res2, "Saving the word");
+    return true;
+}
+
+async function fsDeleteWord(changedWord, required = false) {
+    const headers = await fsHeaders(required);
+    if (!headers) return false;
+    const uid = await getAuthUidBg();
+    if (!uid) {
+        if (required) {
+            throw new LazyLexApiError("The signed-in user could not be identified.", {
+                code: "auth/invalid",
+                status: 401
+            });
+        }
+        return false;
+    }
+    const docId = String(changedWord.id);
+    const url = `${FIRESTORE_BASE}/users/${uid}/words/${docId}`;
+    const response = await fetchWithTimeout(url, { method: 'DELETE', headers });
+    if (response.status !== 404) {
+        await requireSuccessfulResponse(response, "Deleting the word");
+    }
+    return true;
+}
+
+async function fsPatchWord(changedWord) {
+    await fsUpsertWord(changedWord);
+}
+
+function validateWordPayload(candidate) {
+    if (!candidate || typeof candidate !== "object") {
+        throw new LazyLexApiError("The word payload is missing.", {
+            code: "validation/word"
+        });
+    }
+
+    const id = Number(candidate.id);
+    const word = String(candidate.word || "").trim().toLocaleLowerCase();
+    const translation = String(candidate.translation || "").trim();
+    if (!Number.isSafeInteger(id) || !word || !translation) {
+        throw new LazyLexApiError("The word or translation is invalid.", {
+            code: "validation/word"
+        });
+    }
+
+    return {
+        ...candidate,
+        id,
+        word,
+        translation,
+        lastUpdated: Number(candidate.lastUpdated) || Date.now()
+    };
+}
+
+async function persistWordMutation(candidate) {
+    const word = validateWordPayload(candidate);
+    await fsUpsertWord(word, true);
+
+    const { words = [] } = await chrome.storage.local.get({ words: [] });
+    const existingIndex = words.findIndex((item) => Number(item.id) === word.id);
+    const updatedWords = [...words];
+    if (existingIndex >= 0) {
+        updatedWords[existingIndex] = word;
+    } else {
+        updatedWords.push(word);
+        await incrementDailyWordCount();
+    }
+
+    cloudConfirmedWordMutations.add(word.id);
+    await chrome.storage.local.set({ words: updatedWords });
+    return word;
+}
+
+async function deleteWordMutation(wordId) {
+    const id = Number(wordId);
+    if (!Number.isSafeInteger(id)) {
+        throw new LazyLexApiError("The word id is invalid.", {
+            code: "validation/word-id"
+        });
+    }
+
+    const { words = [] } = await chrome.storage.local.get({ words: [] });
+    const word = words.find((item) => Number(item.id) === id);
+    if (!word) {
+        return id;
+    }
+
+    await fsDeleteWord(word, true);
+    cloudConfirmedWordMutations.add(id);
+    await chrome.storage.local.set({
+        words: words.filter((item) => Number(item.id) !== id)
+    });
+    return id;
+}
+
+async function updateTelegramMutation(telegramName) {
+    const normalizedTelegram = String(telegramName || "")
+        .trim()
+        .replace(/^@+/, "");
+    if (!/^[A-Za-z0-9_]{5,32}$/.test(normalizedTelegram)) {
+        throw new LazyLexApiError(
+            "Enter a valid Telegram username (5â€“32 letters, numbers, or underscores).",
+            { code: "validation/telegram" }
+        );
+    }
+
+    const headers = await fsHeaders(true);
+    const uid = await getAuthUidBg();
+    if (!uid) {
+        throw new LazyLexApiError("The signed-in user could not be identified.", {
+            code: "auth/invalid",
+            status: 401
+        });
+    }
+
+    const response = await fetchWithTimeout(addUpdateMask(
+        `${FIRESTORE_BASE}/users/${uid}`,
+        ["telegramName", "updatedAt"]
+    ), {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(fsEncodeFields({
+            telegramName: normalizedTelegram,
+            updatedAt: new Date()
+        }))
+    });
+    await requireSuccessfulResponse(response, "Updating Telegram");
+
+    const { userInfo = {} } = await chrome.storage.local.get({ userInfo: {} });
+    await chrome.storage.local.set({
+        userInfo: {
+            ...userInfo,
+            telegramName: normalizedTelegram
+        }
+    });
+    return normalizedTelegram;
+}
+
+function getChangedWords(changes) {
+    const newValue = Array.isArray(changes.newValue) ? changes.newValue : [];
+    const oldValue = Array.isArray(changes.oldValue) ? changes.oldValue : [];
+    const newById = new Map(newValue.map((word) => [Number(word.id), word]));
+    const oldById = new Map(oldValue.map((word) => [Number(word.id), word]));
+    const changedWords = [];
+
+    for (const [id, word] of newById) {
+        const previousWord = oldById.get(id);
+        if (!previousWord) {
+            changedWords.push({ operation: "add", word });
+        } else if (JSON.stringify(word) !== JSON.stringify(previousWord)) {
+            changedWords.push({ operation: "update", word });
+        }
+    }
+
+    for (const [id, word] of oldById) {
+        if (!newById.has(id)) {
+            changedWords.push({ operation: "delete", word });
+        }
+    }
+
+    return changedWords;
+}
+
+async function handleWordsChange(changes) {
+    console.log(changes);
+    const newValue = changes.newValue;
+    const oldValue = changes.oldValue;
+
+    if (!newValue) {
+        // All words cleared
+        await notifyContentAboutChanges("wordsChanged", { operation: 'clear' });
+        return;
+    }
+
+    if (!oldValue) {
+        // This is the initial load, not a change. Or first word added.
+        // Let's treat it as a full refresh.
+        await notifyContentAboutChanges("wordsChanged", { operation: 'reload', words: newValue });
+        notifyPopupAboutChanges("wordsChanged", { operation: "getAllWords" });
+        // Also mirror all current words to Firestore on first set
+        try {
+            const headers = await fsHeaders();
+            if (headers) {
+                for (const w of newValue) {
+                    await fsUpsertWord(w);
+                }
+            }
+        } catch (e) {
+            console.warn('Initial mirror failed:', e?.message || e);
+        }
+        return;
+    }
+    const changedWords = getChangedWords(changes);
+
+    if (changedWords.length > 0) {
+        for (const { operation, word: changedWord } of changedWords) {
+            const alreadySynced = cloudConfirmedWordMutations.delete(Number(changedWord.id));
+            const message = {
+                operation: operation,
+                word: changedWord,
+                words: newValue // Pass the full list for add/reload cases
+            };
+            await notifyContentAboutChanges("wordsChanged", message);
+            notifyPopupAboutChanges("wordsChanged", {
+                operation: operation,
+                wordId: changedWord.id,
+            });
+            console.log(`Operation: ${operation}, Word: ${changedWord.word}`);
+            console.log('Mirroring to Firestore:', operation, changedWord?.id);
+
+            if (!alreadySynced) {
+                // Mirror legacy/local-only mutations. Interactive mutations use the
+                // strict message handlers below and reach storage only after cloud success.
+                try {
+                    if (operation === 'add') {
+                        await fsUpsertWord(changedWord);
+                        await incrementDailyWordCount();
+                    }
+                    else if (operation === 'delete') await fsDeleteWord(changedWord);
+                    else if (operation === 'update') await fsPatchWord(changedWord);
+                } catch (e) {
+                    console.warn('Firestore mirror failed:', e?.message || e);
+                }
+            }
+        }
+    } else {
+        console.log("Could not determine changed word, forcing reload.");
+        await notifyContentAboutChanges("wordsChanged", { operation: 'reload', words: newValue });
+        // Best-effort: upsert all words to ensure cloud is in sync
+        try {
+            const headers = await fsHeaders();
+            if (headers) {
+                for (const w of newValue) {
+                    await fsUpsertWord(w);
+                }
+            }
+        } catch (e) {
+            console.warn('Reload mirror failed:', e?.message || e);
+        }
+    }
+}
+
+// Event listeners and initialization
+
+chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === "install") {
+        chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
+        chrome.storage.local.set({ 
+            token: "",
+            onboardingCompleted: false
+        });
+    } else if (details.reason === "update") {
+        // No auto-onboarding on update
+    }
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.create({
+        id: "saveWordContextMenu",
+        title: "Save '%s'",
+        contexts: ["selection"],
+    });
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "saveWordContextMenu") {
+        const selectedText = info.selectionText;
+        chrome.tabs.sendMessage(tab.id, { action: "saveWordToDictionary", text: selectedText }, (response) =>
+            console.log(response)
+        );
+    }
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "checkExtensionState") {
+        checkIfExtensionEnabled()
+            .then((enabled) => {
+                sendResponse({ enabled });
+            })
+            .catch((error) => {
+                console.error("Error checking extension state:", error);
+                sendResponse({ enabled: false });
+            });
+
+        return true;
+    }
+
+    if (request.action === "saveWordsToStorage") {
+        saveWordsToStorage();
+    }
+
+    if (request.action === "getUserInfo") {
+        getCurrentUserInfo()
+            .then((userInfo) => {
+                sendResponse({ userInfo });
+            })
+            .catch((error) => {
+                console.error("Error getting user info:", error);
+            });
+
+        return true;
+    }
+
+    if (request.action === "getFirebaseIdToken") {
+        getFirebaseIdTokenBg()
+            .then((token) => sendResponse({ token }))
+            .catch((error) => {
+                console.error('Error getting Firebase ID token:', error);
+                sendResponse({ token: null });
+            });
+        return true;
+    }
+
+    if (request.action === "persistWord") {
+        persistWordMutation(request.word)
+            .then((word) => sendResponse({ success: true, word }))
+            .catch((error) => {
+                console.error("persistWord failed:", error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
+    if (request.action === "deleteWord") {
+        deleteWordMutation(request.wordId)
+            .then((wordId) => sendResponse({ success: true, wordId }))
+            .catch((error) => {
+                console.error("deleteWord failed:", error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
+    if (request.action === "updateTelegram") {
+        updateTelegramMutation(request.telegramName)
+            .then((telegramName) => sendResponse({ success: true, telegramName }))
+            .catch((error) => {
+                console.error("updateTelegram failed:", error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
+    if (request.action === "translateWord") {
+        (async () => {
+            try {
+                const idToken = await getFirebaseIdTokenBg();
+                if (!idToken) throw new Error('No Firebase ID token');
+                const url = `${functionsBaseUrl}/translateWord`;
+                const res = await fetchWithTimeout(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ data: { word: request.word, targetLanguage: request.targetLanguage } })
+                });
+                await requireSuccessfulResponse(res, "Translation");
+                const json = await res.json();
+                sendResponse({ success: true, result: json.result || json });
+            } catch (e) {
+                console.error('translateWord error:', e);
+                sendResponse({ success: false, error: serializeApiError(e) });
+            }
+        })();
+        return true;
+    }
+
+    if (request.action === "checkSubscriptionLimits") {
+        checkSubscriptionLimits()
+            .then((result) => sendResponse(result))
+            .catch((error) => {
+                console.error('Error checking subscription limits:', error);
+                sendResponse({ canAdd: true, reason: 'error' });
+            });
+        return true;
+    }
+
+    if (request.action === "incrementDailyWordCount") {
+        incrementDailyWordCount()
+            .then(() => sendResponse({ success: true }))
+            .catch((error) => {
+                console.error('Error incrementing daily word count:', error);
+                sendResponse({ success: false, error: error.message });
+            });
+        return true;
+    }
+});
+
+chrome.storage.onChanged.addListener(async (changes, namespace) => {
+    if (namespace === "local" && "excludedSites" in changes) {
+        await handleExcludedSitesChange(changes.excludedSites);
+    }
+
+    if (namespace === "local" && "words" in changes) {
+        await handleWordsChange(changes.words);
+    }
+
+    // When user signs in, ensure profile doc and initial words sync
+    if (namespace === 'local' && 'userInfo' in changes && changes.userInfo?.newValue) {
+        try {
+            await fsEnsureUserDoc(changes.userInfo.newValue);
+            await fsSyncWordsFromCloudIfEmpty();
+        } catch (e) { /* ignore */ }
+    }
+
+    // If Google token stored/changed, ensure Firebase ID token exists
+    if (namespace === 'local' && 'auth_token' in changes && changes.auth_token?.newValue) {
+        try { await ensureFirebaseIdTokenReady(); } catch (e) { /* ignore */ }
+    }
+
+    // Mirror options to Firestore preferences
+    const settingsKeys = ['translateTo','animationToggle','sentenceCounter','highlightingEnabled','frequencyColoringEnabled','highlightColor','translationColor'];
+    if (namespace === 'local' && settingsKeys.some(k => k in changes)) {
+        try {
+            const { userInfo } = await chrome.storage.local.get(['userInfo']);
+            if (!userInfo) return;
+            const headers = await fsHeaders();
+            if (!headers) return;
+            const uid = userInfo.id || userInfo.uid;
+            if (!uid) return;
+            const url = `${FIRESTORE_BASE}/users/${uid}/userSettings/preferences`;
+            const current = await chrome.storage.local.get(settingsKeys);
+            const body = fsEncodeFields({
+                translateTo: current.translateTo || 'uk',
+                animationToggle: (current.animationToggle === 'true') || current.animationToggle === true,
+                sentenceCounter: Number(current.sentenceCounter || 1),
+                highlightingEnabled: current.highlightingEnabled !== false,
+                frequencyColoringEnabled: current.frequencyColoringEnabled !== false,
+                highlightColor: current.highlightColor || 'rgba(255, 0, 0, 0.22)',
+                translationColor: current.translationColor || '#d0d0d0',
+                updatedAt: new Date()
+            });
+            await fetch(url, { method: 'PATCH', headers, body: JSON.stringify(body) });
+        } catch (e) {
+            console.warn('Failed to mirror settings:', e?.message || e);
+        }
+    }
+});
+
+// Subscription management functions
+async function checkSubscriptionLimits() {
+    try {
+        const headers = await fsHeaders();
+        if (!headers) return { canAdd: true, reason: 'no_auth' };
+
+        const uid = await getAuthUidBg();
+        if (!uid) return { canAdd: true, reason: 'no_uid' };
+
+        const url = `${FIRESTORE_BASE}/users/${uid}`;
+        const response = await fetch(url, { headers });
+        
+        if (!response.ok) {
+            // User document doesn't exist, create default and allow
+            await createDefaultUserSubscription(uid);
+            return { canAdd: true, reason: 'new_user', dailyWordsAdded: 0, dailyWordLimit: 5 };
+        }
+
+        const userData = await response.json();
+        const fields = userData.fields || {};
+        
+        const subscriptionStatus = fields.subscriptionStatus?.stringValue || 'free';
+        const today = new Date().toISOString().split('T')[0];
+        const dailyWordsResetDate = fields.dailyWordsResetDate?.stringValue || today;
+        const dailyWordsAdded = fields.dailyWordsAdded?.integerValue || fields.dailyWordsAdded?.doubleValue || 0;
+        
+        // Reset daily count if it's a new day
+        const resetDailyCount = dailyWordsResetDate !== today;
+        const currentDailyCount = resetDailyCount ? 0 : Number(dailyWordsAdded);
+        
+        // Check if user has premium access
+        const isPremium = subscriptionStatus === 'premium' || subscriptionStatus === 'lifetime';
+        
+        if (isPremium) {
+            return { 
+                canAdd: true, 
+                reason: 'premium', 
+                dailyWordsAdded: currentDailyCount,
+                isPremium: true,
+                needsReset: resetDailyCount
+            };
+        }
+
+        // Free user - check daily limit
+        const dailyLimit = 5;
+        const canAdd = currentDailyCount < dailyLimit;
+        
+        return {
+            canAdd,
+            reason: canAdd ? 'within_limit' : 'daily_limit_reached',
+            dailyWordsAdded: currentDailyCount,
+            dailyWordLimit: dailyLimit,
+            isPremium: false,
+            needsReset: resetDailyCount
+        };
+    } catch (error) {
+        console.error('Error checking subscription limits:', error);
+        // Default to allowing on error to avoid blocking users
+        return { canAdd: true, reason: 'error' };
+    }
+}
+
+async function incrementDailyWordCount() {
+    try {
+        const headers = await fsHeaders();
+        if (!headers) return;
+
+        const uid = await getAuthUidBg();
+        if (!uid) return;
+
+        // Get current subscription data
+        const limitCheck = await checkSubscriptionLimits();
+        const today = new Date().toISOString().split('T')[0];
+        
+        let newCount = limitCheck.dailyWordsAdded + 1;
+        if (limitCheck.needsReset) {
+            newCount = 1; // Reset to 1 for new day
+        }
+
+        const url = `${FIRESTORE_BASE}/users/${uid}`;
+        const updateData = {
+            fields: {
+                dailyWordsAdded: { integerValue: String(newCount) },
+                dailyWordsResetDate: { stringValue: today }
+            }
+        };
+
+        await fetch(url, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(updateData)
+        });
+
+        console.log(`Daily word count updated to ${newCount} for ${today}`);
+    } catch (error) {
+        console.error('Error incrementing daily word count:', error);
+    }
+}
+
+async function createDefaultUserSubscription(uid) {
+    try {
+        const headers = await fsHeaders();
+        if (!headers) return;
+
+        const { userInfo } = await chrome.storage.local.get(['userInfo']);
+        const today = new Date().toISOString().split('T')[0];
+        const now = new Date().toISOString();
+
+        const url = `${FIRESTORE_BASE}/users/${uid}`;
+        const userData = {
+            fields: {
+                uid: { stringValue: uid },
+                email: { stringValue: userInfo?.email || '' },
+                displayName: { stringValue: userInfo?.name || userInfo?.displayName || '' },
+                photoURL: { stringValue: userInfo?.picture || userInfo?.photoURL || '' },
+                subscriptionStatus: { stringValue: 'free' },
+                dailyWordsAdded: { integerValue: '0' },
+                dailyWordsResetDate: { stringValue: today },
+                dailyWordLimit: { integerValue: '5' },
+                createdAt: { timestampValue: now },
+                lastLoginAt: { timestampValue: now }
+            }
+        };
+
+        await fetch(url, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(userData)
+        });
+
+        console.log('Created default user subscription document');
+    } catch (error) {
+        console.error('Error creating default user subscription:', error);
+    }
+}
+
+function showWelcomePage() {
+    chrome.storage.local.get(['welcomeShown', 'onboardingCompleted'], (result) => {
+        if (!result.welcomeShown && !result.onboardingCompleted) {
+            chrome.tabs.create({
+                url: chrome.runtime.getURL('onboarding.html'),
+                active: true
+            });
+        }
+    });
+}
+
+function checkWelcomeStatus() {
+    chrome.storage.local.get(['welcomeShown', 'onboardingCompleted'], (result) => {
+        // If neither welcome nor onboarding was completed, show welcome
+        if (!result.welcomeShown && !result.onboardingCompleted) {
+            showWelcomePage();
+        }
+    });
+}
+
+// Handle welcome page requests
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'openWelcome') {
+        showWelcomePage();
+        sendResponse({ success: true });
+    }
+    
+    if (request.action === 'openOnboarding') {
+        chrome.tabs.create({
+            url: chrome.runtime.getURL('onboarding.html'),
+            active: true
+        });
+        sendResponse({ success: true });
+    }
+    
+    if (request.action === 'checkWelcomeStatus') {
+        chrome.storage.local.get(['welcomeShown', 'onboardingCompleted'], (result) => {
+            sendResponse({
+                welcomeShown: result.welcomeShown || false,
+                onboardingCompleted: result.onboardingCompleted || false
+            });
+        });
+        return true;
+    }
+});
+
+// Attempt to prepare Firebase ID token on service worker start
+(async () => { try { await ensureFirebaseIdTokenReady(); } catch (e) { /* ignore */ } })();

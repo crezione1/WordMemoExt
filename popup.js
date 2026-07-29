@@ -389,4 +389,730 @@ async function markWordAsUnlearned(wordId) {
 function playWordPronunciation(wordId) {
     const word = allWords.find(w => w.id === Number(wordId));
     if (word) {
-        const utterancßÎü¶‰žËkºwµçUÝ]½É‘Í1¥ÍÐœ¤ì(€€€€€€€€€€€€€€€Ñ…É•Ñ¥±Ñ•È€ô€…±°œì(€€€€€€€€€€€ô•±Í”¥˜€¡…Ñ•½Éä¹¥€ôôô€Í…Ù•‘]½É‘Í1¥ÍÐœ¤ì(€€€€€€€€€€€€€€€Ñ…É•Ñ¥±Ñ•È€ô€Ñ½‘…äœì(€€€€€€€€€€€ô•±Í”¥˜€¡…Ñ•½Éä¹¥€ôôô€±•…É¹•‘]½É‘Í1¥ÍÐœ¤ì(€€€€€€€€€€€€€€€Ñ…É•Ñ¥±Ñ•È€ô€±•…É¹•œì(€€€€€€€€€€€ô((€€€€€€€€€€€€¼¼M•ÐÑ¡”™¥±Ñ•È…¹ÕÁ‘…Ñ”Ñ¡”U$(€€€€€€€€€€€ÕÉÉ•¹Ñ¥±Ñ•È€ôÑ…É•Ñ¥±Ñ•Èì(€€€€€€€€€€€ÕÁ‘…Ñ•Ñ¥Ù•¥±Ñ•ÉQ…ˆ¡ÕÉÉ•¹Ñ¥±Ñ•È¤ì(€€€€€€€€€€€É•…Ñ•]½É‘Í1¥ÍÐ¡…±±]½É‘Ì°ÕÉÉ•¹Ñ¥±Ñ•È¤ì((€€€€€€€€€€€Í¡½ÝQ…ˆ ‰‘¥Ñ¥½¹…ÉåQ…ˆˆ¤ì(€€€€€€€ô¤ì(€€€ô(4(€€€‘½Õµ•¹Ð¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°…Íå¹Œ€¡”¤€ôøì4(€€€€€€€½¹ÍÐ‰ÕÑÑ½¸€ô”¹Ñ…É•Ð¹±½Í•ÍÐ ‰‰ÕÑÑ½¸ˆ¤ì4(4(€€€€€€€¥˜€ …‰ÕÑÑ½¸¤É•ÑÕÉ¸ì4(4(€€€€€€€€¼¼!…¹‘±”™¥±Ñ•ÈÑ…‰Ì4(€€€€€€€¥˜€¡‰ÕÑÑ½¸¹±…ÍÍ1¥ÍÐ¹½¹Ñ…¥¹Ì ™¥±Ñ•ÈµÑ…ˆœ¤¤ì4(€€€€€€€€€€€ÕÉÉ•¹Ñ¥±Ñ•È€ô‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹™¥±Ñ•Èì4(€€€€€€€€€€€ÕÁ‘…Ñ•Ñ¥Ù•¥±Ñ•ÉQ…ˆ¡ÕÉÉ•¹Ñ¥±Ñ•È¤ì4(€€€€€€€€€€€É•…Ñ•]½É‘Í1¥ÍÐ¡…±±]½É‘Ì°ÕÉÉ•¹Ñ¥±Ñ•È¤ì4(€€€€€€€€€€€É•ÑÕÉ¸ì4(€€€€€€€ô4(4(€€€€€€€€¼¼!…¹‘±”Ý½É…Ñ¥½¹Ì4(€€€€€€€½¹ÍÐ…Ñ¥½¸€ô‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹‰Ñ¹Õ¹Ñ¥½¸ì4(€€€€€€€¥˜€ ……Ñ¥½¸¤É•ÑÕÉ¸ì4(4(€€€€€€€ÑÉäì(€€€€€€€€€€€¥˜€¡…Ñ¥½¸€ôôô€‰Í¡½ÝMå¹½¹å´ˆ¤ì(€€€€€€€€€€€€€€€½¹ÍÐÝ½É‘%€ô9Õµ‰•È¡‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹Ý½É‘%¤ì(€€€€€€€€€€€€€€€É•¹‘•É]½É‘•Ñ…¥±Í	å%¡Ý½É‘%¤ì(€€€€€€€€€€€ô•±Í”¥˜€¡…Ñ¥½¸€ôôô€‰Á±…åAÉ½¹Õ¹¥…Ñ¥½¸ˆ¤ì(€€€€€€€€€€€€€€€Á±…å]½É‘AÉ½¹Õ¹¥…Ñ¥½¸¡‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹Ý½É‘%¤ì(€€€€€€€€€€€ô•±Í”¥˜€¡…Ñ¥½¸€ôôô€‰µ…É­Í1•…É¹•ˆ¤ì(€€€€€€€€€€€€€€€…Ý…¥Ðµ…É­]½É‘Í1•…É¹•¡‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹Ý½É‘%¤ì(€€€€€€€€€€€ô•±Í”¥˜€¡…Ñ¥½¸€ôôô€‰µ…É­ÍU¹±•…É¹•ˆ¤ì(€€€€€€€€€€€€€€€…Ý…¥Ðµ…É­]½É‘ÍU¹±•…É¹•¡‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹Ý½É‘%¤ì(€€€€€€€€€€€ô•±Í”¥˜€¡…Ñ¥½¸€ôôô€‰‘•±•Ñ•]½Éˆ¤ì(€€€€€€€€€€€€€€€…Ý…¥Ð‘•±•Ñ•]½É‘É½µMÑ½É…”¡‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹Ý½É‘%¤ì(€€€€€€€€€€€ô(€€€€€€€ô…Ñ €¡•ÉÉ½È¤ì(€€€€€€€€€€€½¹Í½±”¹•ÉÉ½È¡]½É…Ñ¥½¸€‘í…Ñ¥½¹ô™…¥±•é€°•ÉÉ½È¤ì(€€€€€€€€€€€Í¡½Ý9½Ñ¥™¥…Ñ¥½¸¡•ÉÉ½Èü¹µ•ÍÍ…”ñð€‰Q¡”Ý½É…Ñ¥½¸™…¥±•¸ˆ¤ì(€€€€€€€ô(€€€ô¤ì4(4(€€€•¹…‰±•áÑ•¹Í¥½¹¡•­‰½à¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰¡…¹”ˆ°Ñ½±•áÑ•¹Í¥½¹MÑ…Ñ”¤ì4(4(€€€Í¥Ñ•%¹ÁÕÐ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰¥¹ÁÕÐˆ°€ ¤€ôøÑ½±•	ÕÑÑ½¸¡…‘‘M¥Ñ•	ÕÑÑ½¸°Í¥Ñ•%¹ÁÕÐ¤¤ì4(€€€…‘‘M¥Ñ•	ÕÑÑ½¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°…‘‘M¥Ñ•Q½á±ÕÍ¥½¸¤ì4(4(€€€•á±ÕÍ¥½¹1¥ÍÐ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°…Íå¹Œ€¡”¤€ôøÉ•µ½Ù•M¥Ñ•É½µá±ÕÍ¥½¸¡”¤¤ì4(4(€€€€¼¼‘‘•™•¹Í¥Ù”¡•¬™½È¡É½µ”A$…Ù…¥±…‰¥±¥Ñä4(€€€¥˜€¡¡É½µ”¹ÉÕ¹Ñ¥µ”€˜˜¡É½µ”¹ÉÕ¹Ñ¥µ”¹½¹5•ÍÍ…”€˜˜¡É½µ”¹ÉÕ¹Ñ¥µ”¹½¹5•ÍÍ…”¹…‘‘1¥ÍÑ•¹•È¤ì4(€€€€€€€¡É½µ”¹ÉÕ¹Ñ¥µ”¹½¹5•ÍÍ…”¹…‘‘1¥ÍÑ•¹•È ¡É•ÅÕ•ÍÐ¤€ôøì4(€€€€€€€¥˜€¡É•ÅÕ•ÍÐ¹…Ñ¥½¸€ôôô€‰Ý½É‘Í¡…¹•ˆ¤ì4(€€€€€€€€€€€½¹Í½±”¹±½œ ‰Ý½É‘ÌÝ•É”¡…¹•è€ˆ°É•ÅÕ•ÍÐ¹¹•ÝY…±Õ”¤ì4(4(€€€€€€€€€€€½¹ÍÐ½À€ôÉ•ÅÕ•ÍÐ¹¹•ÝY…±Õ”¹½Á•É…Ñ¥½¸ì4(€€€€€€€€€€€¥˜€¡½À€ôôô€‰•Ñ±±]½É‘Ìˆ¤ì4(€€€€€€€€€€€€€€€‘¥ÍÁ±…å¥Ñ¥½¹…Éä ¤¹…Ñ ¡½¹Í½±”¹•ÉÉ½È¤ì4(€€€€€€€€€€€ô•±Í”¥˜€¡½À€ôôô€‰‘•±•Ñ”ˆñð½À€ôôô€‰‘•±•Ñ•]½Éˆ¤ì(€€€€€€€€€€€€€€€‘•±•Ñ•]½É‘É½µA½ÁÕÁ¥Ñ¥½¹…Éä¡É•ÅÕ•ÍÐ¹¹•ÝY…±Õ”¹Ý½É‘%¤ì4(€€€€€€€€€€€€€€€€¼¼É•™É•Í ½Õ¹Ñ•ÉÌ…™Ñ•È‘•±•Ñ”4(€€€€€€€€€€€€€€€‘¥ÍÁ±…å¥Ñ¥½¹…Éä ¤¹…Ñ ¡½¹Í½±”¹•ÉÉ½È¤ì4(€€€€€€€€€€€ô•±Í”¥˜€¡½À€ôôô€‰…‘ˆñð½À€ôôô€‰ÕÁ‘…Ñ”ˆñð½À€ôôô€‰É•±½…ˆ¤ì4(€€€€€€€€€€€€€€€€¼¼Í¥µÁ±”É•™É•Í Ñ¼­••À±¥ÍÐ…¹½Õ¹Ñ•ÉÌ¥¸Íå¹Œ4(€€€€€€€€€€€€€€€‘¥ÍÁ±…å¥Ñ¥½¹…Éä ¤¹…Ñ ¡½¹Í½±”¹•ÉÉ½È¤ì4(€€€€€€€€€€€ô4(€€€€€€€ô4(€€€€€€€ô¤ì4(€€€ô4(4(€€€±½Í•9½Ñ¥™¥…Ñ¥½¹	Ñ¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°±½Í•9½Ñ¥™¥…Ñ¥½¸¤ì4(4(€€€¡…¹•Q•±•É…µ	Ñ¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°€ ¤€ôøÑ½±•Y¥Í¥‰¥±¥Ñä¡Ñ•±•É…µ½¹Ñ…¥¹•È¤¤ì4(€€€½Á•¹¹±¥Í¡1•Ù•±	Ñ¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°€ ¤€ôøÑ½±•Y¥Í¥‰¥±¥Ñä¡•¹±¥Í¡1•Ù•±½¹Ñ…¥¹•È¤¤ì4(€€€½Á•¹1•…É¹¥¹½…±Í	Ñ¹	Ñ¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°€ ¤€ôøÑ½±•Y¥Í¥‰¥±¥Ñä¡±•…É¹¥¹½…±Í½¹Ñ…¥¹•È¤¤ì4(4(€€€Ñ•±•É…µ9…µ”¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰¥¹ÁÕÐˆ°€ ¤€ôøÑ½±•	ÕÑÑ½¸¡Ñ•±•É…µ	ÕÑÑ½¸°Ñ•±•É…µ9…µ”¤¤ì4(€€€Ñ•±•É…µ	ÕÑÑ½¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ°€ ¤€ôøì(€€€€€€€ÕÁ‘…Ñ•Q•±•É…´ ¤¹…Ñ ¡½¹Í½±”¹•ÉÉ½È¤ì(€€€ô¤ì(4(€€€€¼½Ñ½­•¸Ù•É¥™¥…Ñ¥½¸4(€€€€¼¼¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡l‰Ñ½­•¸‰t°€¡É•ÍÕ±Ð¤€ôøì4(€€€€¼¼€€€€½¹Í½±”¹±½œ¡É•ÍÕ±Ð¤ì4(€€€€¼¼€€€€¥˜€¡¥ÍQ½­•¹Y…±¥¡É•ÍÕ±Ð¹Ñ½­•¸¤¤ì4(€€€€¼¼€€€€€€€€€¼¼Q½­•¸•á¥ÍÑÌ°¹½ÜÙ…±¥‘…Ñ”¥Ð4(€€€€¼¼€€€€€€€€½¹Í½±”¹±½œ ‰Q¡”Ñ½­•¸¥ÌÙ…±¥ˆ¤ì4(€€€€¼¼€€€€€€€€Í¡½Ý5…¥¹½¹Ñ•¹Ð ¤ì4(€€€€¼¼€€€€ô•±Í”ì4(€€€€¼¼€€€€€€€€½¹Í½±”¹±½œ ‰Q¡”Ñ½­•¸¥Ì¥¹Ù…±¥ˆ¤ì4(€€€€¼¼€€€€€€€€Í¡½Ý1½¥¹A…” ¤ì4(€€€€¼¼€€€€ô4(€€€€¼¼ô¤ì4(4(€€€€¼¼ÕÑ¡•¹Ñ¥…Ñ”™¥ÉÍÐ°Ñ¡•¸…Ñ”½¹‰½…É‘¥¹œ™½È…ÕÑ¡•¹Ñ¥…Ñ•ÕÍ•ÉÌ4(€€€½¹ÍÐ•¹ÍÕÉ•ÕÑ¡•¹Ñ¥…Ñ•€ô…Íå¹Œ€ ¤€ôøì4(€€€€€€€½¹ÍÐÕÉÉ•¹ÑUÍ•È€ô…Ý…¥Ð•ÑUÍ•É%¹™¼ ¤ì4(€€€€€€€¥˜€¡ÕÉÉ•¹ÑUÍ•È¤É•ÑÕÉ¸ÑÉÕ”ì4(€€€€€€€É•ÑÕÉ¸¹•ÜAÉ½µ¥Í” ¡É•Í½±Ù”¤€ôøì4(€€€€€€€€€€€¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡l‰Ñ½­•¸‰t°€¡É•ÍÕ±Ð¤€ôøì4(€€€€€€€€€€€€€€€¥˜€¡¥ÍQ½­•¹Y…±¥¡É•ÍÕ±Ð¹Ñ½­•¸¤¤ì4(€€€€€€€€€€€€€€€€€€€É•Í½±Ù”¡ÑÉÕ”¤ì4(€€€€€€€€€€€€€€€ô•±Í”ì4(€€€€€€€€€€€€€€€€€€€É•Í½±Ù”¡™…±Í”¤ì4(€€€€€€€€€€€€€€€ô4(€€€€€€€€€€€ô¤ì4(€€€€€€€ô¤ì4(€€€ôì4(4(€€€½¹ÍÐ¥ÍÕÑ¡•€ô…Ý…¥Ð•¹ÍÕÉ•ÕÑ¡•¹Ñ¥…Ñ• ¤ì4(€€€¥˜€ …¥ÍÕÑ¡•¤ì4(€€€€€€€€¼¼9½Ð±½•¥¸èÍ¡½Ü±½¥¸Á…”°‘¼9=P½Á•¸½¹‰½…É‘¥¹œå•Ð4(€€€€€€€Í¡½Ý1½¥¹A…” ¤ì4(€€€€€€€É•ÑÕÉ¸ì4(€€€ô4(4(€€€€¼¼1½•¥¸è¡•¬¥˜½¹‰½…É‘¥¹œ¥Ì½µÁ±•Ñ•ì¥˜¹½Ð°½¹±äÍ¡½Ü½¹”…™Ñ•È±½¥¸4(€€€½¹ÍÐ¡•­=¹‰½…É‘¥¹½µÁ±•Ñ¥½¸€ô…Íå¹Œ€ ¤€ôøì4(€€€€€€€½¹ÍÐÍÑ…Ñ”€ô…Ý…¥Ð¹•ÜAÉ½µ¥Í”¡É•Í½±Ù”€ôøì4(€€€€€€€€€€€¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡ì4(€€€€€€€€€€€€€€€½¹‰½…É‘¥¹½µÁ±•Ñ•è™…±Í”°4(€€€€€€€€€€€€€€€½¹‰½…É‘¥¹M¡½Ý¹™Ñ•É1½¥¸è™…±Í”4(€€€€€€€€€€€ô°É•Í½±Ù”¤ì4(€€€€€€€ô¤ì4(4(€€€€€€€¥˜€¡ÍÑ…Ñ”¹½¹‰½…É‘¥¹½µÁ±•Ñ•¤É•ÑÕÉ¸ÑÉÕ”ì4(4(€€€€€€€€¼¼M¡½Ü½¹‰½…É‘¥¹œ½¹±ä½¹”…™Ñ•È±½¥¸ì‘½¸Ð¹…œ¹•áÐÑ¥µ”4(€€€€€€€¥˜€ …ÍÑ…Ñ”¹½¹‰½…É‘¥¹M¡½Ý¹™Ñ•É1½¥¸¤ì4(€€€€€€€€€€€…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹Í•Ð¡ì½¹‰½…É‘¥¹M¡½Ý¹™Ñ•É1½¥¸èÑÉÕ”ô¤ì4(€€€€€€€€€€€¡É½µ”¹ÉÕ¹Ñ¥µ”¹Í•¹‘5•ÍÍ…”¡ì…Ñ¥½¸è€¹••‘=¹‰½…É‘¥¹œœô¤ì4(€€€€€€€€€€€Ý¥¹‘½Ü¹±½Í” ¤ì4(€€€€€€€€€€€É•ÑÕÉ¸™…±Í”ì4(€€€€€€€ô4(4(€€€€€€€€¼¼±É•…‘äÍ¡½Ý¸½¹”ìÍ­¥ÀÉ•‘¥É•Ð…¹½¹Ñ¥¹Õ”Ñ¼µ…¥¸½¹Ñ•¹Ð4(€€€€€€€É•ÑÕÉ¸ÑÉÕ”ì4(€€€ôì4(4(€€€½¹ÍÐ½¹‰½…É‘¥¹½µÁ±•Ñ•€ô…Ý…¥Ð¡•­=¹‰½…É‘¥¹½µÁ±•Ñ¥½¸ ¤ì4(€€€¥˜€ …½¹‰½…É‘¥¹½µÁ±•Ñ•¤É•ÑÕÉ¸ì4(4(€€€€¼¼ÕÑ¡•¹Ñ¥…Ñ•…¹½¹‰½…É‘¥¹œ½µÁ±•Ñ•èÍ¡½Üµ…¥¸½¹Ñ•¹Ð4(€€€Í¡½Ý5…¥¹½¹Ñ•¹Ð ¤ì4(€€€€4(€€€€¼¼%¹¥Ñ¥…±¥é”•áÑ•¹Í¥½¸ÍÑ…Ñ”…™Ñ•È…ÕÑ¡•¹Ñ¥…Ñ¥½¸4(€€€•á±Õ‘•‘M¥Ñ•Ì€ô…Ý…¥Ð•Ñá±Õ‘•‘M¥Ñ•Ì ¤ì4(€€€ÕÉÉ•¹ÑM¥Ñ”€ô…Ý…¥Ð•ÑÕÉÉ•¹ÑM¥Ñ” ¤ì4(€€€¥Í¹…‰±•€ô¡•­%™ÕÉÉ•¹ÑM¥Ñ•¹…‰±• ¤ì4(€€€•¹…‰±•áÑ•¹Í¥½¹¡•­‰½à¹¡•­•€ô¥Í¹…‰±•ì4(€€€Í¡½ÝQ…ˆ ‰¡½µ•Q…ˆˆ¤ì4(€€€‘¥ÍÁ±…åá±ÕÍ¥½¹1¥ÍÐ¡•á±Õ‘•‘M¥Ñ•Ì¤ì4(€€€…Ý…¥Ð‘¥ÍÁ±…å¥Ñ¥½¹…Éä ¤ì4(€€€€4(€€€€¼¼%¹¥Ñ¥…±¥é”ÍÕ‰ÍÉ¥ÁÑ¥½¸‘¥ÍÁ±…ä4(€€€…Ý…¥ÐÕÁ‘…Ñ•MÕ‰ÍÉ¥ÁÑ¥½¹¥ÍÁ±…ä ¤ì4)ô¤ì4(4(¼¼‘9•Ü]½É™É½´!½µ”4)™Õ¹Ñ¥½¸Ñ½±•‘‘	ÕÑÑ½¸ ¤ì4(€€€¥˜€ ……‘‘]½É‘	Ñ¸ñð€……‘‘]½É‘%¹ÁÕÐ¤É•ÑÕÉ¸ì4(€€€½¹ÍÐ¡…ÍQ•áÐ€ô…‘‘]½É‘%¹ÁÕÐ¹Ù…±Õ”¹ÑÉ¥´ ¤¹±•¹Ñ €ø€Àì4(€€€…‘‘]½É‘	Ñ¸¹‘¥Í…‰±•€ô€…¡…ÍQ•áÐì4)ô4(4)…Íå¹Œ™Õ¹Ñ¥½¸…‘‘9•Ý]½É‘É½µA½ÁÕÀ ¤ì4(€€€ÑÉäì4(€€€€€€€¥˜€ ……‘‘]½É‘%¹ÁÕÐ¤É•ÑÕÉ¸ì4(€€€€€€€½¹ÍÐÉ…Ü€ô…‘‘]½É‘%¹ÁÕÐ¹Ù…±Õ”¹ÑÉ¥´ ¤ì4(€€€€€€€¥˜€ …É…Ü¤É•ÑÕÉ¸ì4(€€€€€€€½¹ÍÐÝ½É‘1½Ý•È€ôÉ…Ü¹Ñ½1½Ý•É…Í” ¤ì4(4(€€€€€€€€¼¼¡•¬ÍÕ‰ÍÉ¥ÁÑ¥½¸±¥µ¥ÑÌ‰•™½É”…‘‘¥¹œ4(€€€€€€€¥˜€¡Ý¥¹‘½Ü¹ÍÕ‰ÍÉ¥ÁÑ¥½¹5…¹…•È¤ì4(€€€€€€€€€€€½¹ÍÐ±¥µ¥Ñ¡•¬€ô…Ý…¥ÐÝ¥¹‘½Ü¹ÍÕ‰ÍÉ¥ÁÑ¥½¹5…¹…•È¹…¹‘‘]½É ¤ì4(€€€€€€€€€€€¥˜€ …±¥µ¥Ñ¡•¬¹…¹‘¤ì4(€€€€€€€€€€€€€€€¥˜€¡±¥µ¥Ñ¡•¬¹É•…Í½¸€ôôô€‘…¥±å}±¥µ¥Ñ}É•…¡•œ¤ì4(€€€€€€€€€€€€€€€€€€€Í¡½Ý9½Ñ¥™¥…Ñ¥½¸ …¥±äÝ½É±¥µ¥ÐÉ•…¡•¸UÁÉ…‘”Ñ¼AÉ•µ¥Õ´™½ÈÕ¹±¥µ¥Ñ•Ý½É‘Ì¸œ¤ì4(€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸ì4(€€€€€€€€€€€€€€€ô4(€€€€€€€€€€€ô4(€€€€€€€ô4(4(€€€€€€€€¼¼•ÐÑ…É•Ð±…¹Õ…”4(€€€€€€€½¹ÍÐìÑÉ…¹Í±…Ñ•Q¼ô€ô…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÑÉ…¹Í±…Ñ•Q¼t¤ì4(€€€€€€€½¹ÍÐÑ…É•Ñ1…¹Õ…”€ô€¡ÑÉ…¹Í±…Ñ•Q¼ñð€Õ¬œ¤ì4(4(€€€€€€€€¼¼Í¬‰…­É½Õ¹Ñ¼ÑÉ…¹Í±…Ñ”€¡…±Í¼É•ÑÕÉ¹ÌÍå¹½¹åµÌ½•á…µÁ±•Ì¤4(€€€€€€€½¹ÍÐÉ•ÍÀ€ô…Ý…¥Ð¡É½µ”¹ÉÕ¹Ñ¥µ”¹Í•¹‘5•ÍÍ…”¡ì4(€€€€€€€€€€€…Ñ¥½¸è€ÑÉ…¹Í±…Ñ•]½Éœ°4(€€€€€€€€€€€Ý½ÉèÝ½É‘1½Ý•È°4(€€€€€€€€€€€Ñ…É•Ñ1…¹Õ…”4(€€€€€€€ô¤ì4(4(€€€€€€€¥˜€ …É•ÍÀü¹ÍÕ•ÍÌñð€…É•ÍÀü¹É•ÍÕ±Ðü¹ÑÉ…¹Í±…Ñ¥½¸¤ì(€€€€€€€€€€€Ñ¡É½Ü¹•ÜÉÉ½È¡É•ÍÀü¹•ÉÉ½Èü¹µ•ÍÍ…”ñð€‰QÉ…¹Í±…Ñ¥½¸™…¥±•¸A±•…Í”ÑÉä……¥¸¸ˆ¤ì(€€€€€€€ô(€€€€€€€½¹ÍÐÑÈ€ôÉ•ÍÀ¹É•ÍÕ±Ðì(€€€€€€€½¹ÍÐÑÉ…¹Í±…Ñ¥½¸€ôMÑÉ¥¹œ¡ÑÈ¹ÑÉ…¹Í±…Ñ¥½¸¤¹ÑÉ¥´ ¤ì(€€€€€€€½¹ÍÐÍå¹½¹åµÌ€ôÉÉ…ä¹¥ÍÉÉ…ä¡ÑÈ¹Íå¹½¹åµÌ¤€üÑÈ¹Íå¹½¹åµÌ€èmtì4(€€€€€€€½¹ÍÐ•á…µÁ±•Ì€ôÉÉ…ä¹¥ÍÉÉ…ä¡ÑÈ¹•á…µÁ±•Ì¤€üÑÈ¹•á…µÁ±•Ì€èmtì4(4(€€€€€€€€¼¼1½…ÕÉÉ•¹ÐÝ½É‘Ì…¹•¹ÍÕÉ”Õ¹¥ÅÕ”¥4(€€€€€€€½¹ÍÐìÝ½É‘Ì€ômtô€ô…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÝ½É‘Ìt¤ì4(€€€€€€€±•Ð¹•Ý%€ô…Ñ”¹¹½Ü ¤ì4(€€€€€€€½¹ÍÐ¥‘Ì€ô¹•ÜM•Ð ¡Ý½É‘Ìñðmt¤¹µ…À¡Ü€ôø9Õµ‰•È¡Ü¹¥¤¤¤ì4(€€€€€€€Ý¡¥±”€¡¥‘Ì¹¡…Ì¡¹•Ý%¤¤¹•Ý%€¬ô€Äì4(4(€€€€€€€½¹ÍÐ¹•Ý]½É€ôì4(€€€€€€€€€€€¥è¹•Ý%°4(€€€€€€€€€€€Ý½ÉèÝ½É‘1½Ý•È°4(€€€€€€€€€€€ÑÉ…¹Í±…Ñ¥½¸°4(€€€€€€€€€€€‘…Ñ•‘‘•è…Ñ”¹¹½Ü ¤°4(€€€€€€€€€€€ÍÑ…ÑÕÌè€¹•Üœ°(€€€€€€€€€€€±•…É¹•è™…±Í”°(€€€€€€€€€€€•¹½Õ¹Ñ•É½Õ¹Ðè€À°(€€€€€€€€€€€Íå¹½¹åµÌ°(€€€€€€€€€€€•á…µÁ±•Ì(€€€€€€€ôì((€€€€€€€…Ý…¥ÐÁ•ÉÍ¥ÍÑ]½É¡¹•Ý]½É¤ì(€€€€€€€…Ý…¥ÐÕÁ‘…Ñ•MÕ‰ÍÉ¥ÁÑ¥½¹¥ÍÁ±…ä ¤ì€¼¼UÁ‘…Ñ”ÍÕ‰ÍÉ¥ÁÑ¥½¸‘¥ÍÁ±…ä…™Ñ•È…‘‘¥¹œÝ½É(4(€€€€€€€…‘‘]½É‘%¹ÁÕÐ¹Ù…±Õ”€ô€œœì4(€€€€€€€Ñ½±•‘‘	ÕÑÑ½¸ ¤ì4(€€€€€€€Í¡½Ý9½Ñ¥™¥…Ñ¥½¸ ]½É…‘‘•ÍÕ•ÍÍ™Õ±±äœ¤ì4(€€€ô…Ñ €¡”¤ì(€€€€€€€½¹Í½±”¹•ÉÉ½È ‘¹•ÜÝ½É™…¥±•èœ°”¤ì(€€€€€€€Í¡½Ý9½Ñ¥™¥…Ñ¥½¸¡”ü¹µ•ÍÍ…”ñð€…¥±•Ñ¼…‘Ý½Éœ¤ì(€€€ô4)ô4(4)¥˜€¡…‘‘]½É‘%¹ÁÕÐ¤ì4(€€€…‘‘]½É‘%¹ÁÕÐ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ¥¹ÁÕÐœ°Ñ½±•‘‘	ÕÑÑ½¸¤ì4(€€€…‘‘]½É‘%¹ÁÕÐ¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ­•å‘½Ý¸œ°€¡”¤€ôøì4(€€€€€€€¥˜€¡”¹­•ä€ôôô€¹Ñ•Èœ€˜˜€……‘‘]½É‘	Ñ¸¹‘¥Í…‰±•¤ì4(€€€€€€€€€€€…‘‘9•Ý]½É‘É½µA½ÁÕÀ ¤ì4(€€€€€€€ô4(€€€ô¤ì4)ô4)¥˜€¡…‘‘]½É‘	Ñ¸¤ì4(€€€…‘‘]½É‘	Ñ¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ±¥¬œ°…‘‘9•Ý]½É‘É½µA½ÁÕÀ¤ì4)ô4(4(¼¼UÁÉ…‘”‰ÕÑÑ½¸•Ù•¹Ð±¥ÍÑ•¹•È4)¥˜€¡ÕÁÉ…‘•	Ñ¸¤ì4(€€€ÕÁÉ…‘•	Ñ¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ±¥¬œ°€ ¤€ôøì4(€€€€€€€€¼¼=Á•¸ÁÉ¥¥¹œÁ…”4(€€€€€€€¡É½µ”¹Ñ…‰Ì¹É•…Ñ”¡ìÕÉ°è€¡ÑÑÁÌè¼½±…éå±•à¹½´¼Œ½ÁÉ¥¥¹œœô¤ì4(€€€ô¤ì4)ô4(4(¼¼€´´´´]½É‘•Ñ…¥±ÌMAÉ•¹‘•É¥¹œ€´´´´4)™Õ¹Ñ¥½¸Í¡½ÝM•Ñ¥½¸¡Í•Ñ¥½¹%¤ì4(€€€½¹ÍÐ½¹Ñ•¹ÑÌ€ô‘½Õµ•¹Ð¹ÅÕ•ÉåM•±•Ñ½É±° œ¹Ñ…ˆµ½¹Ñ•¹Ðœ¤ì4(€€€½¹Ñ•¹ÑÌ¹™½É… ¡Œ€ôøŒ¹ÍÑå±”¹‘¥ÍÁ±…ä€ô€¹½¹”œ¤ì4(€€€½¹ÍÐÑ…É•Ð€ô‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å%¡Í•Ñ¥½¹%¤ì4(€€€¥˜€¡Ñ…É•Ð¤Ñ…É•Ð¹ÍÑå±”¹‘¥ÍÁ±…ä€ô€™±•àœì4)ô4(4)…Íå¹Œ™Õ¹Ñ¥½¸É•¹‘•É]½É‘•Ñ…¥±Í	å%¡Ý½É‘%¤ì4(€€€ÑÉäì4(€€€€€€€½¹ÍÐìÝ½É‘Ì€ômtô€ô…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÝ½É‘Ìt¤ì4(€€€€€€€½¹ÍÐ™½Õ¹€ôÝ½É‘Ì¹™¥¹¡Ü€ôø9Õµ‰•È¡Ü¹¥¤€ôôô9Õµ‰•È¡Ý½É‘%¤¤ì4(€€€€€€€¥˜€ …™½Õ¹¤É•ÑÕÉ¸ì4(4(€€€€€€€½¹ÍÐÑ¥Ñ±•°€ô‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‘•Ñ…¥±ÍQ¥Ñ±”œ¤ì4(€€€€€€€½¹ÍÐÑÉ°€ô‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‘•Ñ…¥±ÍQÉ…¹Í±…Ñ¥½¸œ¤ì4(€€€€€€€½¹ÍÐÍå¹1¥ÍÐ€ô‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‘•Ñ…¥±ÍMå¹½¹åµÌœ¤ì4(€€€€€€€½¹ÍÐÍå¹µÁÑä€ô‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‘•Ñ…¥±ÍMå¹½¹åµÍµÁÑäœ¤ì4(€€€€€€€½¹ÍÐ•á1¥ÍÐ€ô‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‘•Ñ…¥±Íá…µÁ±•Ìœ¤ì4(4(€€€€€€€Ñ¥Ñ±•°¹Ñ•áÑ½¹Ñ•¹Ð€ô™½Õ¹¹Ý½Éñð€]½Éœì4(€€€€€€€ÑÉ°¹Ñ•áÑ½¹Ñ•¹Ð€ô™½Õ¹¹ÑÉ…¹Í±…Ñ¥½¸ñð€œœì4(4(€€€€€€€€¼¼Må¹½¹åµÌ4(€€€€€€€Íå¹1¥ÍÐ¹É•Á±…•¡¥±‘É•¸ ¤ì(€€€€€€€½¹ÍÐÍå¹½¹åµÌ€ôÉÉ…ä¹¥ÍÉÉ…ä¡™½Õ¹¹Íå¹½¹åµÌ¤€ü™½Õ¹¹Íå¹½¹åµÌ€èmtì4(€€€€€€€¥˜€¡Íå¹½¹åµÌ¹±•¹Ñ €ôôô€À¤ì4(€€€€€€€€€€€Íå¹µÁÑä¹ÍÑå±”¹‘¥ÍÁ±…ä€ô€‰±½¬œì4(€€€€€€€ô•±Í”ì4(€€€€€€€€€€€Íå¹µÁÑä¹ÍÑå±”¹‘¥ÍÁ±…ä€ô€¹½¹”œì4(€€€€€€€€€€€Íå¹½¹åµÌ¹™½É… ¡Ì€ôøì4(€€€€€€€€€€€€€€€½¹ÍÐ±¤€ô‘½Õµ•¹Ð¹É•…Ñ•±•µ•¹Ð ±¤œ¤ì4(€€€€€€€€€€€€€€€±¤¹±…ÍÍ9…µ”€ô€Íå¹½¹å´µ¥Ñ•´œì4(€€€€€€€€€€€€€€€±¤¹Ñ•áÑ½¹Ñ•¹Ð€ô€‘íÌü¹Í½ÕÉ”ñð€œôƒŠL€‘íÌü¹ÑÉ…¹Í±…Ñ¥½¸ñð€œõ€ì4(€€€€€€€€€€€€€€€Íå¹1¥ÍÐ¹…ÁÁ•¹‘¡¥±¡±¤¤ì4(€€€€€€€€€€€ô¤ì4(€€€€€€€ô4(4(€€€€€€€€¼¼á…µÁ±•ÌèÁÉ•™•ÈÍÑ½É•ì¥˜•µÁÑä°™•Ñ ™É½´‰…­•¹½¹”…¹Á•ÉÍ¥ÍÐ4(€€€€€€€•á1¥ÍÐ¹É•Á±…•¡¥±‘É•¸ ¤ì(€€€€€€€±•Ð•á…µÁ±•Ì€ôÉÉ…ä¹¥ÍÉÉ…ä¡™½Õ¹¹•á…µÁ±•Ì¤€˜˜™½Õ¹¹•á…µÁ±•Ì¹±•¹Ñ €ø€À€ü™½Õ¹¹•á…µÁ±•Ì€èmtì4(4(€€€€€€€¥˜€¡•á…µÁ±•Ì¹±•¹Ñ €ôôô€À¤ì4(€€€€€€€€€€€ÑÉäì4(€€€€€€€€€€€€€€€½¹ÍÐìÑÉ…¹Í±…Ñ•Q¼ô€ô…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹•Ð¡lÑÉ…¹Í±…Ñ•Q¼t¤ì4(€€€€€€€€€€€€€€€½¹ÍÐÑ…É•Ñ1…¹Õ…”€ô€¡ÑÉ…¹Í±…Ñ•Q¼ñð€Õ¬œ¤ì4(€€€€€€€€€€€€€€€½¹ÍÐÉ•ÍÀ€ô…Ý…¥Ð¡É½µ”¹ÉÕ¹Ñ¥µ”¹Í•¹‘5•ÍÍ…”¡ì4(€€€€€€€€€€€€€€€€€€€…Ñ¥½¸è€ÑÉ…¹Í±…Ñ•]½Éœ°4(€€€€€€€€€€€€€€€€€€€Ý½Éè™½Õ¹¹Ý½É°4(€€€€€€€€€€€€€€€€€€€Ñ…É•Ñ1…¹Õ…”4(€€€€€€€€€€€€€€€ô¤ì4(€€€€€€€€€€€€€€€¥˜€¡É•ÍÀ€˜˜É•ÍÀ¹ÍÕ•ÍÌ€˜˜É•ÍÀ¹É•ÍÕ±Ð¤ì4(€€€€€€€€€€€€€€€€€€€½¹ÍÐÑÈ€ôÉ•ÍÀ¹É•ÍÕ±Ðì4(€€€€€€€€€€€€€€€€€€€½¹ÍÐ¹•Ýá…µÁ±•Ì€ôÉÉ…ä¹¥ÍÉÉ…ä¡ÑÈ¹•á…µÁ±•Ì¤€üÑÈ¹•á…µÁ±•Ì¹Í±¥” À°€Ô¤€èmtì4(€€€€€€€€€€€€€€€€€€€½¹ÍÐ¹•ÝMå¹½¹åµÌ€ôÉÉ…ä¹¥ÍÉÉ…ä¡ÑÈ¹Íå¹½¹åµÌ¤€üÑÈ¹Íå¹½¹åµÌ¹Í±¥” À°€à¤€èmtì4(€€€€€€€€€€€€€€€€€€€¥˜€¡¹•Ýá…µÁ±•Ì¹±•¹Ñ €ø€Àñð¹•ÝMå¹½¹åµÌ¹±•¹Ñ €ø€À¤ì4(€€€€€€€€€€€€€€€€€€€€€€€€¼¼A•ÉÍ¥ÍÐ‰…¬Ñ¼ÍÑ½É…”™½ÈÑ¡¥ÌÝ½É4(€€€€€€€€€€€€€€€€€€€€€€€½¹ÍÐÕÁ‘…Ñ•€ô€¡Ý½É‘Ìñðmt¤¹µ…À¡Ü€ôøì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€¥˜€¡9Õµ‰•È¡Ü¹¥¤€ôôô9Õµ‰•È¡Ý½É‘%¤¤ì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸ì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¸¸¹Ü°4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€•á…µÁ±•Ìè¹•Ýá…µÁ±•Ì¹±•¹Ñ €ø€À€ü¹•Ýá…µÁ±•Ì€èÜ¹•á…µÁ±•Ì°4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Íå¹½¹åµÌè¹•ÝMå¹½¹åµÌ¹±•¹Ñ €ø€À€ü¹•ÝMå¹½¹åµÌ€èÜ¹Íå¹½¹åµÌ°4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ôì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸Üì4(€€€€€€€€€€€€€€€€€€€€€€€ô¤ì4(€€€€€€€€€€€€€€€€€€€€€€€…Ý…¥Ð¡É½µ”¹ÍÑ½É…”¹±½…°¹Í•Ð¡ìÝ½É‘ÌèÕÁ‘…Ñ•ô¤ì4(€€€€€€€€€€€€€€€€€€€€€€€•á…µÁ±•Ì€ô¹•Ýá…µÁ±•Ì¹±•¹Ñ €ø€À€ü¹•Ýá…µÁ±•Ì€è•á…µÁ±•Ìì4(4(€€€€€€€€€€€€€€€€€€€€€€€€¼¼%˜Íå¹½¹åµÌÝ•É”•µÁÑä‰•™½É”°É•¹‘•ÈÑ¡•´¹½Ü4(€€€€€€€€€€€€€€€€€€€€€€€¥˜€¡Íå¹½¹åµÌ¹±•¹Ñ €ôôô€À€˜˜¹•ÝMå¹½¹åµÌ¹±•¹Ñ €ø€À¤ì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€Íå¹µÁÑä¹ÍÑå±”¹‘¥ÍÁ±…ä€ô€¹½¹”œì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€¹•ÝMå¹½¹åµÌ¹™½É… ¡Ì€ôøì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹ÍÐ±¤€ô‘½Õµ•¹Ð¹É•…Ñ•±•µ•¹Ð ±¤œ¤ì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±¤¹±…ÍÍ9…µ”€ô€Íå¹½¹å´µ¥Ñ•´œì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±¤¹Ñ•áÑ½¹Ñ•¹Ð€ô€‘íÌü¹Í½ÕÉ”ñð€œôƒŠL€‘íÌü¹ÑÉ…¹Í±…Ñ¥½¸ñð€œõ€ì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Íå¹1¥ÍÐ¹…ÁÁ•¹‘¡¥±¡±¤¤ì4(€€€€€€€€€€€€€€€€€€€€€€€€€€€ô¤ì4(€€€€€€€€€€€€€€€€€€€€€€€ô4(€€€€€€€€€€€€€€€€€€€ô4(€€€€€€€€€€€€€€€ô4(€€€€€€€€€€€ô…Ñ €¡”¤ì4(€€€€€€€€€€€€€€€½¹Í½±”¹Ý…É¸ =¸µ‘•µ…¹•á…µÁ±•Ì™•Ñ ™…¥±•èœ°”ü¹µ•ÍÍ…”ñð”¤ì4(€€€€€€€€€€€ô4(€€€€€€€ô4(4(€€€€€€€€¼¼¥¹…°É•¹‘•È™½È•á…µÁ±•Ì€¡™…±±‰…¬Ñ¼±½…°Á±…•¡½±‘•ÉÌ¥˜ÍÑ¥±°•µÁÑä¤4(€€€€€€€½¹ÍÐÑ½I•¹‘•È€ô•á…µÁ±•Ì¹±•¹Ñ €ø€À4(€€€€€€€€€€€€ü•á…µÁ±•Ì4(€€€€€€€€€€€€èl4(€€€€€€€€€€€€€€€Q¡¥Ì¥Ì„Í…µÁ±”Í•¹Ñ•¹”ÕÍ¥¹œ€ˆ‘í™½Õ¹¹Ý½É‘ôˆ¥¸½¹Ñ•áÐÑ¼‘•µ½¹ÍÑÉ…Ñ”ÕÍ…”…¹µ•…¹¥¹œ¹€°4(€€€€€€€€€€€€€€€¹½Ñ¡•È•á…µÁ±”™½È€ˆ‘í™½Õ¹¹Ý½É‘ôˆÑ¡…ÐÍ¡½ÝÌ¡½Ü¥Ðµ…ä…ÁÁ•…È¥¸„Á…É…É…Á ¹€°4(€€€€€€€€€€€€€€€Ñ¡¥ÉÁ±…•¡½±‘•ÈÍ•¹Ñ•¹”Ý¥Ñ €ˆ‘í™½Õ¹¹Ý½É‘ôˆ™½È™ÕÑÕÉ”A$µ•¹•É…Ñ••á…µÁ±•Ì¹€4(€€€€€€€€€€€€€tì4(€€€€€€€Ñ½I•¹‘•È¹™½É… ¡Ð€ôøì4(€€€€€€€€€€€½¹ÍÐ±¤€ô‘½Õµ•¹Ð¹É•…Ñ•±•µ•¹Ð ±¤œ¤ì4(€€€€€€€€€€€±¤¹Ñ•áÑ½¹Ñ•¹Ð€ôÐì4(€€€€€€€€€€€•á1¥ÍÐ¹…ÁÁ•¹‘¡¥±¡±¤¤ì4(€€€€€€€ô¤ì4(4(€€€€€€€Í¡½ÝM•Ñ¥½¸ Ý½É‘•Ñ…¥±Í½¹Ñ•¹Ðœ¤ì4(4(€€€€€€€½¹ÍÐ‰…­	Ñ¸€ô‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰…­Q½¥Ñ¥½¹…Éå	Ñ¸œ¤ì4(€€€€€€€¥˜€¡‰…­	Ñ¸€˜˜€…‰…­	Ñ¸¹}¡…¹‘±•ÉÑÑ…¡•¤ì4(€€€€€€€€€€€‰…­	Ñ¸¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ±¥¬œ°€ ¤€ôøÍ¡½ÝQ…ˆ ‘¥Ñ¥½¹…ÉåQ…ˆœ¤¤ì4(€€€€€€€€€€€‰…­	Ñ¸¹}¡…¹‘±•ÉÑÑ…¡•€ôÑÉÕ”ì4(€€€€€€€ô4(€€€ô…Ñ €¡”¤ì4(€€€€€€€½¹Í½±”¹•ÉÉ½È É•¹‘•É]½É‘•Ñ…¥±Í	å%™…¥±•èœ°”¤ì4(€€€ô4)ô4(4(¼¼¹½˜Á½ÁÕÀ¹©Ìµ…¥¸½‘”4)ô¤ ¤ì€¼¼¹½˜%%ÝÉ…ÁÁ•È4
+        const utterance = new SpeechSynthesisUtterance(word.word);
+        // TODO create onbording screen + add this to options to select languages and use it here
+        utterance.lang = 'en-US';
+        speechSynthesis.speak(utterance);
+    }
+}
+
+function deleteWordFromPopupDictionary(changedWordId) {
+    const safeWordId = Number(changedWordId);
+    if (!Number.isSafeInteger(safeWordId)) {
+        return;
+    }
+    const changedListItem = document.querySelector(
+        `#wordList > li[data-word-id="${safeWordId}"]`
+    );
+    changedListItem?.remove();
+}
+
+async function deleteWordFromStorage(wordId) {
+    const response = await chrome.runtime.sendMessage({
+        action: "deleteWord",
+        wordId: Number(wordId)
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to delete the word.");
+    }
+    await displayDictionary();
+}
+
+async function persistWord(word) {
+    const response = await chrome.runtime.sendMessage({
+        action: "persistWord",
+        word
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to update the word.");
+    }
+    await displayDictionary();
+    return response.word;
+}
+
+// Settings
+
+async function getExcludedSites() {
+    const result = await chrome.storage.local.get({
+        excludedSites: [],
+    });
+
+    return result.excludedSites;
+}
+
+async function getCurrentSite() {
+    const result = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+    });
+
+    return result[0].url;
+}
+
+function getSiteHostname(site) {
+    try {
+        return new URL(site).hostname.toLocaleLowerCase();
+    } catch {
+        return "";
+    }
+}
+
+function hostnameMatches(hostname, excludedHostname) {
+    const normalizedHostname = String(hostname || "").trim().toLocaleLowerCase();
+    const normalizedExcluded = String(excludedHostname || "")
+        .trim()
+        .replace(/^\.+|\.+$/g, "")
+        .toLocaleLowerCase();
+    return Boolean(normalizedHostname && normalizedExcluded)
+        && (
+            normalizedHostname === normalizedExcluded
+            || normalizedHostname.endsWith(`.${normalizedExcluded}`)
+        );
+}
+
+function checkIfCurrentSiteEnabled() {
+    const siteHostname = getSiteHostname(currentSite);
+    return !excludedSites.some((site) => {
+        return hostnameMatches(siteHostname, site);
+    });
+}
+
+function generateExclusionListItem(text) {
+    const listItem = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = String(text || "");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "icon-btn icon-btn-small";
+    button.setAttribute("aria-label", `Remove ${label.textContent} from exclusions`);
+    button.textContent = "Ã—";
+    listItem.append(label, button);
+    return listItem;
+}
+
+function displayExclusionList(list) {
+    exclusionList.replaceChildren();
+    list.forEach((site) => {
+        const listItem = generateExclusionListItem(site);
+        exclusionList.appendChild(listItem);
+    });
+}
+
+async function toggleExtensionState() {
+    const currentSiteHostname = getSiteHostname(currentSite);
+    const result = await chrome.storage.local.get({
+        excludedSites: [],
+    });
+    const excludedSites = result.excludedSites;
+
+    let updatedList;
+
+    if (enableExtensionCheckbox.checked) {
+        updatedList = excludedSites.filter((site) => site !== currentSiteHostname);
+
+        let currentSiteItem;
+
+        exclusionList.childNodes.forEach((node) => {
+            if (!(node.textContent.trim() === currentSiteHostname)) return;
+            currentSiteItem = node;
+        });
+
+        currentSiteItem.remove();
+        isEnabled = true;
+    } else {
+        updatedList = [...excludedSites, currentSiteHostname];
+
+        const listItem = generateExclusionListItem(currentSiteHostname);
+        exclusionList.prepend(listItem);
+        isEnabled = false;
+    }
+
+    await chrome.storage.local.set({excludedSites: updatedList});
+}
+
+async function addSiteToExclusion() {
+    const siteInputValue = siteInput.value.trim();
+    let site;
+
+    try {
+        const urlObject = new URL(siteInputValue);
+        site = urlObject.hostname;
+    } catch (e) {
+        if (e instanceof TypeError) {
+            site = siteInputValue;
+        }
+    }
+
+    if (site) {
+        const result = await chrome.storage.local.get({
+            excludedSites: [],
+        });
+
+        const updatedList = [...result.excludedSites, site];
+        await chrome.storage.local.set({excludedSites: updatedList});
+
+        const listItem = generateExclusionListItem(site);
+        exclusionList.prepend(listItem);
+        siteInput.value = "";
+
+        const currentSiteHostname = getSiteHostname(currentSite);
+
+        isEnabled = isEnabled ? site !== currentSiteHostname : false;
+        enableExtensionCheckbox.checked = isEnabled;
+    }
+}
+
+async function removeSiteFromExclusion(e) {
+    const button = e.target.closest("button");
+
+    console.log(button);
+
+    if (button && button.parentElement.tagName === "LI") {
+        const siteToRemove = button.parentElement.textContent.trim();
+
+        const result = await chrome.storage.local.get({
+            excludedSites: [],
+        });
+
+        const updatedList = result.excludedSites.filter((site) => site !== siteToRemove);
+        await chrome.storage.local.set({excludedSites: updatedList});
+        button.parentElement.remove();
+
+        const currentSiteHostname = getSiteHostname(currentSite);
+
+        isEnabled = siteToRemove === currentSiteHostname || isEnabled;
+        enableExtensionCheckbox.checked = isEnabled;
+    }
+}
+
+function showNotification(message) {
+    messageContainer.innerText = message;
+    notificationContainer.classList.add("notification-shown");
+
+    setTimeout(closeNotification, 5000);
+}
+
+function closeNotification() {
+    if (!notificationContainer.classList.contains("notification-shown")) return;
+
+    notificationContainer.classList.remove("notification-shown");
+}
+
+function toggleButton(button, input) {
+    button.disabled = input.value.trim() === "";
+    button.style.pointerEvents = button.disabled ? "none" : "auto";
+}
+
+async function updateTelegram() {
+    const value = telegramName.value.trim();
+    telegramButton.disabled = true;
+    try {
+        const response = await chrome.runtime.sendMessage({
+            action: "updateTelegram",
+            telegramName: value
+        });
+        if (!response?.success) {
+            throw new Error(
+                response?.error?.message
+                || "There was an error updating your Telegram username."
+            );
+        }
+
+        telegramName.value = "";
+        if (userTelegramContainer) {
+            userTelegramContainer.textContent = `@${response.telegramName}`;
+        }
+        showNotification("Telegram username updated.");
+    } catch (error) {
+        showNotification(error?.message || "Unable to update Telegram.");
+    } finally {
+        toggleButton(telegramButton, telegramName);
+    }
+}
+
+function toggleVisibility(element) {
+    element.style.display = element.style.display === "none" ? "block" : "none";
+}
+
+// Event listeners and initialization
+
+document.addEventListener("DOMContentLoaded", async () => {
+        // Tab navigation
+        const tabsContainer = document.getElementById("tabs");
+        if (tabsContainer) {
+            tabsContainer.addEventListener("click", (e) => {
+                const tab = e.target.closest(".tab-action");
+                if (!tab) return;
+                showTab(tab.id);
+                if (tab.id === 'dictionaryTab') {
+                    displayDictionary().catch(console.error);
+                }
+            });
+        }
+
+        // Settings button
+        if (settingsButton) {
+            settingsButton.addEventListener("click", () => {
+                chrome.runtime.openOptionsPage();
+            });
+        }
+
+        // Google Sign In button
+        if (googleSignInBtn) {
+            googleSignInBtn.addEventListener("click", async () => {
+                try {
+                    googleSignInBtn.disabled = true;
+                    googleSignInBtn.textContent = "Signing in...";
+
+                    const result = await window.firebaseAuth.signInWithGoogle();
+                    console.log('Sign in successful:', result);
+
+                    // After login, if onboarding not completed, open it immediately (once)
+                    const state = await new Promise(resolve => {
+                        chrome.storage.local.get({ onboardingCompleted: false, onboardingShownAfterLogin: false }, resolve);
+                    });
+                    if (!state.onboardingCompleted && !state.onboardingShownAfterLogin) {
+                        await chrome.storage.local.set({ onboardingShownAfterLogin: true });
+                        chrome.runtime.sendMessage({ action: 'needOnboarding' });
+                        window.close();
+                        return;
+                    }
+
+                    // Otherwise, show main content
+                    showMainContent();
+
+                    // Update user info display
+                    await getUserInfo();
+
+                } catch (error) {
+                    console.error('Sign in failed:', error);
+                    const readableMessage = window.firebaseAuth?.getReadableAuthError
+                        ? window.firebaseAuth.getReadableAuthError(error)
+                        : 'Google sign-in failed. Please try again.';
+                    showNotification(readableMessage);
+
+                    googleSignInBtn.disabled = false;
+                    googleSignInBtn.textContent = "Sign in with Google";
+                }
+            });
+        }
+        // Logout button
+        if (logoutButton) {
+            logoutButton.addEventListener("click", async () => {
+                const localAuthKeys = [
+                    "token",
+                    "words",
+                    "auth_token",
+                    "firebase_id_token",
+                    "firebase_refresh_token",
+                    "firebase_token_exp",
+                    "user_info",
+                    "userInfo"
+                ];
+                try {
+                    // Sign out from auth system
+                    if (window.firebaseAuth && window.firebaseAuth.signOut) {
+                        await window.firebaseAuth.signOut();
+                    }
+
+                    // Keep this idempotent in case an auth implementation leaves
+                    // one of the local credential aliases behind.
+                    await chrome.storage.local.remove(localAuthKeys);
+
+                    showLoginPage();
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // A failed provider logout must not leave reusable Firebase
+                    // credentials or identity data in extension storage.
+                    await chrome.storage.local.remove(localAuthKeys);
+                    showLoginPage();
+                }
+            });
+        }
+
+    if (wordCategoryList) {
+        wordCategoryList.addEventListener("click", (e) => {
+            const category = e.target.closest(".word-category-btn");
+
+            if (!category) return;
+
+            // Determine which filter to apply based on the clicked category
+            let targetFilter = 'all';
+            if (category.id === 'newWordsList') {
+                targetFilter = 'all';
+            } else if (category.id === 'savedWordsList') {
+                targetFilter = 'today';
+            } else if (category.id === 'learnedWordsList') {
+                targetFilter = 'learned';
+            }
+
+            // Set the filter and update the UI
+            currentFilter = targetFilter;
+            updateActiveFilterTab(currentFilter);
+            createWordsList(allWords, currentFilter);
+
+            showTab("dictionaryTab");
+        });
+    }
+
+    document.addEventListener("click", async (e) => {
+        const button = e.target.closest("button");
+
+        if (!button) return;
+
+        // Handle filter tabs
+        if (button.classList.contains('filter-tab')) {
+            currentFilter = button.dataset.filter;
+            updateActiveFilterTab(currentFilter);
+            createWordsList(allWords, currentFilter);
+            return;
+        }
+
+        // Handle word actions
+        const action = button.dataset.btnFunction;
+        if (!action) return;
+
+        try {
+            if (action === "showSynonym") {
+                const wordId = Number(button.dataset.wordId);
+                renderWordDetailsById(wordId);
+            } else if (action === "playPronunciation") {
+                playWordPronunciation(button.dataset.wordId);
+            } else if (action === "markAsLearned") {
+                await markWordAsLearned(button.dataset.wordId);
+            } else if (action === "markAsUnlearned") {
+                await markWordAsUnlearned(button.dataset.wordId);
+            } else if (action === "deleteWord") {
+                await deleteWordFromStorage(button.dataset.wordId);
+            }
+        } catch (error) {
+            console.error(`Word action ${action} failed:`, error);
+            showNotification(error?.message || "The word action failed.");
+        }
+    });
+
+    enableExtensionCheckbox.addEventListener("change", toggleExtensionState);
+
+    siteInput.addEventListener("input", () => toggleButton(addSiteButton, siteInput));
+    addSiteButton.addEventListener("click", addSiteToExclusion);
+
+    exclusionList.addEventListener("click", async (e) => removeSiteFromExclusion(e));
+
+    // Add defensive check for Chrome API availability
+    if (chrome.runtime && chrome.runtime.onMessage && chrome.runtime.onMessage.addListener) {
+        chrome.runtime.onMessage.addListener((request) => {
+        if (request.action === "wordsChanged") {
+            console.log("words were changed: ", request.newValue);
+
+            const op = request.newValue.operation;
+            if (op === "getAllWords") {
+                displayDictionary().catch(console.error);
+            } else if (op === "delete" || op === "deleteWord") {
+                deleteWordFromPopupDictionary(request.newValue.wordId);
+                // refresh counters after delete
+                displayDictionary().catch(console.error);
+            } else if (op === "add" || op === "update" || op === "reload") {
+                // simple refresh to keep list and counters in sync
+                displayDictionary().catch(console.error);
+            }
+        }
+        });
+    }
+
+    closeNotificationBtn.addEventListener("click", closeNotification);
+
+    changeTelegramBtn.addEventListener("click", () => toggleVisibility(telegramContainer));
+    openEnglishLevelBtn.addEventListener("click", () => toggleVisibility(englishLevelContainer));
+    openLearningGoalsBtnBtn.addEventListener("click", () => toggleVisibility(learningGoalsContainer));
+
+    telegramName.addEventListener("input", () => toggleButton(telegramButton, telegramName));
+    telegramButton.addEventListener("click", () => {
+        updateTelegram().catch(console.error);
+    });
+
+    //token verification
+    // chrome.storage.local.get(["token"], (result) => {
+    //     console.log(result);
+    //     if (isTokenValid(result.token)) {
+    //         // Token exists, now validate it
+    //         console.log("The token is valid");
+    //         showMainContent();
+    //     } else {
+    //         console.log("The token is invalid");
+    //         showLoginPage();
+    //     }
+    // });
+
+    // Authenticate first, then gate onboarding for authenticated users
+    const ensureAuthenticated = async () => {
+        const currentUser = await getUserInfo();
+        if (currentUser) return true;
+        return new Promise((resolve) => {
+            chrome.storage.local.get(["token"], (result) => {
+                if (isTokenValid(result.token)) {
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
+            });
+        });
+    };
+
+    const isAuthed = await ensureAuthenticated();
+    if (!isAuthed) {
+        // Not logged in: show login page, do NOT open onboarding yet
+        showLoginPage();
+        return;
+    }
+
+    // Logged in: check if onboarding is completed; if not, only show once after login
+    const checkOnboardingCompletion = async () => {
+        const state = await new Promise(resolve => {
+            chrome.storage.local.get({
+                onboardingCompleted: false,
+                onboardingShownAfterLogin: false
+            }, resolve);
+        });
+
+        if (state.onboardingCompleted) return true;
+
+        // Show onboarding only once after login; don't nag next time
+        if (!state.onboardingShownAfterLogin) {
+            await chrome.storage.local.set({ onboardingShownAfterLogin: true });
+            chrome.runtime.sendMessage({ action: 'needOnboarding' });
+            window.close();
+            return false;
+        }
+
+        // Already shown once; skip redirect and continue to main content
+        return true;
+    };
+
+    const onboardingCompleted = await checkOnboardingCompletion();
+    if (!onboardingCompleted) return;
+
+    // Authenticated and onboarding completed: show main content
+    showMainContent();
+    
+    // Initialize extension state after authentication
+    excludedSites = await getExcludedSites();
+    currentSite = await getCurrentSite();
+    isEnabled = checkIfCurrentSiteEnabled();
+    enableExtensionCheckbox.checked = isEnabled;
+    showTab("homeTab");
+    displayExclusionList(excludedSites);
+    await displayDictionary();
+    
+    // Initialize subscription display
+    await updateSubscriptionDisplay();
+});
+
+// Add New Word from Home
+function toggleAddButton() {
+    if (!addWordBtn || !addWordInput) return;
+    const hasText = addWordInput.value.trim().length > 0;
+    addWordBtn.disabled = !hasText;
+}
+
+async function addNewWordFromPopup() {
+    try {
+        if (!addWordInput) return;
+        const raw = addWordInput.value.trim();
+        if (!raw) return;
+        const wordLower = raw.toLowerCase();
+
+        // Check subscription limits before adding
+        if (window.subscriptionManager) {
+            const limitCheck = await window.subscriptionManager.canAddWord();
+            if (!limitCheck.canAdd) {
+                if (limitCheck.reason === 'daily_limit_reached') {
+                    showNotification('Daily word limit reached. Upgrade to Premium for unlimited words.');
+                    return;
+                }
+            }
+        }
+
+        // Get target language
+        const { translateTo } = await chrome.storage.local.get(['translateTo']);
+        const targetLanguage = (translateTo || 'uk');
+
+        // Ask background to translate (also returns synonyms/examples)
+        const resp = await chrome.runtime.sendMessage({
+            action: 'translateWord',
+            word: wordLower,
+            targetLanguage
+        });
+
+        if (!resp?.success || !resp?.result?.translation) {
+            throw new Error(resp?.error?.message || "Translation failed. Please try again.");
+        }
+        const tr = resp.result;
+        const translation = String(tr.translation).trim();
+        const synonyms = Array.isArray(tr.synonyms) ? tr.synonyms : [];
+        const examples = Array.isArray(tr.examples) ? tr.examples : [];
+
+        // Load current words and ensure unique id
+        const { words = [] } = await chrome.storage.local.get(['words']);
+        let newId = Date.now();
+        const ids = new Set((words || []).map(w => Number(w.id)));
+        while (ids.has(newId)) newId += 1;
+
+        const newWord = {
+            id: newId,
+            word: wordLower,
+            translation,
+            dateAdded: Date.now(),
+            status: 'new',
+            learned: false,
+            encounterCount: 0,
+            synonyms,
+            examples
+        };
+
+        await persistWord(newWord);
+        await updateSubscriptionDisplay(); // Update subscription display after adding word
+
+        addWordInput.value = '';
+        toggleAddButton();
+        showNotification('Word added successfully');
+    } catch (e) {
+        console.error('Add new word failed:', e);
+        showNotification(e?.message || 'Failed to add word');
+    }
+}
+
+if (addWordInput) {
+    addWordInput.addEventListener('input', toggleAddButton);
+    addWordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !addWordBtn.disabled) {
+            addNewWordFromPopup();
+        }
+    });
+}
+if (addWordBtn) {
+    addWordBtn.addEventListener('click', addNewWordFromPopup);
+}
+
+// Upgrade button event listener
+if (upgradeBtn) {
+    upgradeBtn.addEventListener('click', () => {
+        // Open pricing page
+        chrome.tabs.create({ url: 'https://lazylex.com/#/pricing' });
+    });
+}
+
+// ---- Word details SPA rendering ----
+function showSection(sectionId) {
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(c => c.style.display = 'none');
+    const target = document.getElementById(sectionId);
+    if (target) target.style.display = 'flex';
+}
+
+async function renderWordDetailsById(wordId) {
+    try {
+        const { words = [] } = await chrome.storage.local.get(['words']);
+        const found = words.find(w => Number(w.id) === Number(wordId));
+        if (!found) return;
+
+        const titleEl = document.getElementById('detailsTitle');
+        const trEl = document.getElementById('detailsTranslation');
+        const synList = document.getElementById('detailsSynonyms');
+        const synEmpty = document.getElementById('detailsSynonymsEmpty');
+        const exList = document.getElementById('detailsExamples');
+
+        titleEl.textContent = found.word || 'Word';
+        trEl.textContent = found.translation || '';
+
+        // Synonyms
+        synList.replaceChildren();
+        const synonyms = Array.isArray(found.synonyms) ? found.synonyms : [];
+        if (synonyms.length === 0) {
+            synEmpty.style.display = 'block';
+        } else {
+            synEmpty.style.display = 'none';
+            synonyms.forEach(s => {
+                const li = document.createElement('li');
+                li.className = 'synonym-item';
+                li.textContent = `${s?.source || ''} â€“ ${s?.translation || ''}`;
+                synList.appendChild(li);
+            });
+        }
+
+        // Examples: prefer stored; if empty, fetch from backend once and persist
+        exList.replaceChildren();
+        let examples = Array.isArray(found.examples) && found.examples.length > 0 ? found.examples : [];
+
+        if (examples.length === 0) {
+            try {
+                const { translateTo } = await chrome.storage.local.get(['translateTo']);
+                const targetLanguage = (translateTo || 'uk');
+                const resp = await chrome.runtime.sendMessage({
+                    action: 'translateWord',
+                    word: found.word,
+                    targetLanguage
+                });
+                if (resp && resp.success && resp.result) {
+                    const tr = resp.result;
+                    const newExamples = Array.isArray(tr.examples) ? tr.examples.slice(0, 5) : [];
+                    const newSynonyms = Array.isArray(tr.synonyms) ? tr.synonyms.slice(0, 8) : [];
+                    if (newExamples.length > 0 || newSynonyms.length > 0) {
+                        // Persist back to storage for this word
+                        const updated = (words || []).map(w => {
+                            if (Number(w.id) === Number(wordId)) {
+                                return {
+                                    ...w,
+                                    examples: newExamples.length > 0 ? newExamples : w.examples,
+                                    synonyms: newSynonyms.length > 0 ? newSynonyms : w.synonyms,
+                                };
+                            }
+                            return w;
+                        });
+                        await chrome.storage.local.set({ words: updated });
+                        examples = newExamples.length > 0 ? newExamples : examples;
+
+                        // If synonyms were empty before, render them now
+                        if (synonyms.length === 0 && newSynonyms.length > 0) {
+                            synEmpty.style.display = 'none';
+                            newSynonyms.forEach(s => {
+                                const li = document.createElement('li');
+                                li.className = 'synonym-item';
+                                li.textContent = `${s?.source || ''} â€“ ${s?.translation || ''}`;
+                                synList.appendChild(li);
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('On-demand examples fetch failed:', e?.message || e);
+            }
+        }
+
+        // Final render for examples (fallback to local placeholders if still empty)
+        const toRender = examples.length > 0
+            ? examples
+            : [
+                `This is a sample sentence using "${found.word}" in context to demonstrate usage and meaning.`,
+                `Another example for "${found.word}" that shows how it may appear in a paragraph.`,
+                `A third placeholder sentence with "${found.word}" for future API-generated examples.`
+              ];
+        toRender.forEach(t => {
+            const li = document.createElement('li');
+            li.textContent = t;
+            exList.appendChild(li);
+        });
+
+        showSection('wordDetailsContent');
+
+        const backBtn = document.getElementById('backToDictionaryBtn');
+        if (backBtn && !backBtn._handlerAttached) {
+            backBtn.addEventListener('click', () => showTab('dictionaryTab'));
+            backBtn._handlerAttached = true;
+        }
+    } catch (e) {
+        console.error('renderWordDetailsById failed:', e);
+    }
+}
+
+// End of popup.js main code
+})(); // End of IIFE wrapper
