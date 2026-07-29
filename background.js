@@ -78,22 +78,28 @@ async function getCurrentTab() {
 }
 
 async function notifyContentAboutChanges(actionName, content) {
-    const currentTab = await getCurrentTab();
+    const tabs = await chrome.tabs.query({});
 
-    if (currentTab && currentTab.id) {
-        try {
-            await chrome.tabs.sendMessage(currentTab.id, {
-                action: actionName,
-                newValue: content,
-            });
-        } catch (error) {
-            if (error.message.includes("Receiving end does not exist")) {
-                console.log("Content script not available on this tab. Can be ignored.");
-            } else {
-                console.error("Error sending message to content script:", error);
+    await Promise.all(
+        tabs.map(async (tab) => {
+            if (!tab || !tab.id) {
+                return;
             }
-        }
-    }
+
+            try {
+                await chrome.tabs.sendMessage(tab.id, {
+                    action: actionName,
+                    newValue: content,
+                });
+            } catch (error) {
+                if (error.message.includes("Receiving end does not exist")) {
+                    console.log("Content script not available on this tab. Can be ignored.");
+                } else {
+                    console.error("Error sending message to content script:", error);
+                }
+            }
+        })
+    );
 }
 
 function notifyPopupAboutChanges(actionName, content) {
