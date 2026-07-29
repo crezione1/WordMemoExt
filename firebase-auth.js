@@ -1,203 +1,268 @@
-// Chrome Identity API authentication functions for Chrome extension
-// Adds Firebase-compatible token exchange (ID token) without touching business logic
+const {
+    firebaseApiKey,
+    identityRequestUri
+} = globalThis.LAZYLEX_CONFIG;
 
-// Firebase API key for token exchange
-const FIREBASE_API_KEY = "AIzaSyDhSsOp7mkwf4NVeYIhk_RZZNaHpC0ZUho";
+function getReadableAuthError(error) {
+    const rawMessage = String(error?.message || error || "").trim();
+    const normalizedMessage = rawMessage.toLowerCase();
+    const extensionId = chrome.runtime?.id || "unknown";
+
+    if (
+        normalizedMessage.includes("bad client id") ||
+        normalizedMessage.includes("invalid oauth") ||
+        normalizedMessage.includes("oauth2 request failed") ||
+        normalizedMessage.includes("redirect_uri_mismatch") ||
+        normalizedMessage.includes("unauthorized_client")
+    ) {
+        return `Google sign-in is not configured for this local extension (${extensionId}). Rebuild with an OAuth client registered for this extension ID.`;
+    }
+
+    if (
+        normalizedMessage.includes("user did not approve") ||
+        normalizedMessage.includes("user rejected") ||
+        normalizedMessage.includes("cancelled") ||
+        normalizedMessage.includes("canceled")
+    ) {
+        return "Google sign-in was cancelled.";
+    }
+
+    if (
+        normalizedMessage.includes("network") ||
+        normalizedMessage.includes("failed to fetch")
+    ) {
+        return "Google sign-in could not reach the authentication service. Check your connection and try again.";
+    }
+
+    if (normalizedMessage.includes("operation_not_allowed")) {
+        return "Google sign-in is disabled for this Firebase project.";
+    }
+
+    return "Google sign-in failed. Inspect the extension popup for details and try again.";
+}
+
+function getGoogleAuthToken(interactive) {
+    return new Promise((resolve, reject) => {
+        chrome.identity.getAuthToken({ interactive }, (token) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            if (!token) {
+                reject(new Error("Google did not return an access token"));
+                return;
+            }
+
+            resolve(token);
+        });
+    });
+}
+
+function decodeJwtPayload(token) {
+    try {
+        const payload = token.split(".")[1]
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+        const padded = payload.padEnd(Math.ceil(payload.length / 4) * 4, "=");
+        return JSON.parse(atob(padded));
+    } catch {
+        return {};
+    }
+}
 
 async function exchangeGoogleTokenForFirebaseIdToken(googleAccessToken) {
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${FIREBASE_API_KEY}`;
-    const body = {
-        postBody: `access_token=${encodeURIComponent(googleAccessToken)}&providerId=google.com`,
-        requestUri: 'http://localhost',
-        returnIdpCredential: true,
-        returnSecureToken: true
-    };
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error(`signInWithIdp failed: ${res.status}`);
-    const data = await res.json();
-    const now = Date.now();
-    const expiresInMs = (parseInt(data.expiresIn || '3600') - 60) * 1000; // 60s buffer
+    const response = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${firebaseApiKey}`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                postBody: `access_token=${encodeURIComponent(googleAccessToken)}&providerId=google.com`,
+                requestUri: identityRequestUri,
+                returnIdpCredential: true,
+                returnSecureToken: true
+            })
+        }
+    );
+
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        const errorCode = errorBody?.error?.message || `HTTP_${response.status}`;
+        throw new Error(`Firebase sign-in failed: ${errorCode}`);
+    }
+
+    const data = await response.json();
+    const expiresInMs = Math.max(0, (Number.parseInt(data.expiresIn || "3600", 10) - 60) * 1000);
+
     await chrome.storage.local.set({
         firebase_id_token: data.idToken,
         firebase_refresh_token: data.refreshToken,
-        firebase_token_exp: now + expiresInMs
+        firebase_token_exp: Date.now() + expiresInMs
     });
+
     return data.idToken;
 }
 
 async function refreshFirebaseIdToken(refreshToken) {
-    const url = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
-    const params = new URLSearchParams();
-    params.append('grant_type', 'refresh_token');
-    params.append('refresh_token', refreshToken);
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString()
+    const params = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken
     });
-    if (!res.ok) throw new Error(`refreshToken failed: ${res.status}`);
-    const data = await res.json();
-    const now = Date.now();
-    const expiresInMs = (parseInt(data.expires_in || '3600') - 60) * 1000;
+    const response = await fetch(
+        `https://securetoken.googleapis.com/v1/token?key=${firebaseApiKey}`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: params.toString()
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(`Firebase token refresh failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const expiresInMs = Math.max(0, (Number.parseInt(data.expires_in || "3600", 10) - 60) * 1000);
+
     await chrome.storage.local.set({
         firebase_id_token: data.id_token,
         firebase_refresh_token: data.refresh_token || refreshToken,
-        firebase_token_exp: now + expiresInMs
+        firebase_token_exp: Date.now() + expiresInMs
     });
+
     return data.id_token;
 }
 
 async function getFirebaseIdToken() {
-    const state = await new Promise((resolve) => {
-        chrome.storage.local.get(['firebase_id_token','firebase_refresh_token','firebase_token_exp','auth_token'], resolve);
-    });
-    const now = Date.now();
-    if (state.firebase_id_token && state.firebase_token_exp && now < state.firebase_token_exp) {
+    const state = await chrome.storage.local.get([
+        "firebase_id_token",
+        "firebase_refresh_token",
+        "firebase_token_exp",
+        "auth_token"
+    ]);
+
+    if (
+        state.firebase_id_token &&
+        state.firebase_token_exp &&
+        Date.now() < state.firebase_token_exp
+    ) {
         return state.firebase_id_token;
     }
+
     if (state.firebase_refresh_token) {
-        try { return await refreshFirebaseIdToken(state.firebase_refresh_token); } catch (_) {}
+        try {
+            return await refreshFirebaseIdToken(state.firebase_refresh_token);
+        } catch {
+            // Fall back to a fresh Google-to-Firebase exchange below.
+        }
     }
+
     if (state.auth_token) {
-        try { return await exchangeGoogleTokenForFirebaseIdToken(state.auth_token); } catch (_) {}
+        return exchangeGoogleTokenForFirebaseIdToken(state.auth_token);
     }
+
     return null;
 }
 
-// Google OAuth provider (Chrome Identity API)
 function createGoogleProvider() {
-    // Chrome identity API handles this automatically
     return {
-        scopes: ['profile', 'email']
+        scopes: ["openid", "profile", "email"]
     };
 }
 
-// Sign in with Google using Chrome identity API (simplified for extension)
 async function signInWithGoogle() {
-    try {
-        // Use Chrome identity API to get auth token directly
-        return new Promise((resolve, reject) => {
-            chrome.identity.getAuthToken({ interactive: true }, (token) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                    return;
-                }
-
-                if (token) {
-                    // Get user info from Google API
-                    fetch('https://www.googleapis.com/oauth2/v1/userinfo?access_token=' + token)
-                        .then(response => response.json())
-                        .then(userInfo => {
-                            // Store the token and user info
-                            chrome.storage.local.set({
-                                'auth_token': token,
-                                'user_info': userInfo,
-                                'userInfo': userInfo,
-                                'token': token
-                            }, () => {
-                                console.log('Authentication token and user info stored');
-                                // Best-effort exchange for Firebase ID token for backend/Firebase usage
-                                exchangeGoogleTokenForFirebaseIdToken(token)
-                                    .catch((e) => console.warn('Firebase ID token exchange failed:', e?.message || e));
-                                
-                                // Notify website about authentication
-                                chrome.runtime.sendMessage({ action: 'notifyWebsiteAuth' }).catch(() => {
-                                    // Ignore if no listeners
-                                });
-                                
-                                resolve({
-                                    user: {
-                                        accessToken: token,
-                                        email: userInfo.email,
-                                        name: userInfo.name,
-                                        picture: userInfo.picture
-                                    }
-                                });
-                            });
-                        })
-                        .catch(error => {
-                            console.error('Error fetching user info:', error);
-                            // Still resolve with basic info
-                            chrome.storage.local.set({ 'auth_token': token, 'token': token }, () => {
-                                exchangeGoogleTokenForFirebaseIdToken(token)
-                                    .catch((e) => console.warn('Firebase ID token exchange failed:', e?.message || e));
-                                
-                                // Notify website about authentication
-                                chrome.runtime.sendMessage({ action: 'notifyWebsiteAuth' }).catch(() => {
-                                    // Ignore if no listeners
-                                });
-                                
-                                resolve({
-                                    user: {
-                                        accessToken: token,
-                                        email: 'user@gmail.com'
-                                    }
-                                });
-                            });
-                        });
-                } else {
-                    reject(new Error('No token received'));
-                }
-            });
-        });
-    } catch (error) {
-        console.error('Sign in error:', error);
-        throw error;
-    }
-}
-
-// Sign out
-async function signOut() {
-    try {
-        // Get current token and remove it
-        const token = await getCachedToken();
-        if (token) {
-            chrome.identity.removeCachedAuthToken({ token }, () => {
-                console.log('Token removed from cache');
-            });
-        }
-
-        // Clear local storage
-        chrome.storage.local.remove(['auth_token', 'user_info', 'userInfo', 'token', 'firebase_id_token', 'firebase_refresh_token', 'firebase_token_exp'], () => {
-            console.log('Signed out successfully');
-            
-            // Notify website about sign out
-            chrome.runtime.sendMessage({ action: 'notifyWebsiteSignOut' }).catch(() => {
-                // Ignore if no listeners
-            });
-        });
-    } catch (error) {
-        console.error('Sign out error:', error);
-        throw error;
-    }
-}
-
-// Get current user (from Chrome storage)
-async function getCurrentUser() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['auth_token', 'user_info'], (result) => {
-            if (result.auth_token) {
-                resolve(result.user_info || { accessToken: result.auth_token });
-            } else {
-                resolve(null);
-            }
-        });
+    const googleAccessToken = await getGoogleAuthToken(true);
+    const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v1/userinfo", {
+        headers: { Authorization: `Bearer ${googleAccessToken}` }
     });
+
+    if (!userInfoResponse.ok) {
+        throw new Error(`Google profile request failed with status ${userInfoResponse.status}`);
+    }
+
+    const googleUser = await userInfoResponse.json();
+    const firebaseIdToken = await exchangeGoogleTokenForFirebaseIdToken(googleAccessToken);
+    const firebaseClaims = decodeJwtPayload(firebaseIdToken);
+    const userInfo = {
+        ...googleUser,
+        uid: firebaseClaims.user_id || firebaseClaims.sub,
+        emailVerified: firebaseClaims.email_verified === true
+    };
+
+    await chrome.storage.local.set({
+        auth_token: googleAccessToken,
+        user_info: userInfo,
+        userInfo
+    });
+
+    return {
+        user: {
+            uid: userInfo.uid,
+            email: userInfo.email,
+            name: userInfo.name,
+            picture: userInfo.picture
+        }
+    };
 }
 
-// Listen for auth state changes (simplified for extension)
+async function signOut() {
+    let token = null;
+
+    try {
+        token = await getGoogleAuthToken(false);
+    } catch {
+        // A missing cached Google token still permits a local sign-out.
+    }
+
+    if (token) {
+        await new Promise((resolve) => {
+            chrome.identity.removeCachedAuthToken({ token }, resolve);
+        });
+    }
+
+    await chrome.storage.local.remove([
+        "auth_token",
+        "user_info",
+        "userInfo",
+        "token",
+        "firebase_id_token",
+        "firebase_refresh_token",
+        "firebase_token_exp",
+        "words"
+    ]);
+}
+
+async function getCurrentUser() {
+    const result = await chrome.storage.local.get([
+        "auth_token",
+        "firebase_id_token",
+        "user_info",
+        "userInfo"
+    ]);
+
+    if (!result.auth_token || !result.firebase_id_token) {
+        return null;
+    }
+
+    const user = {
+        ...(result.user_info || {}),
+        ...(result.userInfo || {})
+    };
+    return Object.keys(user).length > 0 ? user : null;
+}
+
 function onAuthStateChanged(callback) {
-    // Check current auth state immediately
     getCurrentUser().then(callback);
 
-    // Listen for storage changes (but don't re-add listeners)
     if (!window.authStateListenerAdded) {
         chrome.storage.onChanged.addListener((changes) => {
-            if (changes.auth_token || changes.user_info) {
+            if (
+                changes.auth_token ||
+                changes.firebase_id_token ||
+                changes.user_info ||
+                changes.userInfo
+            ) {
                 getCurrentUser().then(callback);
             }
         });
@@ -205,34 +270,15 @@ function onAuthStateChanged(callback) {
     }
 }
 
-// Get cached Chrome identity token
-function getCachedToken() {
-    return new Promise((resolve) => {
-        chrome.identity.getAuthToken({ interactive: false }, (token) => {
-            resolve(token);
-        });
-    });
+async function signInWithEmailPassword() {
+    throw new Error("Use Google sign-in in the local QA extension");
 }
 
-// Sign in with email and password (for extension compatibility with website)
-async function signInWithEmailPassword(email, password) {
-    // Extensions can't directly use Firebase Auth with email/password
-    // This is a placeholder - the website will handle email auth and sync to extension
-    throw new Error('Email/password authentication should be done through the website');
-}
-
-// Get user verification status
 async function getEmailVerificationStatus() {
-    try {
-        const { userInfo } = await chrome.storage.local.get(['userInfo']);
-        return userInfo?.emailVerified || false;
-    } catch (error) {
-        console.error('Error getting email verification status:', error);
-        return false;
-    }
+    const { userInfo } = await chrome.storage.local.get(["userInfo"]);
+    return userInfo?.emailVerified === true;
 }
 
-// Export functions to global scope for use in other scripts
 window.firebaseAuth = {
     signInWithGoogle,
     signInWithEmailPassword,
@@ -241,5 +287,6 @@ window.firebaseAuth = {
     onAuthStateChanged,
     createGoogleProvider,
     getFirebaseIdToken,
-    getEmailVerificationStatus
+    getEmailVerificationStatus,
+    getReadableAuthError
 };

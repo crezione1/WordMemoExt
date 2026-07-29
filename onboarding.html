@@ -10,96 +10,115 @@
     <link rel="stylesheet" href="onboarding.css">
 </head>
 <body>
-    <div class="onboarding-container">
-        <!-- Progress Indicator -->
-        <div class="progress-container">
-            <div class="progress-bar">
+    <main class="onboarding-container">
+        <div class="progress-container" aria-label="Setup progress">
+            <div class="progress-bar" aria-hidden="true">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
             <div class="progress-text">
-                <span id="currentStep">1</span> of <span id="totalSteps">4</span>
+                <span id="currentStep">1</span> of <span id="totalSteps">5</span>
             </div>
         </div>
 
-        <!-- Step 1: Language Selection -->
-        <div class="step active" id="step1">
+        <section class="step active" id="step1" aria-labelledby="nativeLanguageTitle">
             <div class="step-content">
                 <div class="step-header">
                     <img src="./images/lazylex_logo.png" alt="LazyLex" class="step-logo">
-                    <h2>Choose Your Language</h2>
+                    <h2 id="nativeLanguageTitle">What is your native language?</h2>
                     <p>Select your native language for translations</p>
                 </div>
-                
-                <div class="language-grid">
-                    <button class="language-option" data-lang="uk" data-name="Ukrainian">
-                        <span class="flag">🇺🇦</span>
-                        <span class="lang-name">Українська</span>
-                    </button>
-                    <button class="language-option" data-lang="es" data-name="Spanish">
-                        <span class="flag">🇪🇸</span>
-                        <span class="lang-name">Español</span>
-                    </button>
-                    <button class="language-option" data-lang="fr" data-name="French">
-                        <span class="flag">🇫🇷</span>
-                        <span class="lang-name">Français</span>
-                    </button>
-                    <button class="language-option" data-lang="de" data-name="German">
-                        <span class="flag">🇩🇪</span>
-                        <span class="lang-name">Deutsch</span>
-                    </button>
-                    <button class="language-option" data-lang="pl" data-name="Polish">
-                        <span class="flag">🇵🇱</span>
-                        <span class="lang-name">Polski</span>
-                    </button>
-                    <button class="language-option" data-lang="it" data-name="Italian">
-                        <span class="flag">🇮🇹</span>
-                        <span class="lang-name">Italiano</span>
-                    </button>
+
+                <div class="language-selector" data-selector="native">
+                    <label class="language-search-label" for="nativeLanguageSearch">Search languages</label>
+                    <input
+                        id="nativeLanguageSearch"
+                        class="language-search"
+                        type="search"
+                        placeholder="Search by language or code"
+                        autocomplete="off"
+                    >
+                    <div
+                        id="nativeLanguageGrid"
+                        class="language-grid"
+                        role="listbox"
+                        aria-label="Native languages"
+                    ></div>
+                    <p id="nativeLanguageEmpty" class="language-empty" role="status" hidden>
+                        No languages match your search.
+                    </p>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Step 2: Learning Goals -->
-        <div class="step" id="step2">
+        <section class="step" id="step2" aria-labelledby="learningLanguageTitle">
             <div class="step-content">
                 <div class="step-header">
-                    <h2>What's Your Goal?</h2>
+                    <h2 id="learningLanguageTitle">Which language are you learning?</h2>
+                    <p>Choose the language you want to practice</p>
+                </div>
+
+                <div class="language-selector" data-selector="learning">
+                    <label class="language-search-label" for="learningLanguageSearch">Search languages</label>
+                    <input
+                        id="learningLanguageSearch"
+                        class="language-search"
+                        type="search"
+                        placeholder="Search by language or code"
+                        autocomplete="off"
+                    >
+                    <div
+                        id="learningLanguageGrid"
+                        class="language-grid"
+                        role="listbox"
+                        aria-label="Languages being learned"
+                    ></div>
+                    <p id="learningLanguageEmpty" class="language-empty" role="status" hidden>
+                        No languages match your search.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="step" id="step3" aria-labelledby="goalTitle">
+            <div class="step-content">
+                <div class="step-header">
+                    <h2 id="goalTitle">What's Your Goal?</h2>
                     <p>Help us personalize your learning experience</p>
                 </div>
-                
+
                 <div class="goals-grid">
                     <button class="goal-option" data-goal="work">
-                        <span class="goal-icon">💼</span>
+                        <span class="goal-icon" aria-hidden="true">💼</span>
                         <span class="goal-title">Professional</span>
                         <span class="goal-desc">Improve work communication</span>
                     </button>
                     <button class="goal-option" data-goal="academic">
-                        <span class="goal-icon">🎓</span>
+                        <span class="goal-icon" aria-hidden="true">🎓</span>
                         <span class="goal-title">Academic</span>
                         <span class="goal-desc">Study and research</span>
                     </button>
                     <button class="goal-option" data-goal="casual">
-                        <span class="goal-icon">📚</span>
+                        <span class="goal-icon" aria-hidden="true">📚</span>
                         <span class="goal-title">Casual</span>
                         <span class="goal-desc">General improvement</span>
                     </button>
                     <button class="goal-option" data-goal="travel">
-                        <span class="goal-icon">✈️</span>
+                        <span class="goal-icon" aria-hidden="true">✈️</span>
                         <span class="goal-title">Travel</span>
                         <span class="goal-desc">Communication abroad</span>
                     </button>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Step 3: How it Works -->
-        <div class="step" id="step3">
+        <!-- The current "How LazyLex Works" design is intentionally preserved pending #24 approval. -->
+        <section class="step" id="step4" aria-labelledby="howItWorksTitle">
             <div class="step-content">
                 <div class="step-header">
-                    <h2>How LazyLex Works</h2>
+                    <h2 id="howItWorksTitle">How LazyLex Works</h2>
                     <p>Learn the basics in 30 seconds</p>
                 </div>
-                
+
                 <div class="demo-steps">
                     <div class="demo-step">
                         <div class="demo-number">1</div>
@@ -123,33 +142,36 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="demo-visual">
                     <p class="demo-text">Try selecting this <span class="selectable-word">word</span> to see it in action!</p>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Step 4: Ready to Go -->
-        <div class="step" id="step4">
+        <section class="step" id="step5" aria-labelledby="completionTitle">
             <div class="step-content">
                 <div class="step-header">
                     <img src="./images/lazylex_logo.png" alt="LazyLex" class="step-logo">
-                    <h2>You're All Set! 🎉</h2>
-                    <p>LazyLex is ready to help you learn English</p>
+                    <h2 id="completionTitle">You're All Set!</h2>
+                    <p>LazyLex is ready to help you learn</p>
                 </div>
-                
+
                 <div class="completion-summary">
                     <div class="summary-item">
-                        <span class="summary-label">Language:</span>
-                        <span class="summary-value" id="selectedLanguage">Ukrainian</span>
+                        <span class="summary-label">Native language:</span>
+                        <span class="summary-value" id="selectedNativeLanguage">Not selected</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Learning:</span>
+                        <span class="summary-value" id="selectedLearningLanguage">Not selected</span>
                     </div>
                     <div class="summary-item">
                         <span class="summary-label">Goal:</span>
-                        <span class="summary-value" id="selectedGoal">Professional</span>
+                        <span class="summary-value" id="selectedGoal">Not selected</span>
                     </div>
                 </div>
-                
+
                 <div class="final-actions">
                     <button id="finishOnboardingBtn" class="btn btn-primary">
                         Start Learning Now
@@ -159,9 +181,8 @@
                     </button>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Navigation -->
         <div class="navigation">
             <button id="backBtn" class="nav-btn" disabled>
                 <span>← Back</span>
@@ -170,8 +191,9 @@
                 <span>Next →</span>
             </button>
         </div>
-    </div>
+    </main>
 
+    <script src="language-catalog.js"></script>
     <script src="onboarding.js"></script>
 </body>
 </html>

@@ -1,116 +1,36 @@
-const ENV = "prod";
-
-const config = {
-    dev: {
-        API_URL: "http://localhost:8080",
-    },
-    prod: {
-        API_URL: "https://sea-lion-app-ut382.ondigitalocean.app",
-    },
-};
-
-const API_URL = config[ENV].API_URL;
-
 let settings = {};
-
-async function getToken() {
-    const result = await chrome.storage.local.get(["token"]);
-    return result.token;
-}
-
-// Website communication handlers
-window.addEventListener('message', async (event) => {
-    // Only accept messages from the same origin (our website)
-    if (event.origin !== window.location.origin) {
-        return;
-    }
-    
-    // Handle authentication from website
-    if (event.data?.type === 'LAZYLEX_AUTH_FROM_WEBSITE' && event.data?.source === 'lazylex-website') {
-        try {
-            const authData = event.data.data;
-            if (authData && authData.idToken) {
-                // Store the authentication data in extension storage
-                await chrome.storage.local.set({
-                    firebase_id_token: authData.idToken,
-                    firebase_token_exp: authData.expiresAt,
-                    userInfo: {
-                        uid: authData.uid,
-                        email: authData.email,
-                        name: authData.displayName,
-                        picture: authData.photoURL,
-                        id: authData.uid,
-                        emailVerified: authData.emailVerified || false
-                    },
-                    auth_token: authData.googleAccessToken || authData.idToken
-                });
-                console.log('[LazyLex] Authentication received from website');
-            }
-        } catch (error) {
-            console.error('[LazyLex] Error handling website auth:', error);
-        }
-    }
-    
-    // Handle sign out from website
-    if (event.data?.type === 'LAZYLEX_SIGNOUT_FROM_WEBSITE' && event.data?.source === 'lazylex-website') {
-        try {
-            // Clear extension authentication data
-            await chrome.storage.local.remove([
-                'firebase_id_token',
-                'firebase_refresh_token', 
-                'firebase_token_exp',
-                'auth_token',
-                'userInfo',
-                'user_info',
-                'token'
-            ]);
-            console.log('[LazyLex] Sign out received from website');
-        } catch (error) {
-            console.error('[LazyLex] Error handling website sign out:', error);
-        }
-    }
-});
-
-// Listen for messages from background script (extension → website communication)
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'LAZYLEX_AUTH_FROM_EXTENSION') {
-        // Forward authentication data to website
-        window.postMessage({
-            type: 'AUTH_SUCCESS',
-            source: 'lazylex-extension',
-            data: message.data
-        }, '*');
-        return true;
-    }
-    
-    if (message.type === 'LAZYLEX_SIGNOUT_FROM_EXTENSION') {
-        // Forward sign out to website
-        window.postMessage({
-            type: 'AUTH_SIGNOUT',
-            source: 'lazylex-extension'
-        }, '*');
-        return true;
-    }
-});
+const countedWordIdsOnPage = new Set();
 
 // Saving/deleting words
 
 async function deleteWordFromStorage(wordId) {
-    const { words } = await chrome.storage.local.get(["words"]);
-    const updatedWords = words.filter((word) => word.id !== Number(wordId));
-
-    chrome.storage.local.set({ words: updatedWords });
+    const response = await chrome.runtime.sendMessage({
+        action: "deleteWord",
+        wordId: Number(wordId)
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to delete the word.");
+    }
 }
 
 async function updateWordInStorage(wordId, newTranslation) {
     const { words } = await chrome.storage.local.get(["words"]);
-    const updatedWords = words.map(word => {
-        if (word.id === Number(wordId)) {
-            return { ...word, translation: newTranslation, lastUpdated: Date.now() };
+    const word = (words || []).find((item) => item.id === Number(wordId));
+    if (!word) {
+        throw new Error("The word is no longer in your dictionary.");
+    }
+
+    const response = await chrome.runtime.sendMessage({
+        action: "persistWord",
+        word: {
+            ...word,
+            translation: newTranslation,
+            lastUpdated: Date.now()
         }
-        return word;
     });
-    chrome.storage.local.set({ words: updatedWords });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to update the translation.");
+    }
 }
 
 async function runLogic(selectedText, rect) {
@@ -137,58 +57,62 @@ async function runLogic(selectedText, rect) {
 
     // Perform saving and translation in the background
     saveWordToDictionary(originalWord).catch((error) => {
-        console.log("Error saving word in background:", error);
+        console.error("Error saving word:", error);
+        removeTemporaryHighlight(originalWord);
+        showContentNotification(error?.message || "Unable to save this word.", "error");
     });
 }
 
 // Replace saveWordToDictionary to use local storage and GPT API for translation
 async function saveWordToDictionary(word) {
-    try {
-        console.log('[LazyLexExt] saveWordToDictionary called with:', word);
+    console.log('[LazyLexExt] saveWordToDictionary called with:', word);
         
-        // Check subscription limits before saving
-        const limitCheck = await chrome.runtime.sendMessage({ action: "checkSubscriptionLimits" });
-        if (!limitCheck.canAdd) {
-            if (limitCheck.reason === 'daily_limit_reached') {
-                showSubscriptionLimitNotification();
-                return;
-            }
-        }
-
-        // Get current words
-        const { words } = await chrome.storage.local.get({ words: [] });
-
-        // Normalize the word to lowercase for consistent storage and Firebase
-        const baseWord = (word || '').toLowerCase();
-
-        // Use Firebase Cloud Function for translation (Google Translation API)
-        const tr = await translateWithTAS(baseWord, settings["languageCode"] || "uk");
-        const translation = typeof tr === 'string' ? tr : (tr?.translation || word);
-        const synonyms = Array.isArray(tr?.synonyms) ? tr.synonyms : [];
-        const examples = Array.isArray(tr?.examples) ? tr.examples : [];
-        // Create new word object with unique id (avoid same-ms collisions)
-        let newId = Date.now();
-        const ids = new Set((words || []).map(w => Number(w.id)));
-        while (ids.has(newId)) newId += 1;
-        const newWord = {
-            id: newId,
-            word: baseWord,
-            translation: translation,
-            dateAdded: Date.now(), // Add current date
-            learned: false, // Default learned status
-            synonyms: synonyms,
-            examples: examples
-        };
-        chrome.runtime.sendMessage({ action: "saveWordsToStorage" });
-        // addHighlightForWord(newWord);
-
-        // Save to local storage
-        const updatedWords = [...words, newWord];
-        await chrome.storage.local.set({ words: updatedWords });
-        console.log('[LazyLexExt] Updated words list:', updatedWords);
-    } catch (error) {
-        console.error("Error saving word:", error);
+    const limitCheck = await chrome.runtime.sendMessage({ action: "checkSubscriptionLimits" });
+    if (!limitCheck.canAdd && limitCheck.reason === 'daily_limit_reached') {
+        showSubscriptionLimitNotification();
+        throw new Error("Daily word limit reached.");
     }
+
+    const { words } = await chrome.storage.local.get({ words: [] });
+    const baseWord = (word || '').trim().toLowerCase();
+    if (!baseWord) {
+        throw new Error("Select a word before saving.");
+    }
+
+    const tr = await translateWithTAS(baseWord, settings["languageCode"] || "uk");
+    const translation = String(tr.translation || "").trim();
+    if (!translation) {
+        throw new Error("LazyLex did not return a translation. Please try again.");
+    }
+    const synonyms = Array.isArray(tr.synonyms) ? tr.synonyms : [];
+    const examples = Array.isArray(tr.examples) ? tr.examples : [];
+    let newId = Date.now();
+    const ids = new Set((words || []).map(w => Number(w.id)));
+    while (ids.has(newId)) newId += 1;
+    const newWord = {
+        id: newId,
+        word: baseWord,
+        translation,
+        dateAdded: Date.now(),
+        status: "new",
+        learned: false,
+        encounterCount: 0,
+        synonyms,
+        examples
+    };
+
+    const response = await chrome.runtime.sendMessage({
+        action: "persistWord",
+        word: newWord
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to save the word.");
+    }
+
+    // The current page updates immediately; the background notification keeps
+    // other extension surfaces synchronized.
+    addHighlightForWord(response.word || newWord);
+    return response.word || newWord;
 }
 
 // Implement translateWithTAS by delegating to Firebase callable function (minimal change)
@@ -204,11 +128,10 @@ async function translateWithTAS(word, targetLang) {
             console.log('[LazyLexExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
             return response.result;
         }
-        throw new Error(response?.error || 'Translate failed');
+        throw new Error(response?.error?.message || response?.error || 'Translate failed');
     } catch (e) {
-        console.warn('[LazyLexExt] translateWithTAS fallback due to error:', e?.message || e);
-        // Fallback: return original word if function failed
-        return { translation: word, synonyms: [] };
+        console.warn('[LazyLexExt] translateWithTAS failed:', e?.message || e);
+        throw e;
     }
 }
 
@@ -241,27 +164,32 @@ function showSubscriptionLimitNotification() {
         animation: slideInRight 0.3s ease-out;
     `;
 
-    notification.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-            <div style="font-size: 16px; font-weight: 700;">Daily Limit Reached</div>
-            <button id="lazylex-close-notification" style="background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 0; width: 20px; height: 20px;">×</button>
-        </div>
-        <div style="margin-bottom: 12px; opacity: 0.9; line-height: 1.4;">
-            You've reached your daily limit of 5 words. Upgrade to Premium for unlimited words!
-        </div>
-        <button id="lazylex-upgrade-btn" style="
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-            transition: all 0.2s ease;
-            width: 100%;
-        ">Upgrade to Premium</button>
-    `;
+    const header = document.createElement("div");
+    header.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:8px";
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:16px;font-weight:700";
+    title.textContent = "Daily Limit Reached";
+
+    const closeButton = document.createElement("button");
+    closeButton.id = "lazylex-close-notification";
+    closeButton.type = "button";
+    closeButton.setAttribute("aria-label", "Dismiss notification");
+    closeButton.style.cssText = "background:none;border:none;color:white;cursor:pointer;font-size:18px;padding:0;width:44px;height:44px";
+    closeButton.textContent = "×";
+
+    const description = document.createElement("div");
+    description.style.cssText = "margin-bottom:12px;opacity:.9;line-height:1.4";
+    description.textContent = "You've reached your daily limit of 5 words. Upgrade to Premium for unlimited words!";
+
+    const upgradeButton = document.createElement("button");
+    upgradeButton.id = "lazylex-upgrade-btn";
+    upgradeButton.type = "button";
+    upgradeButton.style.cssText = "background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:white;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:all .2s ease;width:100%;min-height:44px";
+    upgradeButton.textContent = "Upgrade to Premium";
+
+    header.append(title, closeButton);
+    notification.append(header, description, upgradeButton);
 
     // Add animation styles
     const style = document.createElement('style');
@@ -302,6 +230,49 @@ function showSubscriptionLimitNotification() {
             setTimeout(() => notification.remove(), 300);
         }
     }, 8000);
+}
+
+function removeTemporaryHighlight(text) {
+    const normalizedText = String(text || "").toLocaleLowerCase();
+    const parentsToNormalize = new Set();
+    document.querySelectorAll(".highlight-wrapper:not([data-word-id])").forEach((wrapper) => {
+        if (String(wrapper.dataset.originalText || "").toLocaleLowerCase() !== normalizedText) {
+            return;
+        }
+        const parent = wrapper.parentNode;
+        if (parent) {
+            parent.replaceChild(document.createTextNode(wrapper.dataset.originalText || ""), wrapper);
+            parentsToNormalize.add(parent);
+        }
+    });
+    parentsToNormalize.forEach((parent) => parent.normalize());
+}
+
+function showContentNotification(message, type = "info") {
+    const existing = document.getElementById("lazylex-status-notification");
+    if (existing) {
+        existing.remove();
+    }
+
+    const notification = document.createElement("div");
+    notification.id = "lazylex-status-notification";
+    notification.setAttribute("role", type === "error" ? "alert" : "status");
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 340px;
+        padding: 14px 18px;
+        color: white;
+        background: ${type === "error" ? "#b42318" : "#344054"};
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+        z-index: 999999;
+        font: 600 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    `;
+    notification.textContent = String(message || "LazyLex operation failed.");
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 5000);
 }
 
 function animateWordToToolbar(selectedText, rect) {
@@ -373,7 +344,7 @@ function showTemporaryHighlightWithLoader(text) {
 
         if (node.nodeValue.toLowerCase().includes(lowerCaseText)) {
             const fragment = document.createDocumentFragment();
-            const parts = node.nodeValue.split(new RegExp(`(${text})`, 'gi'));
+            const parts = node.nodeValue.split(new RegExp(`(${escapeRegExp(text)})`, 'gi'));
 
             parts.forEach(part => {
                 if (part.toLowerCase() === lowerCaseText) {
@@ -405,6 +376,10 @@ function showTemporaryHighlightWithLoader(text) {
 }
 
 function addHighlightForWord(word) {
+    if (word?.status === "learned" || word?.learned === true || Number(word?.encounterCount) > 200) {
+        return;
+    }
+
     // First, update any existing temporary highlight wrappers
     const existingWrappers = document.querySelectorAll('.highlight-wrapper');
     existingWrappers.forEach(wrapper => {
@@ -421,6 +396,7 @@ function addHighlightForWord(word) {
 
             const highlightedSpan = wrapper.querySelector('.highlighted-word');
             if (highlightedSpan) {
+                applyFrequencyTier(highlightedSpan, word);
                 requestAnimationFrame(() => {
                     highlightedSpan.classList.add("animate-border");
                 });
@@ -436,6 +412,9 @@ function addHighlightForWord(word) {
     const textNodes = Array.from(findTextNodes(document.body));
     const targetWord = word.word.toLowerCase();
     const translations = { [targetWord]: word };
+    recordEncounterCounts([word], textNodes).catch((error) => {
+        console.warn("Unable to record word encounters:", error?.message || error);
+    });
 
     textNodes.forEach((node) => {
         if (node.nodeValue.toLowerCase().includes(targetWord) && !node.parentNode.closest('.highlight-wrapper')) {
@@ -475,7 +454,14 @@ function removeHighlightsForWord(word) {
 
 function replaceTextNode(node, targetWords, translations) {
     const fragment = document.createDocumentFragment();
-    const parts = node.nodeValue.split(new RegExp(`\\b(${targetWords.join('|')})\\b`, 'gi'));
+    const escapedWords = targetWords
+        .filter(Boolean)
+        .map(escapeRegExp)
+        .sort((left, right) => right.length - left.length);
+    if (escapedWords.length === 0) {
+        return;
+    }
+    const parts = node.nodeValue.split(new RegExp(`\\b(${escapedWords.join('|')})\\b`, 'gi'));
 
     if (parts.length <= 1) {
         return; // No matches
@@ -492,6 +478,7 @@ function replaceTextNode(node, targetWords, translations) {
             const highlightedSpan = document.createElement("span");
             highlightedSpan.classList.add("highlighted-word");
             highlightedSpan.textContent = part;
+            applyFrequencyTier(highlightedSpan, translations[lowerPart]);
 
             requestAnimationFrame(() => {
                 highlightedSpan.classList.add("animate-border");
@@ -516,27 +503,141 @@ function replaceTextNode(node, targetWords, translations) {
     node.parentNode.replaceChild(fragment, node);
 }
 
+function escapeRegExp(value) {
+    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isEligibleTextNode(node) {
+    if (!node?.parentElement || !node.nodeValue || /^\s*$/.test(node.nodeValue)) {
+        return false;
+    }
+
+    const parent = node.parentElement;
+    if (parent.closest(
+        "script, style, noscript, textarea, input, select, option, button, code, pre, svg, math, iframe, canvas, video, audio, [contenteditable]:not([contenteditable='false'])"
+    )) {
+        return false;
+    }
+
+    return !parent.closest(
+        ".highlight-wrapper, #add-new-word, #deleteWordBtn, #lazylex-limit-notification, #lazylex-status-notification"
+    );
+}
+
 function findTextNodes(element) {
-    let nodes = [];
-    for (element = element.firstChild; element; element = element.nextSibling) {
-        if (element.nodeType === 3 && !element.nodeValue.match(/^\s*$/)) {
-            nodes.push(element);
-        } else if (element.nodeType === 1) {
-            nodes = nodes.concat(findTextNodes(element));
+    if (!element) {
+        return [];
+    }
+
+    const nodes = [];
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode(node) {
+                return isEligibleTextNode(node)
+                    ? NodeFilter.FILTER_ACCEPT
+                    : NodeFilter.FILTER_REJECT;
+            }
         }
+    );
+
+    while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
     }
     return nodes;
 }
 
+function getFrequencyTier(encounterCount) {
+    const count = Number(encounterCount) || 0;
+    if (count > 200) return "learned";
+    if (count > 120) return "retained";
+    if (count > 50) return "familiar";
+    return "new";
+}
+
+function applyFrequencyTier(highlightedSpan, word) {
+    highlightedSpan.classList.remove(
+        "lazylex-frequency-new",
+        "lazylex-frequency-familiar",
+        "lazylex-frequency-retained"
+    );
+    if (settings.frequencyColoringEnabled === false) {
+        return;
+    }
+
+    const tier = getFrequencyTier(word?.encounterCount);
+    if (tier !== "learned") {
+        highlightedSpan.classList.add(`lazylex-frequency-${tier}`);
+    }
+}
+
+function countWordOccurrences(textNodes, word) {
+    const expression = new RegExp(`\\b${escapeRegExp(word)}\\b`, "gi");
+    return textNodes.reduce((count, node) => {
+        const matches = node.nodeValue.match(expression);
+        return count + (matches ? matches.length : 0);
+    }, 0);
+}
+
+async function recordEncounterCounts(words, textNodes) {
+    const increments = new Map();
+    words.forEach((word) => {
+        const id = Number(word?.id);
+        if (!Number.isSafeInteger(id) || countedWordIdsOnPage.has(id)) {
+            return;
+        }
+
+        const count = countWordOccurrences(textNodes, String(word.word || ""));
+        countedWordIdsOnPage.add(id);
+        if (count > 0) {
+            increments.set(id, count);
+        }
+    });
+
+    if (increments.size === 0) {
+        return;
+    }
+
+    const { words: storedWords = [] } = await chrome.storage.local.get({ words: [] });
+    const updatedWords = storedWords.map((word) => {
+        const increment = increments.get(Number(word.id));
+        if (!increment) {
+            return word;
+        }
+
+        const encounterCount = Number(word.encounterCount || 0) + increment;
+        const learned = encounterCount > 200;
+        return {
+            ...word,
+            encounterCount,
+            learned,
+            status: learned ? "learned" : (word.status || "new"),
+            learnedDate: learned ? (word.learnedDate || new Date().toISOString()) : word.learnedDate,
+            lastUpdated: Date.now()
+        };
+    });
+    await chrome.storage.local.set({ words: updatedWords });
+}
+
 async function highlightWords(words) {
-    const targetWords = words.map((t) => t.word.toLowerCase());
+    const visibleWords = (Array.isArray(words) ? words : []).filter((word) => (
+        word
+        && word.word
+        && word.status !== "learned"
+        && word.learned !== true
+        && Number(word.encounterCount || 0) <= 200
+    ));
+    const targetWords = visibleWords.map((t) => t.word.toLowerCase());
     const textNodes = findTextNodes(document.body);
 
-    const translations = words.reduce((result, item) => {
-        const key = item.word;
+    const translations = visibleWords.reduce((result, item) => {
+        const key = item.word.toLowerCase();
         result[key] = item;
         return result;
     }, {});
+
+    await recordEncounterCounts(visibleWords, textNodes);
 
     textNodes.forEach((node) => {
         if (targetWords.some((targetWord) => node.nodeValue.toLowerCase().includes(targetWord))) {
@@ -595,7 +696,8 @@ function loadInitialSettings() {
         "sentenceCounter",
         "highlightingEnabled",
         "highlightColor",
-        "translationColor"
+        "translationColor",
+        "frequencyColoringEnabled"
     ], (items) => {
         const initialSettings = {
             languageCode: items.translateTo || "uk",
@@ -604,7 +706,8 @@ function loadInitialSettings() {
             sentenceCounter: items.sentenceCounter || 1,
             highlightingEnabled: items.highlightingEnabled !== undefined ? items.highlightingEnabled : true,
             highlightColor: items.highlightColor,
-            translationColor: items.translationColor
+            translationColor: items.translationColor,
+            frequencyColoringEnabled: items.frequencyColoringEnabled !== false
         };
         applySettings(initialSettings);
     });
@@ -657,6 +760,12 @@ document.addEventListener("mouseup", function (event) {
 document.addEventListener("click", (e) => {
     const wrapper = e.target.closest('.highlight-wrapper');
 
+    // A highlighted word can live inside a link. Keep the first click on the
+    // highlight available for LazyLex controls instead of navigating away.
+    if (wrapper?.closest("a[href]")) {
+        e.preventDefault();
+    }
+
     // Handle click on translation to edit
     if (e.target.classList.contains('translation') && wrapper) {
         showEditUI(e.target, wrapper.dataset.wordId);
@@ -674,15 +783,27 @@ document.addEventListener("click", (e) => {
     deleteButton.textContent = "-";
     deleteButton.id = "deleteWordBtn";
     deleteButton.className = "action-button";
+    deleteButton.title = "Delete saved word";
+    const wrapperRect = wrapper.getBoundingClientRect();
+    deleteButton.style.position = "fixed";
+    deleteButton.style.top = `${Math.max(8, wrapperRect.top - 36)}px`;
+    deleteButton.style.left = `${Math.min(window.innerWidth - 40, wrapperRect.right + 4)}px`;
 
-    deleteButton.addEventListener("click", (event) => {
+    deleteButton.setAttribute("aria-label", "Delete saved word");
+    deleteButton.addEventListener("click", async (event) => {
         event.stopPropagation();
-        deleteWordFromStorage(wrapper.dataset.wordId);
-        deleteButton.remove();
+        deleteButton.disabled = true;
+        try {
+            await deleteWordFromStorage(wrapper.dataset.wordId);
+            deleteButton.remove();
+        } catch (error) {
+            deleteButton.disabled = false;
+            showContentNotification(error?.message || "Unable to delete the word.", "error");
+        }
     });
 
-    // Append to the wrapper for correct positioning relative to the highlighted word
-    wrapper.appendChild(deleteButton);
+    // Append to the document so clipped links/containers cannot hide the control.
+    document.body.appendChild(deleteButton);
 });
 
 function showEditUI(translationSpan, wordId) {
@@ -709,7 +830,9 @@ function showEditUI(translationSpan, wordId) {
 
     const saveButton = document.createElement('button');
     saveButton.className = 'action-button';
-    saveButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/></svg>';
+    saveButton.type = "button";
+    saveButton.setAttribute("aria-label", "Save translation");
+    saveButton.textContent = "✓";
 
     const editContainer = document.createElement('span');
     editContainer.className = 'edit-translation-container';
@@ -727,11 +850,18 @@ function showEditUI(translationSpan, wordId) {
         }
     });
 
-    saveButton.addEventListener('click', () => {
+    saveButton.addEventListener('click', async () => {
         const newTranslation = input.value.trim();
 
         if (newTranslation && wordId) {
-            updateWordInStorage(wordId, newTranslation);
+            saveButton.disabled = true;
+            try {
+                await updateWordInStorage(wordId, newTranslation);
+            } catch (error) {
+                saveButton.disabled = false;
+                showContentNotification(error?.message || "Unable to update the translation.", "error");
+                return;
+            }
         }
 
         editContainer.remove();
@@ -766,7 +896,11 @@ chrome.runtime.onMessage.addListener((request) => {
                 addHighlightForWord(word);
                 break;
             case 'update':
-                updateHighlightsForWord(word);
+                if (word?.status === "learned" || word?.learned === true || Number(word?.encounterCount) > 200) {
+                    removeHighlightsForWord(word);
+                } else {
+                    updateHighlightsForWord(word);
+                }
                 break;
             case 'delete':
                 removeHighlightsForWord(word);
@@ -787,33 +921,6 @@ chrome.runtime.onMessage.addListener((request) => {
     }
 });
 
-window.addEventListener("message", (event) => {
-    if (event.data.token) {
-        chrome.storage.local.set({ token: event.data.token }, () => {
-            console.log("Token stored in chrome storage");
-        });
-    }
-});
-
 loadInitialSettings();
-
-async function translateWithTAS(word, targetLang) {
-    try {
-        console.log('[LazyLexExt] translateWithTAS request', { word, targetLang });
-        const response = await chrome.runtime.sendMessage({
-            action: 'translateWord',
-            word,
-            targetLanguage: targetLang || 'uk'
-        });
-        if (response && response.success && response.result && response.result.translation) {
-            console.log('[LazyLexExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
-            return response.result;
-        }
-        throw new Error(response?.error || 'Translate failed');
-    } catch (e) {
-        console.warn('[LazyLexExt] translateWithTAS fallback due to error:', e?.message || e);
-        return { translation: word, synonyms: [], examples: [] };
-    }
-}
 
 console.log('[LazyLexExt] Content script loaded');

@@ -77,6 +77,21 @@
     background-color: var(--highlight-color, rgba(255, 0, 0, 0.22));
 }
 
+.highlighted-word.lazylex-frequency-new::after {
+    height: 2px;
+    background: #111827;
+}
+
+.highlighted-word.lazylex-frequency-familiar::after {
+    height: 2px;
+    background: #667085;
+}
+
+.highlighted-word.lazylex-frequency-retained::after {
+    height: 2px;
+    background: #cbd5e1;
+}
+
 .translation {
     position: relative;
     color: var(--translation-color, #d0d0d0);
@@ -107,9 +122,12 @@
 }
 
 #deleteWordBtn {
-    position: absolute;
-    top: -24px;
-    right: -24px;
+    width: 32px;
+    height: 32px;
+    color: #fff;
+    background: #c4320a;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
 #add-new-word {

@@ -1,25 +1,71 @@
-const ENV = "prod";
+importScripts("extension-config.js");
 
-const config = {
-    dev: {
-        API_URL: "http://localhost:8080",
-    },
-    prod: {
-        API_URL: "https://sea-lion-app-ut382.ondigitalocean.app",
-    },
-};
+const {
+    firebaseApiKey,
+    firebaseProjectId,
+    functionsBaseUrl,
+    identityRequestUri
+} = globalThis.LAZYLEX_CONFIG;
 
-const API_URL = config[ENV].API_URL;
+const API_TIMEOUT_MS = 12000;
+const cloudConfirmedWordMutations = new Set();
 
-async function getCurrentUserInfo() {
-    // Simulate a user object from local storage
-    const { userInfo } = await chrome.storage.local.get(["userInfo"]);
-    return userInfo || { email: "offline@user", telegramId: null };
+class LazyLexApiError extends Error {
+    constructor(message, { code = "api/error", status = 0 } = {}) {
+        super(message);
+        this.name = "LazyLexApiError";
+        this.code = code;
+        this.status = status;
+    }
 }
 
-async function getToken() {
-    const result = await chrome.storage.local.get(["token"]);
-    return result.token;
+async function fetchWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        return await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+    } catch (error) {
+        if (error?.name === "AbortError") {
+            throw new LazyLexApiError("The request timed out. Please try again.", {
+                code: "api/timeout"
+            });
+        }
+        throw new LazyLexApiError("Unable to reach LazyLex. Check your connection and try again.", {
+            code: "api/network"
+        });
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+async function requireSuccessfulResponse(response, operation) {
+    if (response.ok) {
+        return response;
+    }
+
+    const responseText = await response.text().catch(() => "");
+    const suffix = responseText ? `: ${responseText.slice(0, 240)}` : "";
+    throw new LazyLexApiError(`${operation} failed (${response.status})${suffix}`, {
+        code: `api/http-${response.status}`,
+        status: response.status
+    });
+}
+
+function serializeApiError(error) {
+    return {
+        code: error?.code || "api/error",
+        message: error?.message || "The operation failed. Please try again.",
+        status: Number(error?.status) || 0
+    };
+}
+
+async function getCurrentUserInfo() {
+    const { userInfo } = await chrome.storage.local.get(["userInfo"]);
+    return userInfo || null;
 }
 
 // Check if extension enabled/disabled for current site
@@ -57,73 +103,6 @@ function notifyPopupAboutChanges(actionName, content) {
     });
 }
 
-// Notify website tabs about authentication from extension
-async function notifyWebsiteAuth() {
-    try {
-        const { auth_token, userInfo, firebase_id_token, firebase_token_exp } = await chrome.storage.local.get([
-            'auth_token', 'userInfo', 'firebase_id_token', 'firebase_token_exp'
-        ]);
-        
-        if (!auth_token || !userInfo) return;
-        
-        const authData = {
-            idToken: firebase_id_token,
-            userInfo: {
-                ...userInfo,
-                emailVerified: userInfo.emailVerified || false
-            },
-            expiresAt: firebase_token_exp,
-            googleAccessToken: auth_token
-        };
-        
-        // Send to all tabs that might be our website
-        chrome.tabs.query({}, (tabs) => {
-            tabs.forEach(tab => {
-                if (tab.url && (
-                    tab.url.includes('localhost') || 
-                    tab.url.includes('sea-lion-app-ut382.ondigitalocean.app') ||
-                    tab.url.includes('your-website-domain.com') // Replace with actual domain
-                )) {
-                    chrome.tabs.sendMessage(tab.id, {
-                        type: 'LAZYLEX_AUTH_FROM_EXTENSION',
-                        source: 'lazylex-extension',
-                        data: authData
-                    }).catch(() => {
-                        // Ignore errors for tabs without content script
-                    });
-                }
-            });
-        });
-    } catch (error) {
-        console.error('Error notifying website about auth:', error);
-    }
-}
-
-// Notify website tabs about sign out from extension
-async function notifyWebsiteSignOut() {
-    try {
-        // Send to all tabs that might be our website
-        chrome.tabs.query({}, (tabs) => {
-            tabs.forEach(tab => {
-                if (tab.url && (
-                    tab.url.includes('localhost') || 
-                    tab.url.includes('sea-lion-app-ut382.ondigitalocean.app') ||
-                    tab.url.includes('your-website-domain.com') // Replace with actual domain
-                )) {
-                    chrome.tabs.sendMessage(tab.id, {
-                        type: 'LAZYLEX_SIGNOUT_FROM_EXTENSION',
-                        source: 'lazylex-extension'
-                    }).catch(() => {
-                        // Ignore errors for tabs without content script
-                    });
-                }
-            });
-        });
-    } catch (error) {
-        console.error('Error notifying website about sign out:', error);
-    }
-}
-
 // Handle onboarding redirect requests and tab closure
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'needOnboarding') {
@@ -139,24 +118,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.action === 'onboardingCompleted') {
         console.log('Onboarding completed notification received');
         return true;
-    } else if (request.action === 'notifyWebsiteAuth') {
-        // Notify all website tabs about authentication
-        notifyWebsiteAuth();
-        return true;
-    } else if (request.action === 'notifyWebsiteSignOut') {
-        // Notify all website tabs about sign out
-        notifyWebsiteSignOut();
-        return true;
     }
 });
 
 // Firebase ID token helpers (for backend integration)
-const FIREBASE_API_KEY_BG = "AIzaSyDhSsOp7mkwf4NVeYIhk_RZZNaHpC0ZUho";
-const FIREBASE_PROJECT_ID = "lazylex-9d161";
-const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents`;
 
 async function refreshFirebaseIdTokenBg(refreshToken) {
-    const url = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY_BG}`;
+    const url = `https://securetoken.googleapis.com/v1/token?key=${firebaseApiKey}`;
     const params = new URLSearchParams();
     params.append('grant_type', 'refresh_token');
     params.append('refresh_token', refreshToken);
@@ -205,10 +174,10 @@ async function getAuthUidBg() {
 
 // Force an exchange from Google access token → Firebase ID token (background)
 async function exchangeGoogleTokenForFirebaseIdTokenBg(googleAccessToken) {
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${FIREBASE_API_KEY_BG}`;
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${firebaseApiKey}`;
     const body = {
         postBody: `access_token=${encodeURIComponent(googleAccessToken)}&providerId=google.com`,
-        requestUri: 'http://localhost',
+        requestUri: identityRequestUri,
         returnIdpCredential: true,
         returnSecureToken: true
     };
@@ -247,9 +216,17 @@ async function ensureFirebaseIdTokenReady() {
 }
 
 function isSiteEqualToCurrentSite(url, domain) {
-    const urlObject = new URL(url);
-
-    return urlObject.hostname.includes(domain);
+    try {
+        const hostname = new URL(url).hostname.toLocaleLowerCase();
+        const normalizedDomain = String(domain || "")
+            .trim()
+            .replace(/^\.+|\.+$/g, "")
+            .toLocaleLowerCase();
+        return Boolean(normalizedDomain)
+            && (hostname === normalizedDomain || hostname.endsWith(`.${normalizedDomain}`));
+    } catch {
+        return false;
+    }
 }
 
 async function checkIfExtensionEnabled() {
@@ -375,14 +352,30 @@ function fsDecodeFields(doc) {
     return data;
 }
 
-async function fsHeaders() {
+function addUpdateMask(url, fieldPaths) {
+    const target = new URL(url);
+    fieldPaths.forEach((fieldPath) => {
+        target.searchParams.append("updateMask.fieldPaths", fieldPath);
+    });
+    return target.toString();
+}
+
+async function fsHeaders(required = false) {
     // Require Firebase ID token for Firestore (Rules rely on request.auth)
     let idToken = await getFirebaseIdTokenBg();
     if (!idToken) {
         try { await ensureFirebaseIdTokenReady(); } catch (_) {}
         idToken = await getFirebaseIdTokenBg();
     }
-    if (!idToken) return null;
+    if (!idToken) {
+        if (required) {
+            throw new LazyLexApiError("Please sign in to sync your dictionary.", {
+                code: "auth/required",
+                status: 401
+            });
+        }
+        return null;
+    }
     return {
         'Authorization': `Bearer ${idToken}`,
         'Content-Type': 'application/json'
@@ -395,24 +388,29 @@ async function fsEnsureUserDoc(userInfo) {
         if (!headers) return;
         const uid = await getAuthUidBg();
         if (!uid) return;
-        const url = `${FIRESTORE_BASE}/users/${uid}`;
-        const today = new Date().toISOString().split('T')[0];
-        const profile = fsEncodeFields({
+        const profileFields = {
             uid: String(uid),
             email: userInfo.email || '',
             displayName: userInfo.name || userInfo.displayName || '',
             photoURL: userInfo.picture || userInfo.photoURL || '',
-            subscriptionStatus: 'free',
-            dailyWordsAdded: 0,
-            dailyWordsResetDate: today,
-            dailyWordLimit: 5,
-            subscriptionExpiresAt: null,
-            subscriptionStartedAt: null,
-            createdAt: new Date(),
             lastLoginAt: new Date()
+        };
+        if (userInfo.telegramName) {
+            profileFields.telegramName = String(userInfo.telegramName).replace(/^@+/, "");
+        }
+        const url = addUpdateMask(
+            `${FIRESTORE_BASE}/users/${uid}`,
+            Object.keys(profileFields)
+        );
+        const response = await fetchWithTimeout(url, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(fsEncodeFields(profileFields))
         });
-        await fetch(url, { method: 'PATCH', headers, body: JSON.stringify(profile) });
-    } catch (_) { /* ignore */ }
+        await requireSuccessfulResponse(response, "Updating the user profile");
+    } catch (error) {
+        console.warn("Unable to update the user profile:", error?.message || error);
+    }
 }
 
 async function fsSyncWordsFromCloudIfEmpty() {
@@ -434,13 +432,19 @@ async function fsSyncWordsFromCloudIfEmpty() {
     }
 }
 
-async function fsUpsertWord(changedWord) {
-    console.log('AAAAAAAAAAAAAAAAA')
-    const headers = await fsHeaders();
-    if (!headers) return;
+async function fsUpsertWord(changedWord, required = false) {
+    const headers = await fsHeaders(required);
+    if (!headers) return false;
     const uid = await getAuthUidBg();
-    if (!uid) return;
-    console.log('BBBBBBBBBBBB')
+    if (!uid) {
+        if (required) {
+            throw new LazyLexApiError("The signed-in user could not be identified.", {
+                code: "auth/invalid",
+                status: 401
+            });
+        }
+        return false;
+    }
     const docId = String(changedWord.id);
     const url = `${FIRESTORE_BASE}/users/${uid}/words?documentId=${encodeURIComponent(docId)}`;
     const body = fsEncodeFields({
@@ -448,76 +452,187 @@ async function fsUpsertWord(changedWord) {
         word: String(changedWord.word || '').toLowerCase(),
         translation: String(changedWord.translation || ''),
         learned: !!changedWord.learned,
+        status: String(changedWord.status || (changedWord.learned ? "learned" : "new")),
+        encounterCount: Number(changedWord.encounterCount || 0),
         dateAdded: Number(changedWord.dateAdded || Date.now()),
         userId: String(uid),
         synonyms: Array.isArray(changedWord.synonyms) ? changedWord.synonyms : [],
         examples: Array.isArray(changedWord.examples) ? changedWord.examples : []
     });
-    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-    console.log('CCCCCCCCCCCCCCCCC')
-    if (res.ok) return;
+    const res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+    });
+    if (res.ok) return true;
     const patchUrl = `${FIRESTORE_BASE}/users/${uid}/words/${docId}`;
-    const res2 = await fetch(patchUrl, { method: 'PATCH', headers, body: JSON.stringify(body) });
-    if (!res2.ok) {
-        const text2 = await res2.text().catch(()=> '');
-        console.warn('Firestore upsert failed (patch)', res2.status, text2);
-        // One more best-effort retry after ensuring token
-        try {
-            const retryHeaders = await fsHeaders();
-            if (retryHeaders) {
-                const res3 = await fetch(patchUrl, { method: 'PATCH', headers: retryHeaders, body: JSON.stringify(body) });
-                if (!res3.ok) {
-                    console.warn('Firestore upsert retry failed', res3.status, await res3.text().catch(()=>''));
-                }
-            }
-        } catch (e) {
-            console.warn('Firestore upsert retry error', e?.message || e);
-        }
-    }
+    const res2 = await fetchWithTimeout(patchUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body)
+    });
+    await requireSuccessfulResponse(res2, "Saving the word");
+    return true;
 }
 
-async function fsDeleteWord(changedWord) {
-    const headers = await fsHeaders();
-    if (!headers) return;
+async function fsDeleteWord(changedWord, required = false) {
+    const headers = await fsHeaders(required);
+    if (!headers) return false;
     const uid = await getAuthUidBg();
-    if (!uid) return;
+    if (!uid) {
+        if (required) {
+            throw new LazyLexApiError("The signed-in user could not be identified.", {
+                code: "auth/invalid",
+                status: 401
+            });
+        }
+        return false;
+    }
     const docId = String(changedWord.id);
     const url = `${FIRESTORE_BASE}/users/${uid}/words/${docId}`;
-    await fetch(url, { method: 'DELETE', headers });
+    const response = await fetchWithTimeout(url, { method: 'DELETE', headers });
+    if (response.status !== 404) {
+        await requireSuccessfulResponse(response, "Deleting the word");
+    }
+    return true;
 }
 
 async function fsPatchWord(changedWord) {
     await fsUpsertWord(changedWord);
 }
 
-function getChangedWord(changes) {
-    const newValue = changes.newValue;
-    const oldValue = changes.oldValue;
-
-    if (newValue.length !== oldValue.length) {
-        // Handle add or delete
-        const newValueIds = newValue.map((word) => word.id);
-        const oldValueIds = oldValue.map((word) => word.id);
-
-        const [changedItemId] =
-            newValue.length > oldValue.length
-                ? newValueIds.filter((item) => !oldValueIds.includes(item))
-                : oldValueIds.filter((item) => !newValueIds.includes(item));
-
-        const [changedItem] =
-            newValue.length > oldValue.length
-                ? newValue.filter((item) => item.id === changedItemId)
-                : oldValue.filter((item) => item.id === changedItemId);
-        return changedItem;
-    } else {
-        // Handle update - find the item with the newest timestamp
-        const changedItem = newValue.find(newItem => {
-            const oldItem = oldValue.find(old => old.id === newItem.id);
-            // If oldItem doesn't exist or timestamp is different, it's the one that changed.
-            return !oldItem || newItem.lastUpdated !== oldItem.lastUpdated;
+function validateWordPayload(candidate) {
+    if (!candidate || typeof candidate !== "object") {
+        throw new LazyLexApiError("The word payload is missing.", {
+            code: "validation/word"
         });
-        return changedItem;
     }
+
+    const id = Number(candidate.id);
+    const word = String(candidate.word || "").trim().toLocaleLowerCase();
+    const translation = String(candidate.translation || "").trim();
+    if (!Number.isSafeInteger(id) || !word || !translation) {
+        throw new LazyLexApiError("The word or translation is invalid.", {
+            code: "validation/word"
+        });
+    }
+
+    return {
+        ...candidate,
+        id,
+        word,
+        translation,
+        lastUpdated: Number(candidate.lastUpdated) || Date.now()
+    };
+}
+
+async function persistWordMutation(candidate) {
+    const word = validateWordPayload(candidate);
+    await fsUpsertWord(word, true);
+
+    const { words = [] } = await chrome.storage.local.get({ words: [] });
+    const existingIndex = words.findIndex((item) => Number(item.id) === word.id);
+    const updatedWords = [...words];
+    if (existingIndex >= 0) {
+        updatedWords[existingIndex] = word;
+    } else {
+        updatedWords.push(word);
+        await incrementDailyWordCount();
+    }
+
+    cloudConfirmedWordMutations.add(word.id);
+    await chrome.storage.local.set({ words: updatedWords });
+    return word;
+}
+
+async function deleteWordMutation(wordId) {
+    const id = Number(wordId);
+    if (!Number.isSafeInteger(id)) {
+        throw new LazyLexApiError("The word id is invalid.", {
+            code: "validation/word-id"
+        });
+    }
+
+    const { words = [] } = await chrome.storage.local.get({ words: [] });
+    const word = words.find((item) => Number(item.id) === id);
+    if (!word) {
+        return id;
+    }
+
+    await fsDeleteWord(word, true);
+    cloudConfirmedWordMutations.add(id);
+    await chrome.storage.local.set({
+        words: words.filter((item) => Number(item.id) !== id)
+    });
+    return id;
+}
+
+async function updateTelegramMutation(telegramName) {
+    const normalizedTelegram = String(telegramName || "")
+        .trim()
+        .replace(/^@+/, "");
+    if (!/^[A-Za-z0-9_]{5,32}$/.test(normalizedTelegram)) {
+        throw new LazyLexApiError(
+            "Enter a valid Telegram username (5–32 letters, numbers, or underscores).",
+            { code: "validation/telegram" }
+        );
+    }
+
+    const headers = await fsHeaders(true);
+    const uid = await getAuthUidBg();
+    if (!uid) {
+        throw new LazyLexApiError("The signed-in user could not be identified.", {
+            code: "auth/invalid",
+            status: 401
+        });
+    }
+
+    const response = await fetchWithTimeout(addUpdateMask(
+        `${FIRESTORE_BASE}/users/${uid}`,
+        ["telegramName", "updatedAt"]
+    ), {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(fsEncodeFields({
+            telegramName: normalizedTelegram,
+            updatedAt: new Date()
+        }))
+    });
+    await requireSuccessfulResponse(response, "Updating Telegram");
+
+    const { userInfo = {} } = await chrome.storage.local.get({ userInfo: {} });
+    await chrome.storage.local.set({
+        userInfo: {
+            ...userInfo,
+            telegramName: normalizedTelegram
+        }
+    });
+    return normalizedTelegram;
+}
+
+function getChangedWords(changes) {
+    const newValue = Array.isArray(changes.newValue) ? changes.newValue : [];
+    const oldValue = Array.isArray(changes.oldValue) ? changes.oldValue : [];
+    const newById = new Map(newValue.map((word) => [Number(word.id), word]));
+    const oldById = new Map(oldValue.map((word) => [Number(word.id), word]));
+    const changedWords = [];
+
+    for (const [id, word] of newById) {
+        const previousWord = oldById.get(id);
+        if (!previousWord) {
+            changedWords.push({ operation: "add", word });
+        } else if (JSON.stringify(word) !== JSON.stringify(previousWord)) {
+            changedWords.push({ operation: "update", word });
+        }
+    }
+
+    for (const [id, word] of oldById) {
+        if (!newById.has(id)) {
+            changedWords.push({ operation: "delete", word });
+        }
+    }
+
+    return changedWords;
 }
 
 async function handleWordsChange(changes) {
@@ -549,42 +664,38 @@ async function handleWordsChange(changes) {
         }
         return;
     }
-    let operation;
-    if (newValue.length > oldValue.length) {
-        operation = 'add';
-    } else if (newValue.length < oldValue.length) {
-        operation = 'delete';
-    } else {
-        operation = 'update';
-    }
+    const changedWords = getChangedWords(changes);
 
-    const changedWord = getChangedWord(changes);
+    if (changedWords.length > 0) {
+        for (const { operation, word: changedWord } of changedWords) {
+            const alreadySynced = cloudConfirmedWordMutations.delete(Number(changedWord.id));
+            const message = {
+                operation: operation,
+                word: changedWord,
+                words: newValue // Pass the full list for add/reload cases
+            };
+            await notifyContentAboutChanges("wordsChanged", message);
+            notifyPopupAboutChanges("wordsChanged", {
+                operation: operation,
+                wordId: changedWord.id,
+            });
+            console.log(`Operation: ${operation}, Word: ${changedWord.word}`);
+            console.log('Mirroring to Firestore:', operation, changedWord?.id);
 
-    if (changedWord) {
-        const message = {
-            operation: operation,
-            word: changedWord,
-            words: newValue // Pass the full list for add/reload cases
-        };
-        await notifyContentAboutChanges("wordsChanged", message);
-        notifyPopupAboutChanges("wordsChanged", {
-            operation: operation,
-            wordId: changedWord.id,
-        });
-        console.log(`Operation: ${operation}, Word: ${changedWord.word}`);
-        console.log('Mirroring to Firestore:', operation, changedWord?.id);
-
-        // Mirror to Firestore (best-effort)
-        try {
-            if (operation === 'add') {
-                await fsUpsertWord(changedWord);
-                // Increment daily word count for new words
-                await incrementDailyWordCount();
+            if (!alreadySynced) {
+                // Mirror legacy/local-only mutations. Interactive mutations use the
+                // strict message handlers below and reach storage only after cloud success.
+                try {
+                    if (operation === 'add') {
+                        await fsUpsertWord(changedWord);
+                        await incrementDailyWordCount();
+                    }
+                    else if (operation === 'delete') await fsDeleteWord(changedWord);
+                    else if (operation === 'update') await fsPatchWord(changedWord);
+                } catch (e) {
+                    console.warn('Firestore mirror failed:', e?.message || e);
+                }
             }
-            else if (operation === 'delete') await fsDeleteWord(changedWord);
-            else if (operation === 'update') await fsPatchWord(changedWord);
-        } catch (e) {
-            console.warn('Firestore mirror failed:', e?.message || e);
         }
     } else {
         console.log("Could not determine changed word, forcing reload.");
@@ -607,8 +718,7 @@ async function handleWordsChange(changes) {
 
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === "install") {
-        // First install: open popup (login) instead of onboarding
-        chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") });
+        chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
         chrome.storage.local.set({ 
             token: "",
             onboardingCompleted: false
@@ -655,7 +765,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === "getUserInfo") {
         getCurrentUserInfo()
-            .then(() => {
+            .then((userInfo) => {
                 sendResponse({ userInfo });
             })
             .catch((error) => {
@@ -675,17 +785,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.action === "persistWord") {
+        persistWordMutation(request.word)
+            .then((word) => sendResponse({ success: true, word }))
+            .catch((error) => {
+                console.error("persistWord failed:", error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
+    if (request.action === "deleteWord") {
+        deleteWordMutation(request.wordId)
+            .then((wordId) => sendResponse({ success: true, wordId }))
+            .catch((error) => {
+                console.error("deleteWord failed:", error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
+    if (request.action === "updateTelegram") {
+        updateTelegramMutation(request.telegramName)
+            .then((telegramName) => sendResponse({ success: true, telegramName }))
+            .catch((error) => {
+                console.error("updateTelegram failed:", error);
+                sendResponse({ success: false, error: serializeApiError(error) });
+            });
+        return true;
+    }
+
     if (request.action === "translateWord") {
         (async () => {
             try {
                 const idToken = await getFirebaseIdTokenBg();
                 if (!idToken) throw new Error('No Firebase ID token');
-                const url = `https://europe-central2-lazylex-9d161.cloudfunctions.net/translateWord`;
-                console.log('[translateWord] Calling function', {
-                    word: request.word,
-                    targetLanguage: request.targetLanguage
-                });
-                const res = await fetch(url, {
+                const url = `${functionsBaseUrl}/translateWord`;
+                const res = await fetchWithTimeout(url, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${idToken}`,
@@ -693,16 +829,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     },
                     body: JSON.stringify({ data: { word: request.word, targetLanguage: request.targetLanguage } })
                 });
-                if (!res.ok) {
-                    const text = await res.text().catch(()=> '');
-                    throw new Error(`translateWord failed ${res.status}: ${text}`);
-                }
+                await requireSuccessfulResponse(res, "Translation");
                 const json = await res.json();
-                console.log('[translateWord] Function response', json);
                 sendResponse({ success: true, result: json.result || json });
             } catch (e) {
                 console.error('translateWord error:', e);
-                sendResponse({ success: false, error: e?.message || String(e) });
+                sendResponse({ success: false, error: serializeApiError(e) });
             }
         })();
         return true;
@@ -743,15 +875,6 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
         try {
             await fsEnsureUserDoc(changes.userInfo.newValue);
             await fsSyncWordsFromCloudIfEmpty();
-            // Notify website about authentication
-            await notifyWebsiteAuth();
-        } catch (e) { /* ignore */ }
-    }
-    
-    // When user signs out, notify website
-    if (namespace === 'local' && 'userInfo' in changes && !changes.userInfo?.newValue && changes.userInfo?.oldValue) {
-        try {
-            await notifyWebsiteSignOut();
         } catch (e) { /* ignore */ }
     }
 
@@ -761,7 +884,7 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
     }
 
     // Mirror options to Firestore preferences
-    const settingsKeys = ['translateTo','animationToggle','sentenceCounter','highlightingEnabled','highlightColor','translationColor'];
+    const settingsKeys = ['translateTo','animationToggle','sentenceCounter','highlightingEnabled','frequencyColoringEnabled','highlightColor','translationColor'];
     if (namespace === 'local' && settingsKeys.some(k => k in changes)) {
         try {
             const { userInfo } = await chrome.storage.local.get(['userInfo']);
@@ -773,10 +896,11 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
             const url = `${FIRESTORE_BASE}/users/${uid}/userSettings/preferences`;
             const current = await chrome.storage.local.get(settingsKeys);
             const body = fsEncodeFields({
-                translateTo: current.translateTo || 'UK',
+                translateTo: current.translateTo || 'uk',
                 animationToggle: (current.animationToggle === 'true') || current.animationToggle === true,
                 sentenceCounter: Number(current.sentenceCounter || 1),
                 highlightingEnabled: current.highlightingEnabled !== false,
+                frequencyColoringEnabled: current.frequencyColoringEnabled !== false,
                 highlightColor: current.highlightColor || 'rgba(255, 0, 0, 0.22)',
                 translationColor: current.translationColor || '#d0d0d0',
                 updatedAt: new Date()
@@ -924,23 +1048,11 @@ async function createDefaultUserSubscription(uid) {
     }
 }
 
-// Welcome page and onboarding logic
-chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === 'install') {
-        // First time install - show welcome page
-        showWelcomePage();
-    } else if (details.reason === 'update') {
-        // Extension updated - check if user needs welcome
-        checkWelcomeStatus();
-    }
-});
-
 function showWelcomePage() {
     chrome.storage.local.get(['welcomeShown', 'onboardingCompleted'], (result) => {
         if (!result.welcomeShown && !result.onboardingCompleted) {
-            // Open welcome page in new tab
             chrome.tabs.create({
-                url: chrome.runtime.getURL('welcome.html'),
+                url: chrome.runtime.getURL('onboarding.html'),
                 active: true
             });
         }

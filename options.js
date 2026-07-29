@@ -85,12 +85,14 @@ function saveSettings() {
     const sentenceCounterElement = document.getElementById('sentenceCounter');
     const sentenceCounter = sentenceCounterElement ? sentenceCounterElement.value : '1';
     const highlightingEnabled = document.getElementById('highlightingToggle').checked;
+    const frequencyColoringEnabled = document.getElementById('frequencyColoringToggle').checked;
 
     chrome.storage.local.set({
         translateTo: translateTo,
         animationToggle: animationToggle.toString(),
         sentenceCounter: sentenceCounter,
         highlightingEnabled: highlightingEnabled,
+        frequencyColoringEnabled,
         highlightColor: selectedHighlightColor,
         translationColor: selectedTranslationColor
     }, function () {
@@ -104,6 +106,7 @@ function saveSettings() {
                         action: 'settingsChanged',
                         settings: {
                             highlightingEnabled,
+                            frequencyColoringEnabled,
                             highlightColor: selectedHighlightColor,
                             translationColor: selectedTranslationColor,
                             translateTo: translateTo,
@@ -125,12 +128,21 @@ function loadSettings() {
         'animationToggle',
         'sentenceCounter',
         'highlightingEnabled',
+        'frequencyColoringEnabled',
         'highlightColor',
         'translationColor'
     ], function (items) {
         // Load basic settings
         if (items.translateTo) {
-            document.getElementById('translateTo').value = items.translateTo;
+            const legacyLanguageAliases = {
+                UK: 'uk',
+                spanish: 'es',
+                german: 'de',
+                japanese: 'ja',
+                mandarin: 'zh-CN'
+            };
+            document.getElementById('translateTo').value =
+                legacyLanguageAliases[items.translateTo] || items.translateTo;
         }
 
         if (items.animationToggle !== undefined) {
@@ -145,6 +157,7 @@ function loadSettings() {
         // Load highlighting settings
         const highlightingEnabled = items.highlightingEnabled !== undefined ? items.highlightingEnabled : true;
         document.getElementById('highlightingToggle').checked = highlightingEnabled;
+        document.getElementById('frequencyColoringToggle').checked = items.frequencyColoringEnabled !== false;
 
         // Load colors
         selectedHighlightColor = items.highlightColor || 'rgba(255, 0, 0, 0.22)';
@@ -179,6 +192,16 @@ document.addEventListener('DOMContentLoaded', function() {
     customTranslationColor = document.getElementById('customTranslationColor');
     previewHighlight = document.getElementById('previewHighlight');
     previewTranslation = document.getElementById('previewTranslation');
+
+    const query = new URLSearchParams(window.location.search);
+    const onboardingReturn = document.getElementById('onboardingReturn');
+    const returnToOnboardingBtn = document.getElementById('returnToOnboardingBtn');
+    if (query.get('from') === 'onboarding' && onboardingReturn && returnToOnboardingBtn) {
+        onboardingReturn.classList.add('visible');
+        returnToOnboardingBtn.addEventListener('click', () => {
+            window.location.assign(chrome.runtime.getURL('onboarding.html?step=5&return=1'));
+        });
+    }
 
     // Event listeners
     document.getElementById('save').addEventListener('click', saveSettings);

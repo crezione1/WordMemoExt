@@ -201,9 +201,63 @@
             border-radius: 3px;
             transition: all 0.3s ease;
         }
+
+        .onboarding-return {
+            display: none;
+            max-width: 600px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 0 auto 16px;
+            padding: 14px 18px;
+            color: #344054;
+            background: #f5f3ff;
+            border: 1px solid #d9d4ff;
+            border-radius: 12px;
+        }
+
+        .onboarding-return.visible {
+            display: flex;
+        }
+
+        .onboarding-return p {
+            margin: 0;
+            line-height: 1.45;
+        }
+
+        .onboarding-return-btn {
+            min-height: 44px;
+            flex: 0 0 auto;
+            padding: 10px 16px;
+            color: #fff;
+            font: inherit;
+            font-weight: 600;
+            background: #6558f5;
+            border: 1px solid #6558f5;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .onboarding-return-btn:focus-visible {
+            outline: 3px solid rgba(101, 88, 245, 0.3);
+            outline-offset: 2px;
+        }
+
+        @media (max-width: 520px) {
+            .onboarding-return {
+                align-items: stretch;
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
+<aside id="onboardingReturn" class="onboarding-return" aria-label="Return to LazyLex setup">
+    <p>Your setup progress is saved. Return to the final step when you finish customizing settings.</p>
+    <button id="returnToOnboardingBtn" class="onboarding-return-btn" type="button">
+        Return to setup
+    </button>
+</aside>
 <div class="container">
     <div class="header">
         <h1 class="title-large">LazyLex Settings</h1>
@@ -216,14 +270,14 @@
             <p class="setting-description">Choose the language you want words to be translated to</p>
             <select id="translateTo" class="form-control">
                 <option value="en">English</option>
-                <option value="UK" selected>Ukrainian</option>
-                <option value="UK" selected>Polish</option>
+                <option value="uk" selected>Ukrainian</option>
+                <option value="pl">Polish</option>
                 <option value="fr">French</option>
                 <option value="it">Italian</option>
-                <option value="spanish">Spanish</option>
-                <option value="german">German</option>
-                <option value="japanese">Japanese</option>
-                <option value="mandarin">Mandarin</option>
+                <option value="es">Spanish</option>
+                <option value="de">German</option>
+                <option value="ja">Japanese</option>
+                <option value="zh-CN">Mandarin</option>
             </select>
         </div>
 
@@ -240,6 +294,19 @@
             </div>
 
             <div id="highlightingOptions" style="margin-top: 20px;">
+                <div class="switch-container" style="margin-bottom: 20px;">
+                    <span class="switch-label">
+                        Familiarity colors
+                        <small style="display: block; margin-top: 4px; color: rgba(24, 23, 30, 0.65);">
+                            Black → gray → light gray as a word becomes familiar
+                        </small>
+                    </span>
+                    <label class="switch">
+                        <input type="checkbox" id="frequencyColoringToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
                 <label class="setting-title" style="font-size: 14px; margin-bottom: 10px;">Highlight Color</label>
                 <div class="color-picker-container">
                     <div class="color-option selected" data-color="rgba(255, 0, 0, 0.22)" style="background-color: rgba(255, 0, 0, 0.22);"></div>

@@ -1,7 +1,8 @@
 {
     "manifest_version": 3,
     "name": "LazyLex",
-    "version": "1.0",
+    "version": "1.0.0",
+    "version_name": "1.0.0 local QA",
     "description": "Save English words to a personal dictionary.",
     "options_page": "options.html",
     "options_ui": {
@@ -10,17 +11,18 @@
     },
     "permissions": ["activeTab", "contextMenus", "storage", "identity", "tabs", "scripting"],
     "host_permissions": [
-        "https://*.firebaseapp.com/*",
-        "https://*.googleapis.com/*",
-        "https://*.google.com/*",
-        "https://*.cloudfunctions.net/*"
+        "https://europe-central2-lazylex-9d161.cloudfunctions.net/*",
+        "https://firestore.googleapis.com/*",
+        "https://identitytoolkit.googleapis.com/*",
+        "https://securetoken.googleapis.com/*",
+        "https://www.googleapis.com/*"
     ],
     "oauth2": {
         "client_id": "318380438947-3479ec2jak6a0kapl8q8icip78am6o01.apps.googleusercontent.com",
         "scopes": [
+            "openid",
             "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/userinfo.profile",
-            "https://www.googleapis.com/auth/datastore"
+            "https://www.googleapis.com/auth/userinfo.profile"
         ]
     },
     "background": {
@@ -34,15 +36,6 @@
             "css": ["styles.css"]
         }
     ],
-    "web_accessible_resources": [
-        {
-            "resources": [
-                "widget/*",
-                "widget/localization/*"
-            ],
-            "matches": ["<all_urls>"]
-        }
-    ],
     "commands": {
         "_execute_action": {
             "suggested_key": {
@@ -52,7 +45,7 @@
         }
     },
     "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self';"
+        "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src https://europe-central2-lazylex-9d161.cloudfunctions.net https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; base-uri 'none'; form-action 'none';"
     },
     "icons": {
         "16": "images/lazylex_logo.png",

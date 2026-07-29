@@ -31,6 +31,7 @@ const learningGoalsContainer = document.getElementById("learningGoalsContainer")
 const telegramName = document.getElementById("telegramName");
 const telegramButton = document.getElementById("telegramBtn");
 const userEmailContainer = document.getElementById("userEmail");
+const userTelegramContainer = document.getElementById("userTelegram");
 const learnedWordsCounter = document.getElementById("learnedWordsCounter");
 const newWordsCounter = document.getElementById("newWordsCounter");
 const allWordsCounter = document.getElementById("allWordsCounter");
@@ -85,12 +86,20 @@ function isTokenValid(token) {
     if (!token) {
         return false;
     }
-    // TODO should be validated on backend
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const expirationDate = new Date(payload.exp * 1000); // Convert to milliseconds
-    const currentDate = new Date();
-
-    return currentDate < expirationDate;
+    try {
+        const parts = String(token).split(".");
+        if (parts.length !== 3) {
+            return false;
+        }
+        const normalizedPayload = parts[1]
+            .replace(/-/g, "+")
+            .replace(/_/g, "/")
+            .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
+        const payload = JSON.parse(atob(normalizedPayload));
+        return Number.isFinite(Number(payload.exp)) && Date.now() < Number(payload.exp) * 1000;
+    } catch {
+        return false;
+    }
 }
 
 async function getUserInfo() {
@@ -101,6 +110,11 @@ async function getUserInfo() {
             if (user && userEmailContainer) {
                 console.log('Current user:', user);
                 userEmailContainer.textContent = user.email || 'Authenticated User';
+                if (userTelegramContainer) {
+                    userTelegramContainer.textContent = user.telegramName
+                        ? `@${String(user.telegramName).replace(/^@+/, "")}`
+                        : "Not connected";
+                }
                 return user;
             }
         }
@@ -114,89 +128,66 @@ async function getUserInfo() {
 
 // Dictionary
 
-function generateDictionaryListItem(word, translation, wordId, status = 'new') {
-    const isLearned = status === 'learned';
+function createWordActionButton(action, wordId, label, glyph) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "icon-btn icon-btn-small";
+    button.dataset.wordId = String(wordId);
+    button.dataset.btnFunction = action;
+    button.setAttribute("aria-label", label);
+    button.title = label;
 
-    return `<li data-word-status="${status}" data-word-id="${wordId}">
-                <span class="word-list-origin">${word}</span>
-                <span class="word-list-translation">${translation}</span>
-                <div class="word-list-actions">
-                    <div>
-                        <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="showSynonym">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    clip-rule="evenodd"
-                                    d="M3.16699 6.00033C3.16699 5.54009 3.54009 5.16699 4.00033 5.16699H12.0003C12.4606 5.16699 12.8337 5.54009 12.8337 6.00033C12.8337 6.46057 12.4606 6.83366 12.0003 6.83366H4.00033C3.54009 6.83366 3.16699 6.46057 3.16699 6.00033Z"
-                                    fill="#FF9D7B"
-                                />
-                                <path
-                                    fill-rule="evenodd"
-                                    clip-rule="evenodd"
-                                    d="M3.16699 10.0003C3.16699 9.54006 3.54009 9.16699 4.00033 9.16699H12.0003C12.4606 9.16699 12.8337 9.54006 12.8337 10.0003C12.8337 10.4606 12.4606 10.8337 12.0003 10.8337H4.00033C3.54009 10.8337 3.16699 10.4606 3.16699 10.0003Z"
-                                    fill="#FF9D7B"
-                                />
-                            </svg>
-                            <span class="custom-tooltip">Show more</span>
-                        </button>
-                        <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="playPronunciation">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 14 14"
-                                fill="none"
-                            >
-                                <path
-                                    d="M8.81304 2.03626C8.95642 1.74776 9.30654 1.63011 9.59499 1.77348C11.5143 2.72731 12.8354 4.70892 12.8354 7.00014C12.8354 9.29136 11.5143 11.273 9.59499 12.2268C9.30654 12.3702 8.95642 12.2525 8.81304 11.964C8.66965 11.6755 8.78731 11.3254 9.07583 11.1821C10.6138 10.4177 11.6687 8.83158 11.6687 7.00014C11.6687 5.1687 10.6138 3.58257 9.07583 2.81825C8.78731 2.67487 8.66965 2.32477 8.81304 2.03626Z"
-                                    fill="#FF9D7B"
-                                />
-                                <path
-                                    d="M3.5013 4.66632H2.33464C1.6903 4.66632 1.16797 5.18865 1.16797 5.83298V8.16632C1.16797 8.81067 1.6903 9.33298 2.33464 9.33298H3.5013L6.04452 11.4524C6.42444 11.769 7.0013 11.4988 7.0013 11.0042V2.9951C7.0013 2.50052 6.42444 2.23035 6.04452 2.54696L3.5013 4.66632Z"
-                                    fill="#FF9D7B"
-                                />
-                                <path
-                                    d="M9.80172 4.89954C9.60823 4.64194 9.24259 4.58997 8.98499 4.78346C8.72739 4.97694 8.67542 5.34261 8.86891 5.60021C9.1618 5.99012 9.33511 6.47393 9.33511 6.99987C9.33511 7.5258 9.1618 8.00962 8.86891 8.39952C8.67542 8.65712 8.72739 9.02281 8.98499 9.2163C9.24259 9.40979 9.60823 9.35782 9.80172 9.10022C10.2411 8.51519 10.5018 7.78713 10.5018 6.99987C10.5018 6.2126 10.2411 5.48455 9.80172 4.89954Z"
-                                    fill="#FF9D7B"
-                                />
-                            </svg>
-                            <span class="custom-tooltip">Pronunciation</span>
-                        </button>
-                        ${!isLearned ? `<button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="markAsLearned">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M11.6667 3.5L5.25 9.91667L2.33333 7" stroke="#FF9D7B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span class="custom-tooltip">Mark as learned</span>
-                        </button>` : `<button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="markAsUnlearned">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M7 2.33333V7L10.5 10.5" stroke="#FF9D7B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span class="custom-tooltip">Mark as unlearned</span>
-                        </button>`}
-                        <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="deleteWord">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 14 14"
-                                fill="none"
-                            >
-                                <path
-                                    d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
-                                    fill="#FF9D7B"
-                                />
-                            </svg>
-                            <span class="custom-tooltip">Delete</span>
-                        </button>
-                    </div>
-                </div>
-            </li>`;
+    const glyphNode = document.createElement("span");
+    glyphNode.className = "word-action-glyph";
+    glyphNode.setAttribute("aria-hidden", "true");
+    glyphNode.textContent = glyph;
+    button.appendChild(glyphNode);
+    return button;
+}
+
+function createDictionaryListItem(item) {
+    const safeWordId = Number(item?.id);
+    if (!Number.isSafeInteger(safeWordId)) {
+        return null;
+    }
+
+    const status = item?.status === "learned" || item?.learned === true
+        ? "learned"
+        : "new";
+    const listItem = document.createElement("li");
+    listItem.dataset.wordStatus = status;
+    listItem.dataset.wordId = String(safeWordId);
+
+    const word = document.createElement("span");
+    word.className = "word-list-origin";
+    word.textContent = String(item?.word || "");
+
+    const translation = document.createElement("span");
+    translation.className = "word-list-translation";
+    translation.textContent = String(item?.translation || "");
+
+    const actions = document.createElement("div");
+    actions.className = "word-list-actions";
+    const actionRow = document.createElement("div");
+    actionRow.append(
+        createWordActionButton("showSynonym", safeWordId, "Show details", "…"),
+        createWordActionButton("playPronunciation", safeWordId, "Play pronunciation", "▶"),
+        status === "learned"
+            ? createWordActionButton("markAsUnlearned", safeWordId, "Mark as learning", "↺")
+            : createWordActionButton("markAsLearned", safeWordId, "Mark as learned", "✓"),
+        createWordActionButton("deleteWord", safeWordId, "Delete word", "×")
+    );
+    actions.appendChild(actionRow);
+    listItem.append(word, translation, actions);
+    return listItem;
+}
+
+function getWordTimestamp(word) {
+    const candidate = word?.dateAdded || word?.createdAt || word?.importedAt || 0;
+    const timestamp = typeof candidate === "number"
+        ? candidate
+        : new Date(candidate).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 let currentFilter = 'all';
@@ -204,18 +195,17 @@ let allWords = [];
 
 function createWordsList(words, filter = 'all') {
     const wordList = document.getElementById("wordList");
-    wordList.innerHTML = "";
+    wordList.replaceChildren();
 
-    const filteredWords = filterWords(words, filter);
+    const filteredWords = filterWords(Array.isArray(words) ? words : [], filter)
+        .slice()
+        .sort((left, right) => getWordTimestamp(right) - getWordTimestamp(left));
 
     filteredWords.forEach((item) => {
-        const listItem = generateDictionaryListItem(
-            item.word,
-            item.translation,
-            item.id,
-            item.status || 'new'
-        );
-        wordList.insertAdjacentHTML("afterbegin", listItem);
+        const listItem = createDictionaryListItem(item);
+        if (listItem) {
+            wordList.appendChild(listItem);
+        }
     });
 
     // Update counters whenever word list is created
@@ -371,34 +361,29 @@ async function displayDictionary() {
 }
 
 async function markWordAsLearned(wordId) {
-    const {words} = await chrome.storage.local.get(["words"]);
-    const updatedWords = words.map(word =>
-        word.id === Number(wordId)
-            ? {...word, status: 'learned', learnedDate: new Date().toISOString()}
-            : word
-    );
-
-    chrome.storage.local.set({words: updatedWords});
-    allWords = updatedWords;
-    createWordsList(updatedWords, currentFilter);
+    const {words = []} = await chrome.storage.local.get({ words: [] });
+    const word = words.find((item) => Number(item.id) === Number(wordId));
+    if (!word) return;
+    await persistWord({
+        ...word,
+        status: 'learned',
+        learned: true,
+        learnedDate: new Date().toISOString(),
+        lastUpdated: Date.now()
+    });
 }
 
 async function markWordAsUnlearned(wordId) {
-    const {words} = await chrome.storage.local.get(["words"]);
-    const updatedWords = words.map(word =>
-        word.id === Number(wordId)
-            ? {
-                ...word,
-                status: 'new',
-                dateAdded: new Date().toISOString(), // Reset to today's date
-                learnedDate: undefined
-            }
-            : word
-    );
-
-    chrome.storage.local.set({words: updatedWords});
-    allWords = updatedWords;
-    createWordsList(updatedWords, currentFilter);
+    const {words = []} = await chrome.storage.local.get({ words: [] });
+    const word = words.find((item) => Number(item.id) === Number(wordId));
+    if (!word) return;
+    await persistWord({
+        ...word,
+        status: 'new',
+        learned: false,
+        learnedDate: null,
+        lastUpdated: Date.now()
+    });
 }
 
 function playWordPronunciation(wordId) {
@@ -412,18 +397,37 @@ function playWordPronunciation(wordId) {
 }
 
 function deleteWordFromPopupDictionary(changedWordId) {
-    const changedListItem = wordList.querySelector(`[data-word-id="${changedWordId}"]`).parentNode;
-
-    changedListItem.remove();
+    const safeWordId = Number(changedWordId);
+    if (!Number.isSafeInteger(safeWordId)) {
+        return;
+    }
+    const changedListItem = document.querySelector(
+        `#wordList > li[data-word-id="${safeWordId}"]`
+    );
+    changedListItem?.remove();
 }
 
 async function deleteWordFromStorage(wordId) {
-    const {words} = await chrome.storage.local.get(["words"]);
-    const updatedWords = words.filter((word) => word.id !== Number(wordId));
+    const response = await chrome.runtime.sendMessage({
+        action: "deleteWord",
+        wordId: Number(wordId)
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to delete the word.");
+    }
+    await displayDictionary();
+}
 
-    chrome.storage.local.set({words: updatedWords});
-    allWords = updatedWords;
-    createWordsList(updatedWords, currentFilter);
+async function persistWord(word) {
+    const response = await chrome.runtime.sendMessage({
+        action: "persistWord",
+        word
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to update the word.");
+    }
+    await displayDictionary();
+    return response.word;
 }
 
 // Settings
@@ -446,41 +450,51 @@ async function getCurrentSite() {
 }
 
 function getSiteHostname(site) {
-    const urlObject = new URL(site);
-    return urlObject.hostname;
+    try {
+        return new URL(site).hostname.toLocaleLowerCase();
+    } catch {
+        return "";
+    }
+}
+
+function hostnameMatches(hostname, excludedHostname) {
+    const normalizedHostname = String(hostname || "").trim().toLocaleLowerCase();
+    const normalizedExcluded = String(excludedHostname || "")
+        .trim()
+        .replace(/^\.+|\.+$/g, "")
+        .toLocaleLowerCase();
+    return Boolean(normalizedHostname && normalizedExcluded)
+        && (
+            normalizedHostname === normalizedExcluded
+            || normalizedHostname.endsWith(`.${normalizedExcluded}`)
+        );
 }
 
 function checkIfCurrentSiteEnabled() {
+    const siteHostname = getSiteHostname(currentSite);
     return !excludedSites.some((site) => {
-        const siteHostname = getSiteHostname(currentSite);
-        return siteHostname.includes(site);
+        return hostnameMatches(siteHostname, site);
     });
 }
 
 function generateExclusionListItem(text) {
-    return `<li>
-                <span>${text}</span>
-                <button type="button" class="icon-btn icon-btn-small">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 14 14"
-                        fill="none"
-                    >
-                        <path
-                            d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
-                            fill="#FF9D7B"
-                        />
-                    </svg>
-                </button>
-            </li>`;
+    const listItem = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = String(text || "");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "icon-btn icon-btn-small";
+    button.setAttribute("aria-label", `Remove ${label.textContent} from exclusions`);
+    button.textContent = "×";
+    listItem.append(label, button);
+    return listItem;
 }
 
 function displayExclusionList(list) {
+    exclusionList.replaceChildren();
     list.forEach((site) => {
         const listItem = generateExclusionListItem(site);
-        exclusionList.insertAdjacentHTML("afterbegin", listItem);
+        exclusionList.appendChild(listItem);
     });
 }
 
@@ -509,7 +523,7 @@ async function toggleExtensionState() {
         updatedList = [...excludedSites, currentSiteHostname];
 
         const listItem = generateExclusionListItem(currentSiteHostname);
-        exclusionList.insertAdjacentHTML("afterbegin", listItem);
+        exclusionList.prepend(listItem);
         isEnabled = false;
     }
 
@@ -538,7 +552,7 @@ async function addSiteToExclusion() {
         await chrome.storage.local.set({excludedSites: updatedList});
 
         const listItem = generateExclusionListItem(site);
-        exclusionList.insertAdjacentHTML("afterbegin", listItem);
+        exclusionList.prepend(listItem);
         siteInput.value = "";
 
         const currentSiteHostname = getSiteHostname(currentSite);
@@ -589,24 +603,31 @@ function toggleButton(button, input) {
     button.style.pointerEvents = button.disabled ? "none" : "auto";
 }
 
-function updateTelegram() {
-    chrome.runtime.sendMessage(
-        {
+async function updateTelegram() {
+    const value = telegramName.value.trim();
+    telegramButton.disabled = true;
+    try {
+        const response = await chrome.runtime.sendMessage({
             action: "updateTelegram",
-            telegramName: telegramName.value.trim(),
-        },
-        (response) => {
-            if (response.success) {
-                const message = "Telegram name has been successfully updated.";
-                showNotification(message);
-            } else {
-                const message = "There was an error updating a telegram name. Please try again later.";
-                showNotification(message);
-            }
+            telegramName: value
+        });
+        if (!response?.success) {
+            throw new Error(
+                response?.error?.message
+                || "There was an error updating your Telegram username."
+            );
         }
-    );
 
-    telegramName.value = "";
+        telegramName.value = "";
+        if (userTelegramContainer) {
+            userTelegramContainer.textContent = `@${response.telegramName}`;
+        }
+        showNotification("Telegram username updated.");
+    } catch (error) {
+        showNotification(error?.message || "Unable to update Telegram.");
+    } finally {
+        toggleButton(telegramButton, telegramName);
+    }
 }
 
 function toggleVisibility(element) {
@@ -626,15 +647,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (tab.id === 'dictionaryTab') {
                     displayDictionary().catch(console.error);
                 }
-            });
-        }
-
-        // Word category navigation
-        if (wordCategoryList) {
-            wordCategoryList.addEventListener("click", (e) => {
-                const category = e.target.closest(".word-category-btn");
-                if (!category) return;
-                showTab("dictionaryTab");
             });
         }
 
@@ -674,7 +686,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 } catch (error) {
                     console.error('Sign in failed:', error);
-                    showNotification('Sign in failed. Please try again.');
+                    const readableMessage = window.firebaseAuth?.getReadableAuthError
+                        ? window.firebaseAuth.getReadableAuthError(error)
+                        : 'Google sign-in failed. Please try again.';
+                    showNotification(readableMessage);
 
                     googleSignInBtn.disabled = false;
                     googleSignInBtn.textContent = "Sign in with Google";
@@ -684,57 +699,61 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Logout button
         if (logoutButton) {
             logoutButton.addEventListener("click", async () => {
+                const localAuthKeys = [
+                    "token",
+                    "words",
+                    "auth_token",
+                    "firebase_id_token",
+                    "firebase_refresh_token",
+                    "firebase_token_exp",
+                    "user_info",
+                    "userInfo"
+                ];
                 try {
                     // Sign out from auth system
                     if (window.firebaseAuth && window.firebaseAuth.signOut) {
                         await window.firebaseAuth.signOut();
                     }
 
-                    // Clear local storage
-                    chrome.storage.local.remove(["token", "words", "auth_token"]);
+                    // Keep this idempotent in case an auth implementation leaves
+                    // one of the local credential aliases behind.
+                    await chrome.storage.local.remove(localAuthKeys);
 
                     showLoginPage();
                 } catch (error) {
                     console.error('Logout error:', error);
-                    // Fallback to clearing storage even if auth logout fails
-                    chrome.storage.local.remove(["token", "words", "auth_token"]);
+                    // A failed provider logout must not leave reusable Firebase
+                    // credentials or identity data in extension storage.
+                    await chrome.storage.local.remove(localAuthKeys);
                     showLoginPage();
                 }
             });
         }
 
-    wordCategoryList.addEventListener("click", (e) => {
-        const category = e.target.closest(".word-category-btn");
+    if (wordCategoryList) {
+        wordCategoryList.addEventListener("click", (e) => {
+            const category = e.target.closest(".word-category-btn");
 
-        if (!category) return;
+            if (!category) return;
 
-        // Determine which filter to apply based on the clicked category
-        let targetFilter = 'all';
-        if (category.id === 'newWordsList') {
-            targetFilter = 'all';
-        } else if (category.id === 'savedWordsList') {
-            targetFilter = 'today';
-        } else if (category.id === 'learnedWordsList') {
-            targetFilter = 'learned';
-        }
+            // Determine which filter to apply based on the clicked category
+            let targetFilter = 'all';
+            if (category.id === 'newWordsList') {
+                targetFilter = 'all';
+            } else if (category.id === 'savedWordsList') {
+                targetFilter = 'today';
+            } else if (category.id === 'learnedWordsList') {
+                targetFilter = 'learned';
+            }
 
-        // Set the filter and update the UI
-        currentFilter = targetFilter;
-        updateActiveFilterTab(currentFilter);
-        createWordsList(allWords, currentFilter);
+            // Set the filter and update the UI
+            currentFilter = targetFilter;
+            updateActiveFilterTab(currentFilter);
+            createWordsList(allWords, currentFilter);
 
-        showTab("dictionaryTab");
-    });
-
-    settingsButton.addEventListener("click", () => {
-        chrome.runtime.openOptionsPage();
-    });
-
-    logoutButton.addEventListener("click", () => {
-        chrome.storage.local.remove(["token", "words"]);
-
-        showLoginPage();
-    });
+            showTab("dictionaryTab");
+        });
+    }
 
     document.addEventListener("click", async (e) => {
         const button = e.target.closest("button");
@@ -753,21 +772,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         const action = button.dataset.btnFunction;
         if (!action) return;
 
-        if (action === "showSynonym") {
-            try {
+        try {
+            if (action === "showSynonym") {
                 const wordId = Number(button.dataset.wordId);
                 renderWordDetailsById(wordId);
-            } catch (e) {
-                console.error('Open word details failed:', e);
+            } else if (action === "playPronunciation") {
+                playWordPronunciation(button.dataset.wordId);
+            } else if (action === "markAsLearned") {
+                await markWordAsLearned(button.dataset.wordId);
+            } else if (action === "markAsUnlearned") {
+                await markWordAsUnlearned(button.dataset.wordId);
+            } else if (action === "deleteWord") {
+                await deleteWordFromStorage(button.dataset.wordId);
             }
-        } else if (action === "playPronunciation") {
-            playWordPronunciation(button.dataset.wordId);
-        } else if (action === "markAsLearned") {
-            await markWordAsLearned(button.dataset.wordId);
-        } else if (action === "markAsUnlearned") {
-            await markWordAsUnlearned(button.dataset.wordId);
-        } else if (action === "deleteWord") {
-            await deleteWordFromStorage(button.dataset.wordId);
+        } catch (error) {
+            console.error(`Word action ${action} failed:`, error);
+            showNotification(error?.message || "The word action failed.");
         }
     });
 
@@ -787,7 +807,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const op = request.newValue.operation;
             if (op === "getAllWords") {
                 displayDictionary().catch(console.error);
-            } else if (op === "deleteWord") {
+            } else if (op === "delete" || op === "deleteWord") {
                 deleteWordFromPopupDictionary(request.newValue.wordId);
                 // refresh counters after delete
                 displayDictionary().catch(console.error);
@@ -807,7 +827,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     telegramName.addEventListener("input", () => toggleButton(telegramButton, telegramName));
     telegramButton.addEventListener("click", () => {
-        updateTelegram();
+        updateTelegram().catch(console.error);
     });
 
     //token verification
@@ -923,8 +943,11 @@ async function addNewWordFromPopup() {
             targetLanguage
         });
 
-        const tr = (resp && resp.success && resp.result) ? resp.result : { translation: wordLower, synonyms: [], examples: [] };
-        const translation = tr.translation || wordLower;
+        if (!resp?.success || !resp?.result?.translation) {
+            throw new Error(resp?.error?.message || "Translation failed. Please try again.");
+        }
+        const tr = resp.result;
+        const translation = String(tr.translation).trim();
         const synonyms = Array.isArray(tr.synonyms) ? tr.synonyms : [];
         const examples = Array.isArray(tr.examples) ? tr.examples : [];
 
@@ -941,25 +964,12 @@ async function addNewWordFromPopup() {
             dateAdded: Date.now(),
             status: 'new',
             learned: false,
+            encounterCount: 0,
             synonyms,
             examples
         };
 
-        const updated = [...words, newWord];
-        await chrome.storage.local.set({ words: updated });
-        
-        // Increment daily word count after successful add
-        if (window.subscriptionManager) {
-            try {
-                await window.subscriptionManager.incrementDailyWordCount();
-            } catch (error) {
-                console.error('Error incrementing daily word count:', error);
-            }
-        }
-
-        allWords = updated;
-        createWordsList(updated, currentFilter);
-        updateWordCounters(updated);
+        await persistWord(newWord);
         await updateSubscriptionDisplay(); // Update subscription display after adding word
 
         addWordInput.value = '';
@@ -967,7 +977,7 @@ async function addNewWordFromPopup() {
         showNotification('Word added successfully');
     } catch (e) {
         console.error('Add new word failed:', e);
-        showNotification('Failed to add word');
+        showNotification(e?.message || 'Failed to add word');
     }
 }
 
@@ -1015,7 +1025,7 @@ async function renderWordDetailsById(wordId) {
         trEl.textContent = found.translation || '';
 
         // Synonyms
-        synList.innerHTML = '';
+        synList.replaceChildren();
         const synonyms = Array.isArray(found.synonyms) ? found.synonyms : [];
         if (synonyms.length === 0) {
             synEmpty.style.display = 'block';
@@ -1030,7 +1040,7 @@ async function renderWordDetailsById(wordId) {
         }
 
         // Examples: prefer stored; if empty, fetch from backend once and persist
-        exList.innerHTML = '';
+        exList.replaceChildren();
         let examples = Array.isArray(found.examples) && found.examples.length > 0 ? found.examples : [];
 
         if (examples.length === 0) {
