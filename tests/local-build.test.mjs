@@ -281,7 +281,7 @@ test("YouTube SPA navigation is detected and reprocessed exactly once per video 
     // more than once (e.g. re-entrant script evaluation) without attaching
     // duplicate listeners or re-wrapping history.pushState twice.
     const installerSource = contentSource.match(
-        /function installYouTubeNavigationHandlers\(\)[\s\S]*?\n}\n/
+        /function installYouTubeNavigationHandlers\(\)[\s\S]*?\r?\n}\r?\n/
     )?.[0];
     assert.ok(installerSource, "expected the navigation-handler installer");
     assert.match(installerSource, /if \(youtubeNavigationHandlersInstalled/);
