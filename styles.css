@@ -1,3 +1,51 @@
+/* Filter tabs styling */
+.filter-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 15px 0;
+    padding: 0 10px;
+}
+
+.filter-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ecedef;
+    border-radius: 8px;
+    background: #f5f5f5;
+    color: #666;
+    font-size: 12px;
+    font-weight: 400;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.filter-tab:hover {
+    border-color: #FF9D7B;
+    background: #ffeee8;
+}
+
+.filter-tab.active {
+    background-color: #FF9D7B;
+    color: white;
+    border-color: #FF9D7B;
+}
+
+.filter-counter {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: 8px;
+    min-width: 20px;
+    text-align: center;
+    display: inline-block;
+}
+
+.filter-tab.active .filter-counter {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Add basic styles for the extension */
 .highlighted-word {
     position: relative;
     transition: background-color 1s ease; /* Animate background color */
@@ -11,7 +59,7 @@
     bottom: -1px;
     width: 0;
     height: 1px;
-    background: rgba(255, 0, 0, 0.64);
+    background: var(--highlight-color, rgba(255, 0, 0, 0.64));
     transition: width 1s ease; /* Animate width property */
 }
 
@@ -26,31 +74,110 @@
 
 /* Animate to this background color upon insertion */
 .highlighted-word.animate-background {
-    background-color: rgba(255, 0, 0, 0.22); /* Light yellow background */
+    background-color: var(--highlight-color, rgba(255, 0, 0, 0.22));
+}
+
+.highlighted-word.lazylex-frequency-new::after {
+    height: 2px;
+    background: #111827;
+}
+
+.highlighted-word.lazylex-frequency-familiar::after {
+    height: 2px;
+    background: #667085;
+}
+
+.highlighted-word.lazylex-frequency-retained::after {
+    height: 2px;
+    background: #cbd5e1;
 }
 
 .translation {
     position: relative;
-    color: #d0d0d0;
+    color: var(--translation-color, #d0d0d0);
 }
 
 .translation:hover {
     cursor: pointer;
 }
 
-#deleteWordBtn {
+.highlight-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.action-button {
     width: 24px;
     height: 24px;
     padding: 0;
-    position: absolute;
-    top: -24px;
-    right: -24px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    background-color: #4285f4;
+    background-color: #ff6b35;
     border-radius: 50%;
     border: none;
     cursor: pointer;
+    z-index: 999999;
+}
+
+#deleteWordBtn {
+    width: 32px;
+    height: 32px;
+    color: #fff;
+    background: #c4320a;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+#add-new-word {
+    position: absolute;
+}
+
+.edit-translation-input {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 14px;
+    margin-right: 5px;
+}
+
+.edit-translation-input:focus {
+    outline: none;
+    border-color: #ff6b35;
+    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+.translation-loader {
+    border: 2px solid #f3f3f3; /* Light grey */
+    border-top: 2px solid #ff6b35; /* Blue */
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.translation-loader {
+    border: 2px solid #f3f3f3; /* Light grey */
+    border-top: 2px solid #ff6b35; /* Blue */
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

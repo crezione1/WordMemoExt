@@ -1,3 +1,13 @@
+// Prevent popup.js from running on non-popup pages (like onboarding)
+(function() {
+    // Use DOM-based detection - popup page has #mainContent, onboarding doesn't
+    const isPopupContext = !!document.getElementById('mainContent');
+    if (!isPopupContext) {
+        return; // Exit immediately - not the popup page
+    }
+
+    // Run popup.js on popup page only
+
 const loginPage = document.getElementById("loginPage");
 const mainContent = document.getElementById("mainContent");
 const settingsButton = document.getElementById("settingsBtn");
@@ -21,6 +31,18 @@ const learningGoalsContainer = document.getElementById("learningGoalsContainer")
 const telegramName = document.getElementById("telegramName");
 const telegramButton = document.getElementById("telegramBtn");
 const userEmailContainer = document.getElementById("userEmail");
+const userTelegramContainer = document.getElementById("userTelegram");
+const learnedWordsCounter = document.getElementById("learnedWordsCounter");
+const newWordsCounter = document.getElementById("newWordsCounter");
+const allWordsCounter = document.getElementById("allWordsCounter");
+const addWordInput = document.getElementById('addWordInput');
+const addWordBtn = document.getElementById('addWordBtn');
+const subscriptionStatus = document.getElementById('subscriptionStatus');
+const subscriptionPlan = document.getElementById('subscriptionPlan');
+const subscriptionLimit = document.getElementById('subscriptionLimit');
+const usageText = document.getElementById('usageText');
+const usageProgress = document.getElementById('usageProgress');
+const upgradeBtn = document.getElementById('upgradeBtn');
 
 let excludedSites;
 let currentSite;
@@ -64,26 +86,40 @@ function isTokenValid(token) {
     if (!token) {
         return false;
     }
-    // TODO should be validated on backend
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const expirationDate = new Date(payload.exp * 1000); // Convert to milliseconds
-    const currentDate = new Date();
-
-    return currentDate < expirationDate;
+    try {
+        const parts = String(token).split(".");
+        if (parts.length !== 3) {
+            return false;
+        }
+        const normalizedPayload = parts[1]
+            .replace(/-/g, "+")
+            .replace(/_/g, "/")
+            .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
+        const payload = JSON.parse(atob(normalizedPayload));
+        return Number.isFinite(Number(payload.exp)) && Date.now() < Number(payload.exp) * 1000;
+    } catch {
+        return false;
+    }
 }
 
 async function getUserInfo() {
     try {
         // Get current user from Chrome storage
-        const user = await window.firebaseAuth.getCurrentUser();
-        if (user && userEmailContainer) {
-            console.log('Current user:', user);
-            userEmailContainer.textContent = user.email || 'Authenticated User';
-            return user;
-        } else {
-            console.log('No user signed in');
-            return null;
+        if (window.firebaseAuth && window.firebaseAuth.getCurrentUser) {
+            const user = await window.firebaseAuth.getCurrentUser();
+            if (user && userEmailContainer) {
+                console.log('Current user:', user);
+                userEmailContainer.textContent = user.email || 'Authenticated User';
+                if (userTelegramContainer) {
+                    userTelegramContainer.textContent = user.telegramName
+                        ? `@${String(user.telegramName).replace(/^@+/, "")}`
+                        : "Not connected";
+                }
+                return user;
+            }
         }
+        console.log('No user signed in');
+        return null;
     } catch (error) {
         console.error('Error getting user info:', error);
         return null;
@@ -92,108 +128,306 @@ async function getUserInfo() {
 
 // Dictionary
 
-function generateDictionaryListItem(word, translation, wordId) {
-    return `<li>
-                <span class="word-list-origin">${word}</span>
-                <span class="word-list-translation">${translation}</span>
-                <div class="word-list-actions">
-                    <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="showSynonym">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 16 16"
-                            fill="none"
-                        >
-                            <path
-                                fill-rule="evenodd"
-                                clip-rule="evenodd"
-                                d="M3.16699 6.00033C3.16699 5.54009 3.54009 5.16699 4.00033 5.16699H12.0003C12.4606 5.16699 12.8337 5.54009 12.8337 6.00033C12.8337 6.46057 12.4606 6.83366 12.0003 6.83366H4.00033C3.54009 6.83366 3.16699 6.46057 3.16699 6.00033Z"
-                                fill="#FF9D7B"
-                            />
-                            <path
-                                fill-rule="evenodd"
-                                clip-rule="evenodd"
-                                d="M3.16699 10.0003C3.16699 9.54006 3.54009 9.16699 4.00033 9.16699H12.0003C12.4606 9.16699 12.8337 9.54006 12.8337 10.0003C12.8337 10.4606 12.4606 10.8337 12.0003 10.8337H4.00033C3.54009 10.8337 3.16699 10.4606 3.16699 10.0003Z"
-                                fill="#FF9D7B"
-                            />
-                        </svg>
-                    </button>
-                    <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="playPronunciation">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 14 14"
-                            fill="none"
-                        >
-                            <path
-                                d="M8.81304 2.03626C8.95642 1.74776 9.30654 1.63011 9.59499 1.77348C11.5143 2.72731 12.8354 4.70892 12.8354 7.00014C12.8354 9.29136 11.5143 11.273 9.59499 12.2268C9.30654 12.3702 8.95642 12.2525 8.81304 11.964C8.66965 11.6755 8.78731 11.3254 9.07583 11.1821C10.6138 10.4177 11.6687 8.83158 11.6687 7.00014C11.6687 5.1687 10.6138 3.58257 9.07583 2.81825C8.78731 2.67487 8.66965 2.32477 8.81304 2.03626Z"
-                                fill="#FF9D7B"
-                            />
-                            <path
-                                d="M3.5013 4.66632H2.33464C1.6903 4.66632 1.16797 5.18865 1.16797 5.83298V8.16632C1.16797 8.81067 1.6903 9.33298 2.33464 9.33298H3.5013L6.04452 11.4524C6.42444 11.769 7.0013 11.4988 7.0013 11.0042V2.9951C7.0013 2.50052 6.42444 2.23035 6.04452 2.54696L3.5013 4.66632Z"
-                                fill="#FF9D7B"
-                            />
-                            <path
-                                d="M9.80172 4.89954C9.60823 4.64194 9.24259 4.58997 8.98499 4.78346C8.72739 4.97694 8.67542 5.34261 8.86891 5.60021C9.1618 5.99012 9.33511 6.47393 9.33511 6.99987C9.33511 7.5258 9.1618 8.00962 8.86891 8.39952C8.67542 8.65712 8.72739 9.02281 8.98499 9.2163C9.24259 9.40979 9.60823 9.35782 9.80172 9.10022C10.2411 8.51519 10.5018 7.78713 10.5018 6.99987C10.5018 6.2126 10.2411 5.48455 9.80172 4.89954Z"
-                                fill="#FF9D7B"
-                            />
-                        </svg>
-                    </button>
-                    <button type="button" class="icon-btn icon-btn-small" data-word-id="${wordId}" data-btn-function="deleteWord">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 14 14"
-                            fill="none"
-                        >
-                            <path
-                                d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
-                                fill="#FF9D7B"
-                            />
-                        </svg>
-                    </button>
-                </div>
-            </li>`;
+function createWordActionButton(action, wordId, label, glyph) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "icon-btn icon-btn-small";
+    button.dataset.wordId = String(wordId);
+    button.dataset.btnFunction = action;
+    button.setAttribute("aria-label", label);
+    button.title = label;
+
+    const glyphNode = document.createElement("span");
+    glyphNode.className = "word-action-glyph";
+    glyphNode.setAttribute("aria-hidden", "true");
+    glyphNode.textContent = glyph;
+    button.appendChild(glyphNode);
+    return button;
 }
 
-function createWordsList(words) {
-    const dictionaryList = document.createElement("ul");
-    dictionaryList.id = "wordList";
-    dictionaryList.className = "word-list list";
+function createDictionaryListItem(item) {
+    const safeWordId = Number(item?.id);
+    if (!Number.isSafeInteger(safeWordId)) {
+        return null;
+    }
 
-    words.forEach((item) => {
-        const listItem = generateDictionaryListItem(item.word, item.translation, item.id);
+    const status = item?.status === "learned" || item?.learned === true
+        ? "learned"
+        : "new";
+    const listItem = document.createElement("li");
+    listItem.dataset.wordStatus = status;
+    listItem.dataset.wordId = String(safeWordId);
 
-        dictionaryList.insertAdjacentHTML("afterbegin", listItem);
+    const word = document.createElement("span");
+    word.className = "word-list-origin";
+    word.textContent = String(item?.word || "");
+
+    const translation = document.createElement("span");
+    translation.className = "word-list-translation";
+    translation.textContent = String(item?.translation || "");
+
+    const actions = document.createElement("div");
+    actions.className = "word-list-actions";
+    const actionRow = document.createElement("div");
+    actionRow.append(
+        createWordActionButton("showSynonym", safeWordId, "Show details", "…"),
+        createWordActionButton("playPronunciation", safeWordId, "Play pronunciation", "▶"),
+        status === "learned"
+            ? createWordActionButton("markAsUnlearned", safeWordId, "Mark as learning", "↺")
+            : createWordActionButton("markAsLearned", safeWordId, "Mark as learned", "✓"),
+        createWordActionButton("deleteWord", safeWordId, "Delete word", "×")
+    );
+    actions.appendChild(actionRow);
+    listItem.append(word, translation, actions);
+    return listItem;
+}
+
+function getWordTimestamp(word) {
+    const candidate = word?.dateAdded || word?.createdAt || word?.importedAt || 0;
+    const timestamp = typeof candidate === "number"
+        ? candidate
+        : new Date(candidate).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+let currentFilter = 'all';
+let allWords = [];
+
+function createWordsList(words, filter = 'all') {
+    const wordList = document.getElementById("wordList");
+    wordList.replaceChildren();
+
+    const filteredWords = filterWords(Array.isArray(words) ? words : [], filter)
+        .slice()
+        .sort((left, right) => getWordTimestamp(right) - getWordTimestamp(left));
+
+    filteredWords.forEach((item) => {
+        const listItem = createDictionaryListItem(item);
+        if (listItem) {
+            wordList.appendChild(listItem);
+        }
     });
 
-    return dictionaryList;
+    // Update counters whenever word list is created
+    updateWordCounters(words);
+}
+
+function filterWords(words, filter) {
+    const today = new Date().toDateString();
+
+    switch (filter) {
+        case 'learned':
+            return words.filter(word => word.status === 'learned');
+        case 'today':
+            return words.filter(word => {
+                const ts = typeof word.dateAdded === 'string' || typeof word.dateAdded === 'number'
+                  ? new Date(word.dateAdded)
+                  : new Date();
+                const wordDate = ts.toDateString();
+                return wordDate === today && word.status !== 'learned';
+            });
+        case 'all':
+        default:
+            return words;
+    }
+}
+
+function updateActiveFilterTab(activeFilter) {
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelector(`[data-filter="${activeFilter}"]`).classList.add('active');
+}
+
+function updateWordCounters(words) {
+    const allCount = words.length;
+    const learnedCount = words.filter(word => word.status === 'learned').length;
+    const todayStr = new Date().toDateString();
+    const todayCount = words.filter(word => {
+        const ts = typeof word.dateAdded === 'string' || typeof word.dateAdded === 'number'
+          ? new Date(word.dateAdded)
+          : new Date();
+        return ts.toDateString() === todayStr && word.status !== 'learned';
+    }).length;
+
+    if (learnedWordsCounter) learnedWordsCounter.textContent = learnedCount;
+    if (newWordsCounter) newWordsCounter.textContent = todayCount;
+    if (allWordsCounter) allWordsCounter.textContent = allCount;
+
+    // Update counter displays
+    const allTab = document.querySelector('[data-filter="all"]');
+    const learnedTab = document.querySelector('[data-filter="learned"]');
+    const todayTab = document.querySelector('[data-filter="today"]');
+
+    if (allTab) {
+        const counter = allTab.querySelector('.filter-counter');
+        if (counter) counter.textContent = allCount;
+    }
+
+    if (learnedTab) {
+        const counter = learnedTab.querySelector('.filter-counter');
+        if (counter) counter.textContent = learnedCount;
+    }
+
+    if (todayTab) {
+        const counter = todayTab.querySelector('.filter-counter');
+        if (counter) counter.textContent = todayCount;
+    }
+}
+
+async function updateSubscriptionDisplay() {
+    try {
+        if (!window.subscriptionManager) {
+            console.warn('Subscription manager not available');
+            return;
+        }
+
+        const displayInfo = await window.subscriptionManager.getSubscriptionDisplayInfo();
+        
+        if (!subscriptionStatus) return;
+
+        // Show subscription status
+        subscriptionStatus.style.display = 'block';
+
+        // Update plan display
+        const planText = displayInfo.isPremium ? 
+            (displayInfo.subscriptionStatus === 'lifetime' ? 'Lifetime Plan' : 'Premium Plan') : 
+            'Free Plan';
+        if (subscriptionPlan) subscriptionPlan.textContent = planText;
+
+        // Update limit display
+        const limitText = displayInfo.isPremium ? 'Unlimited words per day' : `${displayInfo.dailyWordLimit} words per day`;
+        if (subscriptionLimit) subscriptionLimit.textContent = limitText;
+
+        // Update usage display
+        if (displayInfo.isPremium) {
+            if (usageText) usageText.textContent = `${displayInfo.dailyWordsAdded} words added today`;
+            if (usageProgress) usageProgress.style.width = '100%';
+        } else {
+            if (usageText) usageText.textContent = `${displayInfo.dailyWordsAdded} of ${displayInfo.dailyWordLimit} words used today`;
+            const percentage = Math.min(100, (displayInfo.dailyWordsAdded / displayInfo.dailyWordLimit) * 100);
+            if (usageProgress) usageProgress.style.width = `${percentage}%`;
+        }
+
+        // Update CSS classes
+        subscriptionStatus.classList.remove('premium', 'limit-reached');
+        if (displayInfo.isPremium) {
+            subscriptionStatus.classList.add('premium');
+        } else if (!displayInfo.canAddWords) {
+            subscriptionStatus.classList.add('limit-reached');
+        }
+
+        // Show/hide upgrade button
+        if (upgradeBtn) {
+            upgradeBtn.style.display = displayInfo.isPremium ? 'none' : 'block';
+        }
+
+        // Update add word button state
+        if (addWordBtn && !displayInfo.canAddWords && !displayInfo.isPremium) {
+            addWordBtn.disabled = true;
+            addWordBtn.textContent = 'Daily Limit Reached';
+        } else if (addWordBtn) {
+            addWordBtn.textContent = 'Add';
+            // Re-enable if input has text and limit allows
+            if (addWordInput && addWordInput.value.trim()) {
+                addWordBtn.disabled = false;
+            }
+        }
+
+    } catch (error) {
+        console.error('Error updating subscription display:', error);
+    }
 }
 
 async function displayDictionary() {
-    const { words } = await chrome.storage.local.get(["words"]);
+    try {
+        let { words } = await chrome.storage.local.get(["words"]);
+        if (!Array.isArray(words)) {
+            // Try to trigger background sync then re-read
+            chrome.runtime.sendMessage({ action: "saveWordsToStorage" });
+            const retry = await new Promise((resolve) => setTimeout(async () => {
+                const data = await chrome.storage.local.get(["words"]);
+                resolve(data.words || []);
+            }, 250));
+            words = retry;
+        }
+        allWords = Array.isArray(words) ? words : [];
+        createWordsList(allWords, currentFilter);
+        updateWordCounters(allWords);
+        await updateSubscriptionDisplay();
+    } catch (e) {
+        console.error('displayDictionary failed:', e);
+    }
+}
 
-    if (words === undefined) return;
+async function markWordAsLearned(wordId) {
+    const {words = []} = await chrome.storage.local.get({ words: [] });
+    const word = words.find((item) => Number(item.id) === Number(wordId));
+    if (!word) return;
+    await persistWord({
+        ...word,
+        status: 'learned',
+        learned: true,
+        learnedDate: new Date().toISOString(),
+        lastUpdated: Date.now()
+    });
+}
 
-    const wordsList = createWordsList(words);
+async function markWordAsUnlearned(wordId) {
+    const {words = []} = await chrome.storage.local.get({ words: [] });
+    const word = words.find((item) => Number(item.id) === Number(wordId));
+    if (!word) return;
+    await persistWord({
+        ...word,
+        status: 'new',
+        learned: false,
+        learnedDate: null,
+        lastUpdated: Date.now()
+    });
+}
 
-    wordListContainer.appendChild(wordsList);
+function playWordPronunciation(wordId) {
+    const word = allWords.find(w => w.id === Number(wordId));
+    if (word) {
+        const utterance = new SpeechSynthesisUtterance(word.word);
+        // TODO create onbording screen + add this to options to select languages and use it here
+        utterance.lang = 'en-US';
+        speechSynthesis.speak(utterance);
+    }
 }
 
 function deleteWordFromPopupDictionary(changedWordId) {
-    const changedListItem = wordList.querySelector(`[data-word-id="${changedWordId}"]`).parentNode;
-
-    changedListItem.remove();
+    const safeWordId = Number(changedWordId);
+    if (!Number.isSafeInteger(safeWordId)) {
+        return;
+    }
+    const changedListItem = document.querySelector(
+        `#wordList > li[data-word-id="${safeWordId}"]`
+    );
+    changedListItem?.remove();
 }
 
 async function deleteWordFromStorage(wordId) {
-    const { words } = await chrome.storage.local.get(["words"]);
-    const updatedWords = words.filter((word) => word.id !== Number(wordId));
+    const response = await chrome.runtime.sendMessage({
+        action: "deleteWord",
+        wordId: Number(wordId)
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to delete the word.");
+    }
+    await displayDictionary();
+}
 
-    chrome.storage.local.set({ words: updatedWords });
+async function persistWord(word) {
+    const response = await chrome.runtime.sendMessage({
+        action: "persistWord",
+        word
+    });
+    if (!response?.success) {
+        throw new Error(response?.error?.message || "Unable to update the word.");
+    }
+    await displayDictionary();
+    return response.word;
 }
 
 // Settings
@@ -216,41 +450,51 @@ async function getCurrentSite() {
 }
 
 function getSiteHostname(site) {
-    const urlObject = new URL(site);
-    return urlObject.hostname;
+    try {
+        return new URL(site).hostname.toLocaleLowerCase();
+    } catch {
+        return "";
+    }
+}
+
+function hostnameMatches(hostname, excludedHostname) {
+    const normalizedHostname = String(hostname || "").trim().toLocaleLowerCase();
+    const normalizedExcluded = String(excludedHostname || "")
+        .trim()
+        .replace(/^\.+|\.+$/g, "")
+        .toLocaleLowerCase();
+    return Boolean(normalizedHostname && normalizedExcluded)
+        && (
+            normalizedHostname === normalizedExcluded
+            || normalizedHostname.endsWith(`.${normalizedExcluded}`)
+        );
 }
 
 function checkIfCurrentSiteEnabled() {
+    const siteHostname = getSiteHostname(currentSite);
     return !excludedSites.some((site) => {
-        const siteHostname = getSiteHostname(currentSite);
-        return siteHostname.includes(site);
+        return hostnameMatches(siteHostname, site);
     });
 }
 
 function generateExclusionListItem(text) {
-    return `<li>
-                <span>${text}</span>
-                <button type="button" class="icon-btn icon-btn-small">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 14 14"
-                        fill="none"
-                    >
-                        <path
-                            d="M7.81667 7L12.075 2.74167C12.3083 2.50833 12.3083 2.15833 12.075 1.925C11.8417 1.69167 11.4917 1.69167 11.2583 1.925L7 6.18333L2.74167 1.925C2.50833 1.69167 2.15833 1.69167 1.925 1.925C1.69167 2.15833 1.69167 2.50833 1.925 2.74167L6.18333 7L1.925 11.2583C1.69167 11.4917 1.69167 11.8417 1.925 12.075C2.04167 12.1917 2.15833 12.25 2.33333 12.25C2.50833 12.25 2.625 12.1917 2.74167 12.075L7 7.81667L11.2583 12.075C11.375 12.1917 11.55 12.25 11.6667 12.25C11.7833 12.25 11.9583 12.1917 12.075 12.075C12.3083 11.8417 12.3083 11.4917 12.075 11.2583L7.81667 7Z"
-                            fill="#FF9D7B"
-                        />
-                    </svg>
-                </button>
-            </li>`;
+    const listItem = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = String(text || "");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "icon-btn icon-btn-small";
+    button.setAttribute("aria-label", `Remove ${label.textContent} from exclusions`);
+    button.textContent = "×";
+    listItem.append(label, button);
+    return listItem;
 }
 
 function displayExclusionList(list) {
+    exclusionList.replaceChildren();
     list.forEach((site) => {
         const listItem = generateExclusionListItem(site);
-        exclusionList.insertAdjacentHTML("afterbegin", listItem);
+        exclusionList.appendChild(listItem);
     });
 }
 
@@ -279,11 +523,11 @@ async function toggleExtensionState() {
         updatedList = [...excludedSites, currentSiteHostname];
 
         const listItem = generateExclusionListItem(currentSiteHostname);
-        exclusionList.insertAdjacentHTML("afterbegin", listItem);
+        exclusionList.prepend(listItem);
         isEnabled = false;
     }
 
-    await chrome.storage.local.set({ excludedSites: updatedList });
+    await chrome.storage.local.set({excludedSites: updatedList});
 }
 
 async function addSiteToExclusion() {
@@ -305,10 +549,10 @@ async function addSiteToExclusion() {
         });
 
         const updatedList = [...result.excludedSites, site];
-        await chrome.storage.local.set({ excludedSites: updatedList });
+        await chrome.storage.local.set({excludedSites: updatedList});
 
         const listItem = generateExclusionListItem(site);
-        exclusionList.insertAdjacentHTML("afterbegin", listItem);
+        exclusionList.prepend(listItem);
         siteInput.value = "";
 
         const currentSiteHostname = getSiteHostname(currentSite);
@@ -331,7 +575,7 @@ async function removeSiteFromExclusion(e) {
         });
 
         const updatedList = result.excludedSites.filter((site) => site !== siteToRemove);
-        await chrome.storage.local.set({ excludedSites: updatedList });
+        await chrome.storage.local.set({excludedSites: updatedList});
         button.parentElement.remove();
 
         const currentSiteHostname = getSiteHostname(currentSite);
@@ -359,24 +603,31 @@ function toggleButton(button, input) {
     button.style.pointerEvents = button.disabled ? "none" : "auto";
 }
 
-function updateTelegram() {
-    chrome.runtime.sendMessage(
-        {
+async function updateTelegram() {
+    const value = telegramName.value.trim();
+    telegramButton.disabled = true;
+    try {
+        const response = await chrome.runtime.sendMessage({
             action: "updateTelegram",
-            telegramName: telegramName.value.trim(),
-        },
-        (response) => {
-            if (response.success) {
-                const message = "Telegram name has been successfully updated.";
-                showNotification(message);
-            } else {
-                const message = "There was an error updating a telegram name. Please try again later.";
-                showNotification(message);
-            }
+            telegramName: value
+        });
+        if (!response?.success) {
+            throw new Error(
+                response?.error?.message
+                || "There was an error updating your Telegram username."
+            );
         }
-    );
 
-    telegramName.value = "";
+        telegramName.value = "";
+        if (userTelegramContainer) {
+            userTelegramContainer.textContent = `@${response.telegramName}`;
+        }
+        showNotification("Telegram username updated.");
+    } catch (error) {
+        showNotification(error?.message || "Unable to update Telegram.");
+    } finally {
+        toggleButton(telegramButton, telegramName);
+    }
 }
 
 function toggleVisibility(element) {
@@ -386,75 +637,157 @@ function toggleVisibility(element) {
 // Event listeners and initialization
 
 document.addEventListener("DOMContentLoaded", async () => {
-    document.getElementById("tabs").addEventListener("click", (e) => {
-        const tab = e.target.closest(".tab-action");
-
-        if (!tab) return;
-
-        showTab(tab.id);
-    });
-
-    wordCategoryList.addEventListener("click", (e) => {
-        const category = e.target.closest(".word-category-btn");
-
-        if (!category) return;
-
-        showTab("dictionaryTab");
-    });
-
-    settingsButton.addEventListener("click", () => {
-        chrome.runtime.openOptionsPage();
-    });
-
-    // Google Sign In button
-    googleSignInBtn.addEventListener("click", async () => {
-        try {
-            googleSignInBtn.disabled = true;
-            googleSignInBtn.textContent = "Signing in...";
-            
-            const result = await window.firebaseAuth.signInWithGoogle();
-            console.log('Sign in successful:', result);
-            
-            // The auth state change listener will handle showing main content
-        } catch (error) {
-            console.error('Sign in failed:', error);
-            showNotification('Sign in failed. Please try again.');
-            
-            googleSignInBtn.disabled = false;
-            googleSignInBtn.textContent = "Sign in with Google";
+        // Tab navigation
+        const tabsContainer = document.getElementById("tabs");
+        if (tabsContainer) {
+            tabsContainer.addEventListener("click", (e) => {
+                const tab = e.target.closest(".tab-action");
+                if (!tab) return;
+                showTab(tab.id);
+                if (tab.id === 'dictionaryTab') {
+                    displayDictionary().catch(console.error);
+                }
+            });
         }
-    });
 
-    logoutButton.addEventListener("click", async () => {
-        try {
-            // Sign out from Firebase
-            await window.firebaseAuth.signOut();
-            
-            // Clear local storage
-            chrome.storage.local.remove(["token", "words"]);
-            
-            showLoginPage();
-        } catch (error) {
-            console.error('Logout error:', error);
-            // Fallback to clearing storage even if Firebase logout fails
-            chrome.storage.local.remove(["token", "words"]);
-            showLoginPage();
+        // Settings button
+        if (settingsButton) {
+            settingsButton.addEventListener("click", () => {
+                chrome.runtime.openOptionsPage();
+            });
         }
-    });
 
-    wordList.addEventListener("click", async (e) => {
+        // Google Sign In button
+        if (googleSignInBtn) {
+            googleSignInBtn.addEventListener("click", async () => {
+                try {
+                    googleSignInBtn.disabled = true;
+                    googleSignInBtn.textContent = "Signing in...";
+
+                    const result = await window.firebaseAuth.signInWithGoogle();
+                    console.log('Sign in successful:', result);
+
+                    // After login, if onboarding not completed, open it immediately (once)
+                    const state = await new Promise(resolve => {
+                        chrome.storage.local.get({ onboardingCompleted: false, onboardingShownAfterLogin: false }, resolve);
+                    });
+                    if (!state.onboardingCompleted && !state.onboardingShownAfterLogin) {
+                        await chrome.storage.local.set({ onboardingShownAfterLogin: true });
+                        chrome.runtime.sendMessage({ action: 'needOnboarding' });
+                        window.close();
+                        return;
+                    }
+
+                    // Otherwise, show main content
+                    showMainContent();
+
+                    // Update user info display
+                    await getUserInfo();
+
+                } catch (error) {
+                    console.error('Sign in failed:', error);
+                    const readableMessage = window.firebaseAuth?.getReadableAuthError
+                        ? window.firebaseAuth.getReadableAuthError(error)
+                        : 'Google sign-in failed. Please try again.';
+                    showNotification(readableMessage);
+
+                    googleSignInBtn.disabled = false;
+                    googleSignInBtn.textContent = "Sign in with Google";
+                }
+            });
+        }
+        // Logout button
+        if (logoutButton) {
+            logoutButton.addEventListener("click", async () => {
+                const localAuthKeys = [
+                    "token",
+                    "words",
+                    "auth_token",
+                    "firebase_id_token",
+                    "firebase_refresh_token",
+                    "firebase_token_exp",
+                    "user_info",
+                    "userInfo"
+                ];
+                try {
+                    // Sign out from auth system
+                    if (window.firebaseAuth && window.firebaseAuth.signOut) {
+                        await window.firebaseAuth.signOut();
+                    }
+
+                    // Keep this idempotent in case an auth implementation leaves
+                    // one of the local credential aliases behind.
+                    await chrome.storage.local.remove(localAuthKeys);
+
+                    showLoginPage();
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // A failed provider logout must not leave reusable Firebase
+                    // credentials or identity data in extension storage.
+                    await chrome.storage.local.remove(localAuthKeys);
+                    showLoginPage();
+                }
+            });
+        }
+
+    if (wordCategoryList) {
+        wordCategoryList.addEventListener("click", (e) => {
+            const category = e.target.closest(".word-category-btn");
+
+            if (!category) return;
+
+            // Determine which filter to apply based on the clicked category
+            let targetFilter = 'all';
+            if (category.id === 'newWordsList') {
+                targetFilter = 'all';
+            } else if (category.id === 'savedWordsList') {
+                targetFilter = 'today';
+            } else if (category.id === 'learnedWordsList') {
+                targetFilter = 'learned';
+            }
+
+            // Set the filter and update the UI
+            currentFilter = targetFilter;
+            updateActiveFilterTab(currentFilter);
+            createWordsList(allWords, currentFilter);
+
+            showTab("dictionaryTab");
+        });
+    }
+
+    document.addEventListener("click", async (e) => {
         const button = e.target.closest("button");
 
         if (!button) return;
 
-        const action = button.dataset.btnFunction;
+        // Handle filter tabs
+        if (button.classList.contains('filter-tab')) {
+            currentFilter = button.dataset.filter;
+            updateActiveFilterTab(currentFilter);
+            createWordsList(allWords, currentFilter);
+            return;
+        }
 
-        if (action === "showSynonym") {
-            console.log("Synonyms");
-        } else if (action === "playPronunciation") {
-            console.log("Pronunciation");
-        } else if (action === "deleteWord") {
-            await deleteWordFromStorage(button.dataset.wordId);
+        // Handle word actions
+        const action = button.dataset.btnFunction;
+        if (!action) return;
+
+        try {
+            if (action === "showSynonym") {
+                const wordId = Number(button.dataset.wordId);
+                renderWordDetailsById(wordId);
+            } else if (action === "playPronunciation") {
+                playWordPronunciation(button.dataset.wordId);
+            } else if (action === "markAsLearned") {
+                await markWordAsLearned(button.dataset.wordId);
+            } else if (action === "markAsUnlearned") {
+                await markWordAsUnlearned(button.dataset.wordId);
+            } else if (action === "deleteWord") {
+                await deleteWordFromStorage(button.dataset.wordId);
+            }
+        } catch (error) {
+            console.error(`Word action ${action} failed:`, error);
+            showNotification(error?.message || "The word action failed.");
         }
     });
 
@@ -465,17 +798,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     exclusionList.addEventListener("click", async (e) => removeSiteFromExclusion(e));
 
-    chrome.runtime.onMessage.addListener((request) => {
+    // Add defensive check for Chrome API availability
+    if (chrome.runtime && chrome.runtime.onMessage && chrome.runtime.onMessage.addListener) {
+        chrome.runtime.onMessage.addListener((request) => {
         if (request.action === "wordsChanged") {
             console.log("words were changed: ", request.newValue);
 
-            if (request.newValue.operation === "getAllWords") {
+            const op = request.newValue.operation;
+            if (op === "getAllWords") {
                 displayDictionary().catch(console.error);
-            } else if (request.newValue.operation === "deleteWord") {
+            } else if (op === "delete" || op === "deleteWord") {
                 deleteWordFromPopupDictionary(request.newValue.wordId);
+                // refresh counters after delete
+                displayDictionary().catch(console.error);
+            } else if (op === "add" || op === "update" || op === "reload") {
+                // simple refresh to keep list and counters in sync
+                displayDictionary().catch(console.error);
             }
         }
-    });
+        });
+    }
 
     closeNotificationBtn.addEventListener("click", closeNotification);
 
@@ -485,46 +827,292 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     telegramName.addEventListener("input", () => toggleButton(telegramButton, telegramName));
     telegramButton.addEventListener("click", () => {
-        updateTelegram();
+        updateTelegram().catch(console.error);
     });
 
-    // Initialize authentication system
-    window.initializeFirebase();
-    
-    // Check authentication state
-    chrome.storage.local.get(['auth_token', 'token'], (result) => {
-        if (result.auth_token || isTokenValid(result.token)) {
-            console.log('User is authenticated');
-            showMainContent();
-        } else {
-            console.log('User is not authenticated');
-            showLoginPage();
-        }
-    });
-    
-    // Listen for auth state changes
-    if (window.firebaseAuth && window.firebaseAuth.onAuthStateChanged) {
-        window.firebaseAuth.onAuthStateChanged((user) => {
-            if (user) {
-                console.log('User is signed in:', user);
-                if (loginPage.style.display !== "none") {
-                    showMainContent();
+    //token verification
+    // chrome.storage.local.get(["token"], (result) => {
+    //     console.log(result);
+    //     if (isTokenValid(result.token)) {
+    //         // Token exists, now validate it
+    //         console.log("The token is valid");
+    //         showMainContent();
+    //     } else {
+    //         console.log("The token is invalid");
+    //         showLoginPage();
+    //     }
+    // });
+
+    // Authenticate first, then gate onboarding for authenticated users
+    const ensureAuthenticated = async () => {
+        const currentUser = await getUserInfo();
+        if (currentUser) return true;
+        return new Promise((resolve) => {
+            chrome.storage.local.get(["token"], (result) => {
+                if (isTokenValid(result.token)) {
+                    resolve(true);
+                } else {
+                    resolve(false);
                 }
-            } else {
-                console.log('User is signed out');
-                if (mainContent.style.display !== "none") {
-                    showLoginPage();
-                }
-            }
+            });
         });
+    };
+
+    const isAuthed = await ensureAuthenticated();
+    if (!isAuthed) {
+        // Not logged in: show login page, do NOT open onboarding yet
+        showLoginPage();
+        return;
     }
 
+    // Logged in: check if onboarding is completed; if not, only show once after login
+    const checkOnboardingCompletion = async () => {
+        const state = await new Promise(resolve => {
+            chrome.storage.local.get({
+                onboardingCompleted: false,
+                onboardingShownAfterLogin: false
+            }, resolve);
+        });
+
+        if (state.onboardingCompleted) return true;
+
+        // Show onboarding only once after login; don't nag next time
+        if (!state.onboardingShownAfterLogin) {
+            await chrome.storage.local.set({ onboardingShownAfterLogin: true });
+            chrome.runtime.sendMessage({ action: 'needOnboarding' });
+            window.close();
+            return false;
+        }
+
+        // Already shown once; skip redirect and continue to main content
+        return true;
+    };
+
+    const onboardingCompleted = await checkOnboardingCompletion();
+    if (!onboardingCompleted) return;
+
+    // Authenticated and onboarding completed: show main content
+    showMainContent();
+    
+    // Initialize extension state after authentication
     excludedSites = await getExcludedSites();
     currentSite = await getCurrentSite();
     isEnabled = checkIfCurrentSiteEnabled();
     enableExtensionCheckbox.checked = isEnabled;
     showTab("homeTab");
     displayExclusionList(excludedSites);
-    getUserInfo();
     await displayDictionary();
+    
+    // Initialize subscription display
+    await updateSubscriptionDisplay();
 });
+
+// Add New Word from Home
+function toggleAddButton() {
+    if (!addWordBtn || !addWordInput) return;
+    const hasText = addWordInput.value.trim().length > 0;
+    addWordBtn.disabled = !hasText;
+}
+
+async function addNewWordFromPopup() {
+    try {
+        if (!addWordInput) return;
+        const raw = addWordInput.value.trim();
+        if (!raw) return;
+        const wordLower = raw.toLowerCase();
+
+        // Check subscription limits before adding
+        if (window.subscriptionManager) {
+            const limitCheck = await window.subscriptionManager.canAddWord();
+            if (!limitCheck.canAdd) {
+                if (limitCheck.reason === 'daily_limit_reached') {
+                    showNotification('Daily word limit reached. Upgrade to Premium for unlimited words.');
+                    return;
+                }
+            }
+        }
+
+        // Get target language
+        const { translateTo } = await chrome.storage.local.get(['translateTo']);
+        const targetLanguage = (translateTo || 'uk');
+
+        // Ask background to translate (also returns synonyms/examples)
+        const resp = await chrome.runtime.sendMessage({
+            action: 'translateWord',
+            word: wordLower,
+            targetLanguage
+        });
+
+        if (!resp?.success || !resp?.result?.translation) {
+            throw new Error(resp?.error?.message || "Translation failed. Please try again.");
+        }
+        const tr = resp.result;
+        const translation = String(tr.translation).trim();
+        const synonyms = Array.isArray(tr.synonyms) ? tr.synonyms : [];
+        const examples = Array.isArray(tr.examples) ? tr.examples : [];
+
+        // Load current words and ensure unique id
+        const { words = [] } = await chrome.storage.local.get(['words']);
+        let newId = Date.now();
+        const ids = new Set((words || []).map(w => Number(w.id)));
+        while (ids.has(newId)) newId += 1;
+
+        const newWord = {
+            id: newId,
+            word: wordLower,
+            translation,
+            dateAdded: Date.now(),
+            status: 'new',
+            learned: false,
+            encounterCount: 0,
+            synonyms,
+            examples
+        };
+
+        await persistWord(newWord);
+        await updateSubscriptionDisplay(); // Update subscription display after adding word
+
+        addWordInput.value = '';
+        toggleAddButton();
+        showNotification('Word added successfully');
+    } catch (e) {
+        console.error('Add new word failed:', e);
+        showNotification(e?.message || 'Failed to add word');
+    }
+}
+
+if (addWordInput) {
+    addWordInput.addEventListener('input', toggleAddButton);
+    addWordInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !addWordBtn.disabled) {
+            addNewWordFromPopup();
+        }
+    });
+}
+if (addWordBtn) {
+    addWordBtn.addEventListener('click', addNewWordFromPopup);
+}
+
+// Upgrade button event listener
+if (upgradeBtn) {
+    upgradeBtn.addEventListener('click', () => {
+        // Open pricing page
+        chrome.tabs.create({ url: 'https://lazylex.com/#/pricing' });
+    });
+}
+
+// ---- Word details SPA rendering ----
+function showSection(sectionId) {
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(c => c.style.display = 'none');
+    const target = document.getElementById(sectionId);
+    if (target) target.style.display = 'flex';
+}
+
+async function renderWordDetailsById(wordId) {
+    try {
+        const { words = [] } = await chrome.storage.local.get(['words']);
+        const found = words.find(w => Number(w.id) === Number(wordId));
+        if (!found) return;
+
+        const titleEl = document.getElementById('detailsTitle');
+        const trEl = document.getElementById('detailsTranslation');
+        const synList = document.getElementById('detailsSynonyms');
+        const synEmpty = document.getElementById('detailsSynonymsEmpty');
+        const exList = document.getElementById('detailsExamples');
+
+        titleEl.textContent = found.word || 'Word';
+        trEl.textContent = found.translation || '';
+
+        // Synonyms
+        synList.replaceChildren();
+        const synonyms = Array.isArray(found.synonyms) ? found.synonyms : [];
+        if (synonyms.length === 0) {
+            synEmpty.style.display = 'block';
+        } else {
+            synEmpty.style.display = 'none';
+            synonyms.forEach(s => {
+                const li = document.createElement('li');
+                li.className = 'synonym-item';
+                li.textContent = `${s?.source || ''} – ${s?.translation || ''}`;
+                synList.appendChild(li);
+            });
+        }
+
+        // Examples: prefer stored; if empty, fetch from backend once and persist
+        exList.replaceChildren();
+        let examples = Array.isArray(found.examples) && found.examples.length > 0 ? found.examples : [];
+
+        if (examples.length === 0) {
+            try {
+                const { translateTo } = await chrome.storage.local.get(['translateTo']);
+                const targetLanguage = (translateTo || 'uk');
+                const resp = await chrome.runtime.sendMessage({
+                    action: 'translateWord',
+                    word: found.word,
+                    targetLanguage
+                });
+                if (resp && resp.success && resp.result) {
+                    const tr = resp.result;
+                    const newExamples = Array.isArray(tr.examples) ? tr.examples.slice(0, 5) : [];
+                    const newSynonyms = Array.isArray(tr.synonyms) ? tr.synonyms.slice(0, 8) : [];
+                    if (newExamples.length > 0 || newSynonyms.length > 0) {
+                        // Persist back to storage for this word
+                        const updated = (words || []).map(w => {
+                            if (Number(w.id) === Number(wordId)) {
+                                return {
+                                    ...w,
+                                    examples: newExamples.length > 0 ? newExamples : w.examples,
+                                    synonyms: newSynonyms.length > 0 ? newSynonyms : w.synonyms,
+                                };
+                            }
+                            return w;
+                        });
+                        await chrome.storage.local.set({ words: updated });
+                        examples = newExamples.length > 0 ? newExamples : examples;
+
+                        // If synonyms were empty before, render them now
+                        if (synonyms.length === 0 && newSynonyms.length > 0) {
+                            synEmpty.style.display = 'none';
+                            newSynonyms.forEach(s => {
+                                const li = document.createElement('li');
+                                li.className = 'synonym-item';
+                                li.textContent = `${s?.source || ''} – ${s?.translation || ''}`;
+                                synList.appendChild(li);
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('On-demand examples fetch failed:', e?.message || e);
+            }
+        }
+
+        // Final render for examples (fallback to local placeholders if still empty)
+        const toRender = examples.length > 0
+            ? examples
+            : [
+                `This is a sample sentence using "${found.word}" in context to demonstrate usage and meaning.`,
+                `Another example for "${found.word}" that shows how it may appear in a paragraph.`,
+                `A third placeholder sentence with "${found.word}" for future API-generated examples.`
+              ];
+        toRender.forEach(t => {
+            const li = document.createElement('li');
+            li.textContent = t;
+            exList.appendChild(li);
+        });
+
+        showSection('wordDetailsContent');
+
+        const backBtn = document.getElementById('backToDictionaryBtn');
+        if (backBtn && !backBtn._handlerAttached) {
+            backBtn.addEventListener('click', () => showTab('dictionaryTab'));
+            backBtn._handlerAttached = true;
+        }
+    } catch (e) {
+        console.error('renderWordDetailsById failed:', e);
+    }
+}
+
+// End of popup.js main code
+})(); // End of IIFE wrapper

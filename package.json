@@ -2,14 +2,11 @@
   "name": "wordmemo-ext",
   "version": "1.0.0",
   "description": "Chrome extension for learning English vocabulary",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "build": "node scripts/build-extension.mjs",
+    "build:local": "node scripts/build-extension.mjs --oauth-client-id=318380438947-fk505l37ves52tfv6pvklrcanh7fhq6b.apps.googleusercontent.com",
+    "check": "node scripts/check-extension.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "engines": {
     "node": ">=18.0.0"
