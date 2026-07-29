@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LazyLex Setup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="onboarding.css">
+</head>
+<body>
+    <main class="onboarding-container">
+        <div class="progress-container" aria-label="Setup progress">
+            <div class="progress-bar" aria-hidden="true">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text">
+                <span id="currentStep">1</span> of <span id="totalSteps">5</span>
+            </div>
+        </div>
+
+        <section class="step active" id="step1" aria-labelledby="nativeLanguageTitle">
+            <div class="step-content">
+                <div class="step-header">
+                    <img src="./images/lazylex_logo.png" alt="LazyLex" class="step-logo">
+                    <h2 id="nativeLanguageTitle">What is your native language?</h2>
+                    <p>Select your native language for translations</p>
+                </div>
+
+                <div class="language-selector" data-selector="native">
+                    <label class="language-search-label" for="nativeLanguageSearch">Search languages</label>
+                    <input
+                        id="nativeLanguageSearch"
+                        class="language-search"
+                        type="search"
+                        placeholder="Search by language or code"
+                        autocomplete="off"
+                    >
+                    <div
+                        id="nativeLanguageGrid"
+                        class="language-grid"
+                        role="listbox"
+                        aria-label="Native languages"
+                    ></div>
+                    <p id="nativeLanguageEmpty" class="language-empty" role="status" hidden>
+                        No languages match your search.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="step" id="step2" aria-labelledby="learningLanguageTitle">
+            <div class="step-content">
+                <div class="step-header">
+                    <h2 id="learningLanguageTitle">Which language are you learning?</h2>
+                    <p>Choose the language you want to practice</p>
+                </div>
+
+                <div class="language-selector" data-selector="learning">
+                    <label class="language-search-label" for="learningLanguageSearch">Search languages</label>
+                    <input
+                        id="learningLanguageSearch"
+                        class="language-search"
+                        type="search"
+                        placeholder="Search by language or code"
+                        autocomplete="off"
+                    >
+                    <div
+                        id="learningLanguageGrid"
+                        class="language-grid"
+                        role="listbox"
+                        aria-label="Languages being learned"
+                    ></div>
+                    <p id="learningLanguageEmpty" class="language-empty" role="status" hidden>
+                        No languages match your search.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="step" id="step3" aria-labelledby="goalTitle">
+            <div class="step-content">
+                <div class="step-header">
+                    <h2 id="goalTitle">What's Your Goal?</h2>
+                    <p>Help us personalize your learning experience</p>
+                </div>
+
+                <div class="goals-grid">
+                    <button class="goal-option" data-goal="work">
+                        <span class="goal-icon" aria-hidden="true">💼</span>
+                        <span class="goal-title">Professional</span>
+                        <span class="goal-desc">Improve work communication</span>
+                    </button>
+                    <button class="goal-option" data-goal="academic">
+                        <span class="goal-icon" aria-hidden="true">🎓</span>
+                        <span class="goal-title">Academic</span>
+                        <span class="goal-desc">Study and research</span>
+                    </button>
+                    <button class="goal-option" data-goal="casual">
+                        <span class="goal-icon" aria-hidden="true">📚</span>
+                        <span class="goal-title">Casual</span>
+                        <span class="goal-desc">General improvement</span>
+                    </button>
+                    <button class="goal-option" data-goal="travel">
+                        <span class="goal-icon" aria-hidden="true">✈️</span>
+                        <span class="goal-title">Travel</span>
+                        <span class="goal-desc">Communication abroad</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- The current "How LazyLex Works" design is intentionally preserved pending #24 approval. -->
+        <section class="step" id="step4" aria-labelledby="howItWorksTitle">
+            <div class="step-content">
+                <div class="step-header">
+                    <h2 id="howItWorksTitle">How LazyLex Works</h2>
+                    <p>Learn the basics in 30 seconds</p>
+                </div>
+
+                <div class="demo-steps">
+                    <div class="demo-step">
+                        <div class="demo-number">1</div>
+                        <div class="demo-content">
+                            <h3>Select Text</h3>
+                            <p>Highlight any word while browsing</p>
+                        </div>
+                    </div>
+                    <div class="demo-step">
+                        <div class="demo-number">2</div>
+                        <div class="demo-content">
+                            <h3>Click Add Button</h3>
+                            <p>Orange + button appears next to selection</p>
+                        </div>
+                    </div>
+                    <div class="demo-step">
+                        <div class="demo-number">3</div>
+                        <div class="demo-content">
+                            <h3>Word Saved!</h3>
+                            <p>Access your dictionary anytime from the popup</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="demo-visual">
+                    <p class="demo-text">Try selecting this <span class="selectable-word">word</span> to see it in action!</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="step" id="step5" aria-labelledby="completionTitle">
+            <div class="step-content">
+                <div class="step-header">
+                    <img src="./images/lazylex_logo.png" alt="LazyLex" class="step-logo">
+                    <h2 id="completionTitle">You're All Set!</h2>
+                    <p>LazyLex is ready to help you learn</p>
+                </div>
+
+                <div class="completion-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">Native language:</span>
+                        <span class="summary-value" id="selectedNativeLanguage">Not selected</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Learning:</span>
+                        <span class="summary-value" id="selectedLearningLanguage">Not selected</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Goal:</span>
+                        <span class="summary-value" id="selectedGoal">Not selected</span>
+                    </div>
+                </div>
+
+                <div class="final-actions">
+                    <button id="finishOnboardingBtn" class="btn btn-primary">
+                        Start Learning Now
+                    </button>
+                    <button id="openSettingsBtn" class="btn btn-secondary">
+                        Customize Settings
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div class="navigation">
+            <button id="backBtn" class="nav-btn" disabled>
+                <span>← Back</span>
+            </button>
+            <button id="nextBtn" class="nav-btn">
+                <span>Next →</span>
+            </button>
+        </div>
+    </main>
+
+    <script src="language-catalog.js"></script>
+    <script src="onboarding.js"></script>
+</body>
+</html>
