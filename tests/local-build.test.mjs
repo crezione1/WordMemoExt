@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import vm from "node:vm";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -264,6 +264,62 @@ test("popup identity placeholders and settings language values are safe", async 
     assert.equal(
         [...languageSelect.matchAll(/<option[^>]+selected/g)].length,
         1
+    );
+});
+
+test("YouTube SPA navigation is detected and reprocessed exactly once per video change", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    assert.match(contentSource, /yt-navigate-start/);
+    assert.match(contentSource, /yt-navigate-finish/);
+    assert.match(contentSource, /addEventListener\("popstate"/);
+    assert.match(contentSource, /youtubeNavigationHandlersInstalled/);
+    assert.match(contentSource, /resyncHighlightsForCurrentPage/);
+    assert.match(contentSource, /clearHighlighting\(\);/);
+
+    // installYouTubeNavigationHandlers must be guarded so it can be called
+    // more than once (e.g. re-entrant script evaluation) without attaching
+    // duplicate listeners or re-wrapping history.pushState twice.
+    const installerSource = contentSource.match(
+        /function installYouTubeNavigationHandlers\(\)[\s\S]*?\n}\n/
+    )?.[0];
+    assert.ok(installerSource, "expected the navigation-handler installer");
+    assert.match(installerSource, /if \(youtubeNavigationHandlersInstalled/);
+
+    const pureLogicSource = contentSource.match(
+        /const YOUTUBE_HOSTNAMES[\s\S]*?(?=\nlet lastProcessedYouTubeVideoId)/
+    )?.[0];
+    assert.ok(pureLogicSource, "expected the pure YouTube navigation-decision helpers");
+
+    const context = vm.createContext({ URL });
+    vm.runInContext(pureLogicSource, context);
+
+    const videoOne = "https://www.youtube.com/watch?v=aaaaaaaaaaa&list=PL1";
+    const videoTwo = "https://www.youtube.com/watch?v=bbbbbbbbbbb&list=PL1";
+
+    // First transition into a watch page: treated as a new video.
+    const first = context.isNewYouTubeNavigation(null, videoOne);
+    assert.equal(first.isNewVideo, true);
+    assert.equal(first.videoId, "aaaaaaaaaaa");
+
+    // Switching to a second, different video id is also a new navigation.
+    const second = context.isNewYouTubeNavigation(first.videoId, videoTwo);
+    assert.equal(second.isNewVideo, true);
+    assert.equal(second.videoId, "bbbbbbbbbbb");
+
+    // Re-triggering on the same video (e.g. the interval fallback firing
+    // again, or yt-navigate-finish plus a pushState hook both firing for
+    // the same transition) must not be treated as another navigation, so
+    // the new title is processed exactly once.
+    const repeat = context.isNewYouTubeNavigation(second.videoId, videoTwo);
+    assert.equal(repeat.isNewVideo, false);
+
+    // Non-YouTube and non-watch URLs never trigger a reprocess.
+    assert.equal(context.getYouTubeVideoIdFromUrl("https://example.com/watch?v=zzz"), null);
+    assert.equal(context.getYouTubeVideoIdFromUrl("https://www.youtube.com/"), null);
+    assert.equal(
+        context.getYouTubeVideoIdFromUrl("https://www.youtube.com/shorts/ccccccccccc"),
+        "ccccccccccc"
     );
 });
 
