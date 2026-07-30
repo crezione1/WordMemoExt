@@ -92,7 +92,7 @@ test("onboarding language catalog is complete, searchable, and flag-backed", asy
     assert.ok(catalog.every((language) => tools.countryCodeToFlag(language.countryCode)));
 });
 
-test("onboarding keeps the approved demo while adding both language steps", async () => {
+test("onboarding keeps the 5-step flow with both language steps", async () => {
     const html = await readFile(path.join(repositoryRoot, "onboarding.html"), "utf8");
     const source = await readFile(path.join(repositoryRoot, "onboarding.js"), "utf8");
     const styles = await readFile(path.join(repositoryRoot, "onboarding.css"), "utf8");
@@ -102,12 +102,46 @@ test("onboarding keeps the approved demo while adding both language steps", asyn
     assert.match(html, /id="nativeLanguageGrid"/);
     assert.match(html, /id="learningLanguageGrid"/);
     assert.match(html, /How LazyLex Works/);
-    assert.match(html, /Select Text/);
-    assert.match(html, /Click Add Button/);
-    assert.match(html, /Word Saved!/);
     assert.match(source, /onboardingDraft/);
     assert.match(source, /options\.html\?from=onboarding/);
     assert.match(styles, /\.goals-grid[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
+});
+
+test("onboarding restores the approved 40e2a75 interactive 'How LazyLex Works' demo (#24)", async () => {
+    const html = await readFile(path.join(repositoryRoot, "onboarding.html"), "utf8");
+    const source = await readFile(path.join(repositoryRoot, "onboarding.js"), "utf8");
+    const styles = await readFile(path.join(repositoryRoot, "onboarding.css"), "utf8");
+
+    // The static three-card placeholder and its approval gate are gone.
+    assert.equal(html.includes("intentionally preserved pending #24 approval"), false);
+    assert.equal(html.includes("Click Add Button"), false);
+    assert.equal(html.includes("Word Saved!"), false);
+
+    // Branded simulated-browser chrome with traffic-light dots and a toolbar.
+    assert.match(html, /class="browser-window"/);
+    assert.match(html, /browser-dot red/);
+    assert.match(html, /browser-dot yellow/);
+    assert.match(html, /browser-dot green/);
+    assert.match(html, /id="extIcon"/);
+
+    // A selectable word inside realistic body copy, the orange "+" save
+    // action, the flying-word animation target, the saved/translated
+    // state, and the explicit success message.
+    assert.match(html, /class="selectable-word" data-word="improve" data-translation="покращувати"/);
+    assert.match(html, /id="addWordBtn"/);
+    assert.match(html, /id="animationOverlay"/);
+    assert.match(html, /id="demoCompletion"/);
+    assert.match(html, /successfully saved a word/);
+
+    assert.match(source, /function animateWordToExtension/);
+    assert.match(source, /flying-clone/);
+    assert.match(source, /function resetHowItWorksDemo/);
+    assert.match(source, /demoState\.isCompleted/);
+    // Next is gated on actually completing the demo, matching the approved variant.
+    assert.match(source, /4: demoState\.isCompleted/);
+
+    assert.match(styles, /\.flying-clone\s*\{[\s\S]*?background:\s*#ff6b35/);
+    assert.match(styles, /\.action-button\s*\{[\s\S]*?background-color:\s*#ff6b35/);
 });
 
 test("settings can return to the exact final onboarding step in the same tab", async () => {

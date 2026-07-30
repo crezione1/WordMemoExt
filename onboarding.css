@@ -232,69 +232,274 @@ button {
     overflow-wrap: anywhere;
 }
 
-.demo-content,
 .completion-summary {
+    display: grid;
+    gap: 12px;
     padding: 20px;
     background: #f8fafc;
     border: 1px solid #e3e9f1;
     border-radius: 14px;
 }
 
-.demo-steps,
-.completion-summary {
-    display: grid;
-    gap: 12px;
-}
-
-.demo-step,
 .summary-item {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.demo-number {
-    display: grid;
-    width: 30px;
-    height: 30px;
-    place-items: center;
-    flex: 0 0 auto;
-    color: #fff;
-    font-weight: 700;
-    background: #6558f5;
+/* Step 4: interactive "How LazyLex Works" demo */
+.interactive-demo {
+    position: relative;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px solid #e3e9f1;
+    border-radius: 14px;
+}
+
+.browser-window {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(23, 32, 51, 0.1);
+    overflow: hidden;
+}
+
+.browser-toolbar {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 14px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #e3e9f1;
+}
+
+.browser-controls {
+    display: flex;
+    gap: 8px;
+    margin-right: 14px;
+}
+
+.browser-dot {
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
 }
 
-.selectable-word {
-    color: #4938db;
-    font-weight: 700;
-    cursor: pointer;
+.browser-dot.red {
+    background: #ff5f56;
 }
 
-.demo-add-button {
-    position: absolute;
-    top: -8px;
-    right: -8px;
+.browser-dot.yellow {
+    background: #ffbd2e;
+}
+
+.browser-dot.green {
+    background: #27ca3f;
+}
+
+.address-bar {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 26px;
+    margin-right: 14px;
+    padding: 0 12px;
+    background: #fff;
+    border: 1px solid #e3e9f1;
+    border-radius: 13px;
+}
+
+.url-text {
+    overflow: hidden;
+    color: #667085;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.browser-actions {
+    display: flex;
+    align-items: center;
+}
+
+.ext-icon {
     display: grid;
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     place-items: center;
     color: #fff;
     font-size: 14px;
-    font-weight: 700;
     background: #ff6b35;
-    border-radius: 50%;
-    animation: demo-pulse 1s infinite;
+    border-radius: 8px;
 }
 
-@keyframes demo-pulse {
-    0%,
-    100% {
+.ext-icon.pulse {
+    animation: iconPulse 0.6s ease-out;
+}
+
+@keyframes iconPulse {
+    0% {
         transform: scale(1);
     }
     50% {
-        transform: scale(1.1);
+        transform: scale(1.2);
+        box-shadow: 0 0 16px rgba(255, 107, 53, 0.5);
     }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.page-content {
+    padding: 20px;
+}
+
+.article-title {
+    margin: 0 0 10px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.article-text {
+    margin: 0 0 16px;
+    color: #344054;
+    line-height: 1.6;
+}
+
+.page-content .selectable-word {
+    padding: 2px 4px;
+    color: inherit;
+    background: rgba(255, 107, 53, 0.18);
+    border: 2px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.page-content .selectable-word:hover {
+    background: rgba(255, 107, 53, 0.28);
+    border-color: #ff6b35;
+}
+
+.page-content .selectable-word.selected {
+    background: rgba(255, 107, 53, 0.35);
+    border-color: #ff6b35;
+}
+
+.page-content .selectable-word.saved {
+    background: rgba(40, 167, 69, 0.18);
+    border-color: #28a745;
+}
+
+.page-content .selectable-word.saved::after {
+    content: " (" attr(data-translation) ")";
+    color: #667085;
+    font-size: 13px;
+    font-style: italic;
+}
+
+.instruction-text {
+    padding: 10px;
+    color: #ff6b35;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    background: rgba(255, 107, 53, 0.08);
+    border: 1px dashed #ff6b35;
+    border-radius: 8px;
+}
+
+.instruction-text i {
+    margin-right: 6px;
+}
+
+.add-popover {
+    position: absolute;
+    z-index: 10;
+    display: none;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.add-popover.visible {
+    display: block;
+    opacity: 1;
+    transform: scale(1);
+}
+
+.action-button {
+    display: flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: #fff;
+    font-weight: 700;
+    line-height: 1;
+    background-color: #ff6b35;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.animation-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9;
+}
+
+.flying-clone {
+    position: absolute;
+    padding: 4px 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    background: #ff6b35;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 11;
+    animation: flyToIcon 1s ease-out forwards;
+}
+
+@keyframes flyToIcon {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    70% {
+        transform: scale(0.8);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+}
+
+.demo-completion {
+    margin-top: 16px;
+}
+
+.completion-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 18px;
+    color: #1e7e34;
+    font-weight: 600;
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid #28a745;
+    border-radius: 8px;
+}
+
+.completion-message i {
+    font-size: 16px;
 }
 
 .summary-label {
@@ -378,6 +583,18 @@ button {
 
     .final-actions .btn {
         flex: 1 1 220px;
+    }
+
+    .browser-toolbar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 8px 10px;
+    }
+
+    .address-bar {
+        order: 3;
+        width: 100%;
+        margin: 8px 0 0;
     }
 }
 

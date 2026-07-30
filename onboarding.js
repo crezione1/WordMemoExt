@@ -34,6 +34,14 @@ document.addEventListener("DOMContentLoaded", async function initializeOnboardin
     let selectedLearningLanguage = storedDraft.learningLanguage || storedState.learningLanguage || null;
     let selectedGoal = storedDraft.goal || storedState.goal || null;
 
+    // Interactive "How LazyLex Works" demo state (step 4).
+    let demoState = {
+        selectedWord: null,
+        selectedWordElement: null,
+        isAnimating: false,
+        isCompleted: false
+    };
+
     totalStepsSpan.textContent = String(totalSteps);
 
     function createLanguageSelector({
@@ -178,7 +186,7 @@ document.addEventListener("DOMContentLoaded", async function initializeOnboardin
             1: Boolean(selectedNativeLanguage),
             2: Boolean(selectedLearningLanguage),
             3: Boolean(selectedGoal),
-            4: true
+            4: demoState.isCompleted
         };
 
         if (currentStep === totalSteps) {
@@ -228,22 +236,30 @@ document.addEventListener("DOMContentLoaded", async function initializeOnboardin
         }
     }
 
+    async function goToStep(newStep) {
+        if (currentStep === 4) {
+            resetHowItWorksDemo();
+        }
+        currentStep = newStep;
+        await persistDraft();
+        updateUI({ focusHeading: true });
+        if (currentStep === 4) {
+            resetHowItWorksDemo();
+        }
+    }
+
     backBtn.addEventListener("click", async () => {
         if (currentStep <= 1) {
             return;
         }
-        currentStep -= 1;
-        await persistDraft();
-        updateUI({ focusHeading: true });
+        await goToStep(currentStep - 1);
     });
 
     nextBtn.addEventListener("click", async () => {
         if (currentStep >= totalSteps || nextBtn.disabled) {
             return;
         }
-        currentStep += 1;
-        await persistDraft();
-        updateUI({ focusHeading: true });
+        await goToStep(currentStep + 1);
     });
 
     finishOnboardingBtn.addEventListener("click", async () => {
@@ -273,30 +289,178 @@ document.addEventListener("DOMContentLoaded", async function initializeOnboardin
         window.location.assign(settingsUrl);
     });
 
-    const selectableWord = document.querySelector(".selectable-word");
-    if (selectableWord) {
-        selectableWord.addEventListener("click", function runExistingDemo() {
-            selectableWord.style.background = "rgba(255, 107, 53, 0.6)";
-            selectableWord.style.transform = "scale(1.05)";
+    // Interactive "How LazyLex Works" demo (step 4): a simulated browser
+    // window where selecting a word and clicking the orange "+" button
+    // flies the word to the toolbar extension icon and marks it saved.
+    const howItWorksDemo = document.getElementById("howItWorksDemo");
+    const addPopover = document.getElementById("addPopover");
+    const addWordBtn = document.getElementById("addWordBtn");
+    const extIcon = document.getElementById("extIcon");
+    const animationOverlay = document.getElementById("animationOverlay");
+    const demoCompletion = document.getElementById("demoCompletion");
+    const demoInstructionText = howItWorksDemo?.querySelector(".instruction-text") || null;
+    const demoSelectableWords = howItWorksDemo
+        ? Array.from(howItWorksDemo.querySelectorAll(".selectable-word"))
+        : [];
 
-            const existingButton = selectableWord.querySelector(".demo-add-button");
-            if (existingButton) {
-                existingButton.remove();
+    function selectDemoWord(wordElement) {
+        demoSelectableWords.forEach((word) => word.classList.remove("selected"));
+        wordElement.classList.add("selected");
+        demoState.selectedWord = wordElement.dataset.word;
+        demoState.selectedWordElement = wordElement;
+
+        showAddPopover(wordElement);
+
+        if (demoInstructionText) {
+            demoInstructionText.innerHTML = '<i class="fas fa-plus-circle" aria-hidden="true"></i> Now click the + button to save it!';
+        }
+    }
+
+    function showAddPopover(wordElement) {
+        if (!addPopover || !howItWorksDemo) {
+            return;
+        }
+        const rect = wordElement.getBoundingClientRect();
+        const demoRect = howItWorksDemo.getBoundingClientRect();
+
+        addPopover.classList.add("visible");
+
+        const popWidth = addPopover.offsetWidth || 24;
+        const popHeight = addPopover.offsetHeight || 24;
+
+        const left = rect.left - demoRect.left + (rect.width - popWidth) / 2;
+        const top = rect.top - demoRect.top - popHeight - 8;
+
+        addPopover.style.left = `${left}px`;
+        addPopover.style.top = `${top}px`;
+    }
+
+    function hideAddPopover() {
+        if (addPopover) {
+            addPopover.classList.remove("visible");
+        }
+        demoSelectableWords.forEach((word) => word.classList.remove("selected"));
+        demoState.selectedWord = null;
+        demoState.selectedWordElement = null;
+    }
+
+    function animateWordToExtension() {
+        if (!demoState.selectedWordElement || demoState.isAnimating || !extIcon || !animationOverlay) {
+            return;
+        }
+
+        demoState.isAnimating = true;
+        const wordElement = demoState.selectedWordElement;
+        const wordText = demoState.selectedWord;
+        hideAddPopover();
+
+        const wordRect = wordElement.getBoundingClientRect();
+        const iconRect = extIcon.getBoundingClientRect();
+        const overlayRect = animationOverlay.getBoundingClientRect();
+
+        const flyingClone = document.createElement("div");
+        flyingClone.className = "flying-clone";
+        flyingClone.textContent = wordText;
+
+        const startX = wordRect.left - overlayRect.left;
+        const startY = wordRect.top - overlayRect.top;
+        const endX = iconRect.left - overlayRect.left + iconRect.width / 2;
+        const endY = iconRect.top - overlayRect.top + iconRect.height / 2;
+
+        flyingClone.style.left = `${startX}px`;
+        flyingClone.style.top = `${startY}px`;
+        flyingClone.style.transform = "translate(0, 0)";
+
+        animationOverlay.appendChild(flyingClone);
+
+        window.setTimeout(() => {
+            flyingClone.style.transform = `translate(${endX - startX}px, ${endY - startY}px) scale(0.3)`;
+            flyingClone.style.opacity = "0";
+        }, 50);
+
+        window.setTimeout(() => {
+            flyingClone.remove();
+
+            extIcon.classList.add("pulse");
+            window.setTimeout(() => extIcon.classList.remove("pulse"), 600);
+
+            wordElement.classList.remove("selected");
+            wordElement.classList.add("saved");
+
+            completeHowItWorksDemo();
+            demoState.isAnimating = false;
+        }, 1000);
+    }
+
+    function completeHowItWorksDemo() {
+        if (demoState.isCompleted) {
+            return;
+        }
+        demoState.isCompleted = true;
+
+        if (demoCompletion) {
+            demoCompletion.hidden = false;
+        }
+        if (demoInstructionText) {
+            demoInstructionText.style.display = "none";
+        }
+
+        updateNextButton();
+    }
+
+    function resetHowItWorksDemo() {
+        if (!howItWorksDemo) {
+            return;
+        }
+
+        demoState = {
+            selectedWord: null,
+            selectedWordElement: null,
+            isAnimating: false,
+            isCompleted: false
+        };
+
+        demoSelectableWords.forEach((word) => word.classList.remove("selected", "saved"));
+        hideAddPopover();
+        if (animationOverlay) {
+            animationOverlay.replaceChildren();
+        }
+        if (extIcon) {
+            extIcon.classList.remove("pulse");
+        }
+        if (demoCompletion) {
+            demoCompletion.hidden = true;
+        }
+        if (demoInstructionText) {
+            demoInstructionText.style.display = "";
+            demoInstructionText.innerHTML = '<i class="fas fa-hand-pointer" aria-hidden="true"></i> Click on any highlighted word above to try it!';
+        }
+
+        updateNextButton();
+    }
+
+    demoSelectableWords.forEach((word) => {
+        word.addEventListener("click", () => {
+            if (demoState.isAnimating || word.classList.contains("saved")) {
+                return;
             }
+            selectDemoWord(word);
+        });
+    });
 
-            const demoButton = document.createElement("span");
-            demoButton.className = "demo-add-button";
-            demoButton.textContent = "+";
-            selectableWord.style.position = "relative";
-            selectableWord.appendChild(demoButton);
-
-            window.setTimeout(() => {
-                demoButton.remove();
-                selectableWord.style.background = "rgba(255, 157, 123, 0.3)";
-                selectableWord.style.transform = "scale(1)";
-            }, 3000);
+    if (addWordBtn) {
+        addWordBtn.addEventListener("click", () => {
+            if (demoState.selectedWordElement && !demoState.isAnimating) {
+                animateWordToExtension();
+            }
         });
     }
+
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest(".selectable-word") && !event.target.closest(".add-popover")) {
+            hideAddPopover();
+        }
+    });
 
     document.addEventListener("keydown", (event) => {
         const isTyping = event.target instanceof HTMLInputElement

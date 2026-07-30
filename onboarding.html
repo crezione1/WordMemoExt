@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="font-awesome/css/fontawesome.css" />
+    <link rel="stylesheet" href="font-awesome/css/solid.css" />
     <link rel="stylesheet" href="onboarding.css">
 </head>
 <body>
@@ -111,40 +113,61 @@
             </div>
         </section>
 
-        <!-- The current "How LazyLex Works" design is intentionally preserved pending #24 approval. -->
         <section class="step" id="step4" aria-labelledby="howItWorksTitle">
             <div class="step-content">
                 <div class="step-header">
                     <h2 id="howItWorksTitle">How LazyLex Works</h2>
-                    <p>Learn the basics in 30 seconds</p>
+                    <p>Click a word in the page below to see it in action</p>
                 </div>
 
-                <div class="demo-steps">
-                    <div class="demo-step">
-                        <div class="demo-number">1</div>
-                        <div class="demo-content">
-                            <h3>Select Text</h3>
-                            <p>Highlight any word while browsing</p>
+                <div class="interactive-demo" id="howItWorksDemo">
+                    <div class="browser-window">
+                        <div class="browser-toolbar">
+                            <div class="browser-controls">
+                                <span class="browser-dot red"></span>
+                                <span class="browser-dot yellow"></span>
+                                <span class="browser-dot green"></span>
+                            </div>
+                            <div class="address-bar">
+                                <span class="url-text">https://example.com/article</span>
+                            </div>
+                            <div class="browser-actions">
+                                <div class="ext-icon" id="extIcon">
+                                    <i class="fas fa-puzzle-piece" aria-hidden="true"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="page-content">
+                            <h3 class="article-title">Learning English Made Simple</h3>
+                            <p class="article-text">
+                                Reading articles online is a great way to
+                                <span class="selectable-word" data-word="improve" data-translation="покращувати">improve</span>
+                                your English vocabulary. When you encounter an
+                                <span class="selectable-word" data-word="unfamiliar" data-translation="незнайомий">unfamiliar</span>
+                                word, you can easily save it for later study. This helps build your
+                                <span class="selectable-word" data-word="knowledge" data-translation="знання">knowledge</span>
+                                gradually over time.
+                            </p>
+                            <div class="instruction-text">
+                                <i class="fas fa-hand-pointer" aria-hidden="true"></i>
+                                Click on any highlighted word above to try it!
+                            </div>
                         </div>
                     </div>
-                    <div class="demo-step">
-                        <div class="demo-number">2</div>
-                        <div class="demo-content">
-                            <h3>Click Add Button</h3>
-                            <p>Orange + button appears next to selection</p>
-                        </div>
+
+                    <div class="add-popover" id="addPopover">
+                        <button type="button" class="action-button" id="addWordBtn" aria-label="Save word to your dictionary">+</button>
                     </div>
-                    <div class="demo-step">
-                        <div class="demo-number">3</div>
-                        <div class="demo-content">
-                            <h3>Word Saved!</h3>
-                            <p>Access your dictionary anytime from the popup</p>
-                        </div>
-                    </div>
+
+                    <div class="animation-overlay" id="animationOverlay"></div>
                 </div>
 
-                <div class="demo-visual">
-                    <p class="demo-text">Try selecting this <span class="selectable-word">word</span> to see it in action!</p>
+                <div class="demo-completion" id="demoCompletion" hidden>
+                    <div class="completion-message">
+                        <i class="fas fa-check-circle" aria-hidden="true"></i>
+                        <span>Great! You've successfully saved a word. That's exactly how LazyLex works on any website!</span>
+                    </div>
                 </div>
             </div>
         </section>
