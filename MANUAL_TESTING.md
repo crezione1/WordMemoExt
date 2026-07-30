@@ -80,6 +80,16 @@ npm run build:local -- --oauth-client-id=YOUR_REGISTERED_CLIENT_ID --extension-k
 10. Change the target language or highlighting settings and confirm the page responds.
 11. Sign out, reopen the popup, and confirm authenticated data is no longer shown.
 
+## YouTube SPA navigation (issue #26)
+
+1. Open a YouTube watch page (`https://www.youtube.com/watch?v=...`).
+2. Select the video title and save it to the dictionary; confirm it highlights.
+3. Click a recommended/playlist video to navigate without a full page reload.
+4. Confirm the previous title's highlight/translation/delete controls are gone and only the new title is processed (highlighted only if it also matches a saved word).
+5. Repeat navigating through at least 3 videos in a row; confirm no stale text accumulates and the service worker/page console shows no duplicate-listener warnings.
+6. Use the browser **Back** button, then **Forward**; confirm highlighting still matches the currently displayed video only.
+7. Open DevTools console and confirm `[LazyLexExt]` navigation warnings do not appear repeatedly (would indicate a retry loop).
+
 ## Negative checks
 
 1. Sign out and try to translate or sync. The extension must report an authentication failure and must not claim success.
