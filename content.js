@@ -1076,6 +1076,18 @@ document.addEventListener("mouseup", function (event) {
     }
 });
 
+// A highlighted word can live inside a link. Guard both mousedown and click
+// so the link's own handlers (and default navigation) never fire ahead of
+// the delete/edit controls - preventDefault() alone on click is not enough
+// once the event has already reached other listeners via bubbling.
+document.addEventListener("mousedown", (e) => {
+    const wrapper = e.target.closest('.highlight-wrapper');
+    if (wrapper?.closest("a[href]")) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+}, true);
+
 document.addEventListener("click", (e) => {
     const wrapper = e.target.closest('.highlight-wrapper');
 
@@ -1083,6 +1095,7 @@ document.addEventListener("click", (e) => {
     // highlight available for LazyLex controls instead of navigating away.
     if (wrapper?.closest("a[href]")) {
         e.preventDefault();
+        e.stopPropagation();
     }
 
     // Handle click on translation to edit

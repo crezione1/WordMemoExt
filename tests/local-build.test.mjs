@@ -403,6 +403,89 @@ test("obsolete development server and runtime dependencies are removed", async (
     assert.deepEqual(packageJson.devDependencies || {}, {});
 });
 
+test("delete and add-word buttons resist host-page CSS overrides", async () => {
+    const styles = await readFile(path.join(repositoryRoot, "styles.css"), "utf8");
+
+    const actionButtonBlock = styles.match(/\.action-button\s*\{[\s\S]*?\}/)?.[0];
+    assert.ok(actionButtonBlock, "expected .action-button rule block");
+    assert.match(actionButtonBlock, /width:\s*24px\s*!important/);
+    assert.match(actionButtonBlock, /height:\s*24px\s*!important/);
+    assert.match(actionButtonBlock, /background-color:\s*#ff6b35\s*!important/);
+    assert.match(actionButtonBlock, /border:\s*none\s*!important/);
+    assert.match(actionButtonBlock, /z-index:\s*999999\s*!important/);
+
+    const deleteButtonBlock = styles.match(/#deleteWordBtn\s*\{[\s\S]*?\}/)?.[0];
+    assert.ok(deleteButtonBlock, "expected #deleteWordBtn rule block");
+    assert.match(deleteButtonBlock, /width:\s*32px\s*!important/);
+    assert.match(deleteButtonBlock, /height:\s*32px\s*!important/);
+    assert.match(deleteButtonBlock, /background:\s*#c4320a\s*!important/);
+    assert.match(deleteButtonBlock, /border:\s*2px solid #fff\s*!important/);
+    assert.match(deleteButtonBlock, /box-shadow:[^;]+!important/);
+});
+
+test("link-hosted highlight clicks are fully isolated from the host link", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    const mousedownGuard = contentSource.match(
+        /document\.addEventListener\("mousedown",[\s\S]*?\n\}, true\);/
+    )?.[0];
+    assert.ok(mousedownGuard, "expected a capture-phase mousedown guard for link-hosted highlights");
+    assert.match(mousedownGuard, /closest\(["']a\[href\]["']\)/);
+    assert.match(mousedownGuard, /e\.preventDefault\(\)/);
+    assert.match(mousedownGuard, /e\.stopPropagation\(\)/);
+
+    const clickHandler = contentSource.match(
+        /document\.addEventListener\("click", \(e\) => \{[\s\S]*?\n\}\);/
+    )?.[0];
+    assert.ok(clickHandler, "expected the click-delegate handler");
+    const linkGuard = clickHandler.match(
+        /if \(wrapper\?\.closest\("a\[href\]"\)\) \{[\s\S]*?\}/
+    )?.[0];
+    assert.ok(linkGuard, "expected the link-hosted-word guard inside the click handler");
+    assert.match(linkGuard, /e\.preventDefault\(\)/);
+    assert.match(linkGuard, /e\.stopPropagation\(\)/);
+});
+
+test("popup dictionary sort breaks identical timestamps by id, newest first", async () => {
+    const popupSource = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
+
+    const sortSource = popupSource.match(
+        /\.sort\(\(left, right\) => \{[\s\S]*?\n        \}\);/
+    )?.[0];
+    assert.ok(sortSource, "expected the timestamp-descending comparator with a tie-breaker");
+    assert.match(sortSource, /getWordTimestamp\(right\) - getWordTimestamp\(left\)/);
+    assert.match(sortSource, /Number\(right\?\.id\)[\s\S]*Number\(left\?\.id\)/);
+
+    const context = vm.createContext({ Number, console });
+    vm.runInContext(
+        `function getWordTimestamp(word) {
+            const candidate = word?.dateAdded || word?.createdAt || word?.importedAt || 0;
+            const timestamp = typeof candidate === "number" ? candidate : new Date(candidate).getTime();
+            return Number.isFinite(timestamp) ? timestamp : 0;
+        }
+        function sortWords(words) {
+            return words.slice().sort((left, right) => {
+                const timestampDelta = getWordTimestamp(right) - getWordTimestamp(left);
+                if (timestampDelta !== 0) {
+                    return timestampDelta;
+                }
+                return (Number(right?.id) || 0) - (Number(left?.id) || 0);
+            });
+        }`,
+        context
+    );
+    const sorted = context.sortWords([
+        { id: 100, word: "older-same-timestamp", dateAdded: 1000 },
+        { id: 300, word: "newest-same-timestamp", dateAdded: 1000 },
+        { id: 200, word: "middle-same-timestamp", dateAdded: 1000 },
+        { id: 50, word: "actually-newest", dateAdded: 5000 }
+    ]);
+    assert.deepEqual(
+        sorted.map((word) => word.word),
+        ["actually-newest", "newest-same-timestamp", "middle-same-timestamp", "older-same-timestamp"]
+    );
+});
+
 test("newly added words are broadcast to every open tab, not just the active one", async () => {
     const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
 

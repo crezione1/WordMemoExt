@@ -199,7 +199,16 @@ function createWordsList(words, filter = 'all') {
 
     const filteredWords = filterWords(Array.isArray(words) ? words : [], filter)
         .slice()
-        .sort((left, right) => getWordTimestamp(right) - getWordTimestamp(left));
+        .sort((left, right) => {
+            const timestampDelta = getWordTimestamp(right) - getWordTimestamp(left);
+            if (timestampDelta !== 0) {
+                return timestampDelta;
+            }
+            // Stable tie-breaker: words sharing an identical timestamp still
+            // need a deterministic newest-first order, so fall back to id
+            // (ids are monotonically increasing, so this also reads newest-first).
+            return (Number(right?.id) || 0) - (Number(left?.id) || 0);
+        });
 
     filteredWords.forEach((item) => {
         const listItem = createDictionaryListItem(item);

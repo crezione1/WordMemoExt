@@ -106,28 +106,36 @@
     display: inline-block;
 }
 
+/*
+ * These buttons are rendered by a content script on arbitrary host pages.
+ * Aggressive global resets (e.g. "button { all: unset }" or "!important"
+ * rules targeting buttons/links) can strip an ordinary stylesheet's
+ * declarations. The visual properties below are load-bearing for the
+ * button to be visible/clickable at all, so they are pinned with
+ * !important to resist host-page overrides.
+ */
 .action-button {
-    width: 24px;
-    height: 24px;
+    width: 24px !important;
+    height: 24px !important;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    background-color: #ff6b35;
+    background-color: #ff6b35 !important;
     border-radius: 50%;
-    border: none;
+    border: none !important;
     cursor: pointer;
-    z-index: 999999;
+    z-index: 999999 !important;
 }
 
 #deleteWordBtn {
-    width: 32px;
-    height: 32px;
+    width: 32px !important;
+    height: 32px !important;
     color: #fff;
-    background: #c4320a;
-    border: 2px solid #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    background: #c4320a !important;
+    border: 2px solid #fff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28) !important;
 }
 
 #add-new-word {
