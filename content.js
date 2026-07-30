@@ -1,6 +1,180 @@
 let settings = {};
 const countedWordIdsOnPage = new Set();
 
+// Selection classification (word / phrase / sentence)
+//
+// Sentence saving is a premium-only feature with its own backend contract
+// and private per-user storage (see issue #28). Word/phrase selection must
+// keep working exactly as before, so this only needs to reliably recognize
+// "this selection is sentence-shaped" and route those (and only those)
+// selections down a different path -- it is intentionally conservative
+// about calling something a sentence.
+const SENTENCE_MAX_LENGTH = 500;
+
+// Pure, side-effect free so it can be unit tested directly (see
+// tests/local-build.test.mjs), matching this repo's existing no-DOM-
+// dependency test style for content.js logic.
+function classifySelectionType(text) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+    const endsWithSentencePunctuation = /[.!?]["'’”)\]]?$/.test(trimmed);
+    const isSentence = wordCount >= 6
+        || trimmed.length > 120
+        || (wordCount >= 3 && endsWithSentencePunctuation);
+
+    if (isSentence) {
+        return "sentence";
+    }
+
+    return wordCount > 1 ? "phrase" : "word";
+}
+
+// YouTube SPA navigation handling
+//
+// YouTube swaps videos through client-side (pushState-based) navigation, so
+// the content script is never re-injected between videos. Without explicit
+// handling, LazyLex wrappers created for the previous video's title/page
+// text are never cleaned up and sit on screen next to the new video.
+
+const YOUTUBE_HOSTNAMES = new Set(["www.youtube.com", "youtube.com", "m.youtube.com"]);
+
+function getYouTubeVideoIdFromUrl(url) {
+    try {
+        const parsed = new URL(url);
+        if (!YOUTUBE_HOSTNAMES.has(parsed.hostname)) {
+            return null;
+        }
+        if (parsed.pathname === "/watch") {
+            return parsed.searchParams.get("v");
+        }
+        const shortsMatch = parsed.pathname.match(/^\/shorts\/([^/?#]+)/);
+        if (shortsMatch) {
+            return shortsMatch[1];
+        }
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+
+// Pure decision helper (kept side-effect free and exported to the file's
+// top level so it can be unit tested in isolation): given the video id we
+// last processed and a candidate URL, decide whether this is a transition
+// to a genuinely different video that requires a DOM cleanup + reprocess.
+function isNewYouTubeNavigation(previousVideoId, url) {
+    const videoId = getYouTubeVideoIdFromUrl(url);
+    return {
+        videoId,
+        isNewVideo: videoId !== null && videoId !== previousVideoId
+    };
+}
+
+function isYouTubeHost(hostname = window.location.hostname) {
+    return YOUTUBE_HOSTNAMES.has(hostname);
+}
+
+let lastProcessedYouTubeVideoId = isYouTubeHost() ? getYouTubeVideoIdFromUrl(window.location.href) : null;
+let youtubeNavigationHandlersInstalled = false;
+let youtubeNavigationChain = Promise.resolve();
+
+// Removes every LazyLex-owned DOM node (wrappers, highlights, translations,
+// delete controls) and reprocesses the current word list against the
+// current DOM exactly once. Reuses the same clear+highlight primitives the
+// "reload" wordsChanged broadcast already relies on, so there is a single,
+// already-tested code path for "wipe the page and rehighlight."
+async function resyncHighlightsForCurrentPage() {
+    clearHighlighting();
+    const existingDeleteButton = document.getElementById("deleteWordBtn");
+    if (existingDeleteButton) {
+        existingDeleteButton.remove();
+    }
+
+    const { words } = await chrome.storage.local.get({ words: [] });
+    if (words && words.length > 0) {
+        await highlightWords(words);
+    }
+}
+
+// YouTube renders the new video's metadata asynchronously after
+// yt-navigate-finish fires, so poll briefly (bounded attempts) for the
+// title element to carry text before reprocessing, instead of racing it.
+function waitForYouTubeTitleReady(videoId, attemptsLeft = 10) {
+    return new Promise((resolve) => {
+        const titleElement = document.querySelector(
+            "#title h1, ytd-watch-metadata h1, h1.ytd-watch-metadata, #container h1.title"
+        );
+        const isStillCurrent = getYouTubeVideoIdFromUrl(window.location.href) === videoId;
+        const hasTitleText = !!(titleElement && titleElement.textContent && titleElement.textContent.trim());
+
+        if (!isStillCurrent || hasTitleText || attemptsLeft <= 0) {
+            resolve();
+            return;
+        }
+
+        setTimeout(() => resolve(waitForYouTubeTitleReady(videoId, attemptsLeft - 1)), 150);
+    });
+}
+
+function handleYouTubeNavigation(url = window.location.href) {
+    if (!isYouTubeHost()) {
+        return;
+    }
+
+    const { videoId, isNewVideo } = isNewYouTubeNavigation(lastProcessedYouTubeVideoId, url);
+    if (!isNewVideo) {
+        return;
+    }
+    lastProcessedYouTubeVideoId = videoId;
+
+    // Chain onto any in-flight navigation handling so overlapping triggers
+    // (yt-navigate-finish, the pushState hook, and the polling fallback can
+    // all fire for the same transition) process the new video exactly once
+    // instead of racing or duplicating cleanup/highlight work.
+    youtubeNavigationChain = youtubeNavigationChain
+        .then(() => waitForYouTubeTitleReady(videoId))
+        .then(() => resyncHighlightsForCurrentPage())
+        .catch((error) => {
+            console.warn(
+                "[LazyLexExt] Unable to refresh highlights after YouTube navigation:",
+                error?.message || error
+            );
+        });
+}
+
+function installYouTubeNavigationHandlers() {
+    if (youtubeNavigationHandlersInstalled || !isYouTubeHost()) {
+        return;
+    }
+    youtubeNavigationHandlersInstalled = true;
+
+    // Primary signal: YouTube's own SPA router dispatches these on window.
+    window.addEventListener("yt-navigate-start", () => clearHighlighting());
+    window.addEventListener("yt-navigate-finish", () => handleYouTubeNavigation());
+
+    // Fallback signal: some navigations (or older/changed YouTube markup)
+    // may not dispatch the events above. Cover both pushState-driven
+    // navigation and browser Back/Forward.
+    const originalPushState = history.pushState;
+    history.pushState = function (...args) {
+        const result = originalPushState.apply(this, args);
+        handleYouTubeNavigation();
+        return result;
+    };
+    window.addEventListener("popstate", () => handleYouTubeNavigation());
+
+    // Last-resort fallback in case none of the above fire for a given
+    // transition; cheap (a URL parse) and only runs on YouTube hosts.
+    setInterval(() => handleYouTubeNavigation(), 1000);
+}
+
+if (isYouTubeHost()) {
+    installYouTubeNavigationHandlers();
+}
+
 // Saving/deleting words
 
 async function deleteWordFromStorage(wordId) {
@@ -264,7 +438,7 @@ function showContentNotification(message, type = "info") {
         max-width: 340px;
         padding: 14px 18px;
         color: white;
-        background: ${type === "error" ? "#b42318" : "#344054"};
+        background: ${type === "error" ? "#b42318" : type === "success" ? "#1a7f45" : "#344054"};
         border-radius: 10px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
         z-index: 999999;
@@ -273,6 +447,132 @@ function showContentNotification(message, type = "info") {
     notification.textContent = String(message || "LazyLex operation failed.");
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 5000);
+}
+
+// Premium sentence selection (issue #28)
+//
+// Sentences are gated to premium/lifetime users, never touch the shared
+// word/phrase translation flow (translateWithTAS/translateWord), and are
+// stored privately per-account -- see background.js's translateSentence
+// handler and persistSentenceMutation/deleteSentenceMutation.
+
+function showSentencePremiumNotification() {
+    const existing = document.getElementById("lazylex-sentence-premium-notification");
+    if (existing) {
+        existing.remove();
+    }
+
+    const notification = document.createElement("div");
+    notification.id = "lazylex-sentence-premium-notification";
+    notification.setAttribute("role", "status");
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 320px;
+        padding: 16px 20px;
+        color: white;
+        background: linear-gradient(135deg, #ff9d7b, #e17e5d);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(255, 157, 123, 0.4);
+        z-index: 999999;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:16px;font-weight:700;margin-bottom:8px";
+    title.textContent = "Sentence Saving is Premium";
+
+    const description = document.createElement("div");
+    description.style.cssText = "margin-bottom:12px;opacity:.9;line-height:1.4;font-size:13px";
+    description.textContent = "Saving and translating full sentences is a Premium feature. Word lookups stay free.";
+
+    const upgradeButton = document.createElement("button");
+    upgradeButton.type = "button";
+    upgradeButton.id = "lazylex-sentence-upgrade-btn";
+    upgradeButton.style.cssText = "background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:white;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;width:100%;min-height:44px";
+    upgradeButton.textContent = "Upgrade to Premium";
+    upgradeButton.addEventListener("click", () => {
+        window.open("https://lazylex.com/#/pricing", "_blank");
+        notification.remove();
+    });
+
+    notification.append(title, description, upgradeButton);
+    document.body.appendChild(notification);
+
+    setTimeout(() => notification.remove(), 8000);
+}
+
+function describeSentenceError(error) {
+    const code = error?.code || "";
+    if (code === "entitlement" || code.includes("403")) {
+        return null; // Caller shows the premium upsell instead of a generic error.
+    }
+    if (code === "validation" || code.includes("400") || code.includes("413")) {
+        return error?.message || `Sentences are limited to ${SENTENCE_MAX_LENGTH} characters.`;
+    }
+    if (code === "rate_limit" || code.includes("429")) {
+        return "You've reached today's sentence limit. Try again tomorrow.";
+    }
+    if (code === "api/timeout" || code === "api/network") {
+        return "Unable to reach LazyLex. Check your connection and try again.";
+    }
+    return "Unable to translate this sentence right now. Please try again.";
+}
+
+async function handleSentenceSelection(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text) {
+        return;
+    }
+
+    if (text.length > SENTENCE_MAX_LENGTH) {
+        showContentNotification(
+            `Sentences are limited to ${SENTENCE_MAX_LENGTH} characters. This selection is ${text.length}.`,
+            "error"
+        );
+        return;
+    }
+
+    // Entitlement is checked here purely so a free user never triggers a
+    // network call -- the background handler re-checks authoritatively
+    // before it will call the translation backend.
+    let subscription;
+    try {
+        subscription = await chrome.runtime.sendMessage({ action: "getSubscriptionStatus" });
+    } catch (error) {
+        subscription = null;
+    }
+
+    if (!subscription?.isPremium) {
+        showSentencePremiumNotification();
+        return;
+    }
+
+    showContentNotification("Translating sentence…", "info");
+
+    try {
+        const response = await chrome.runtime.sendMessage({
+            action: "translateSentence",
+            text,
+            targetLanguage: settings["languageCode"] || "uk"
+        });
+
+        if (!response?.success) {
+            const error = response?.error;
+            const message = describeSentenceError(error);
+            if (message === null) {
+                showSentencePremiumNotification();
+            } else {
+                showContentNotification(message, "error");
+            }
+            return;
+        }
+
+        showContentNotification("Sentence saved to your private list.", "success");
+    } catch (error) {
+        showContentNotification(describeSentenceError({ code: "api/network" }), "error");
+    }
 }
 
 function animateWordToToolbar(selectedText, rect) {
@@ -520,7 +820,7 @@ function isEligibleTextNode(node) {
     }
 
     return !parent.closest(
-        ".highlight-wrapper, #add-new-word, #deleteWordBtn, #lazylex-limit-notification, #lazylex-status-notification"
+        ".highlight-wrapper, #add-new-word, #add-new-sentence, #deleteWordBtn, #lazylex-limit-notification, #lazylex-status-notification, #lazylex-sentence-premium-notification"
     );
 }
 
@@ -724,11 +1024,11 @@ document.addEventListener("keydown", function (event) {
 });
 
 document.addEventListener("mouseup", function (event) {
-    if (event.target.id === "add-new-word") {
+    if (event.target.id === "add-new-word" || event.target.id === "add-new-sentence") {
         return;
     }
 
-    const existingButton = document.getElementById("add-new-word");
+    const existingButton = document.getElementById("add-new-word") || document.getElementById("add-new-sentence");
     if (existingButton) {
         existingButton.remove();
     }
@@ -738,20 +1038,39 @@ document.addEventListener("mouseup", function (event) {
         if (selectedText) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
+            const selectionType = classifySelectionType(selectedText);
 
             const button = document.createElement("button");
-            button.id = "add-new-word";
             button.className = "action-button";
-            button.innerText = "+";
             button.style.top = event.pageY + 20 + "px";
             button.style.left = event.pageX + 20 + "px";
-            button.addEventListener("click", function () {
-                console.log('[LazyLexExt] + button clicked, selectedText:', selectedText);
-                runLogic(selectedText, rect);
-                window.getSelection().empty();
-                window.getSelection().removeAllRanges();
-                button.remove();
-            });
+
+            if (selectionType === "sentence") {
+                // Distinct control: sentence saving is a separate, gated
+                // action and must never fall through to the word flow.
+                button.id = "add-new-sentence";
+                button.innerText = "S+";
+                button.title = "Save sentence (Premium)";
+                button.setAttribute("aria-label", "Save sentence (Premium)");
+                button.addEventListener("click", function () {
+                    console.log('[LazyLexExt] sentence button clicked, length:', selectedText.length);
+                    handleSentenceSelection(selectedText);
+                    window.getSelection().empty();
+                    window.getSelection().removeAllRanges();
+                    button.remove();
+                });
+            } else {
+                button.id = "add-new-word";
+                button.innerText = "+";
+                button.addEventListener("click", function () {
+                    console.log('[LazyLexExt] + button clicked, selectedText:', selectedText);
+                    runLogic(selectedText, rect);
+                    window.getSelection().empty();
+                    window.getSelection().removeAllRanges();
+                    button.remove();
+                });
+            }
+
             document.body.appendChild(button);
         }
     }

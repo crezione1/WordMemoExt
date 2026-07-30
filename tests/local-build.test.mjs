@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import vm from "node:vm";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -267,6 +267,130 @@ test("popup identity placeholders and settings language values are safe", async 
     );
 });
 
+test("sentence selections are classified distinctly from words/phrases and gated to premium", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
+    const popupSource = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
+
+    // Pure classifier: extract and execute it directly (same no-DOM-
+    // dependency style as the getChangedWords/YouTube-navigation tests).
+    const classifierSource = contentSource.match(
+        /function classifySelectionType\(text\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(classifierSource, "expected the selection classifier");
+    const context = vm.createContext({});
+    vm.runInContext(classifierSource, context);
+
+    assert.equal(context.classifySelectionType("dog"), "word");
+    assert.equal(context.classifySelectionType("New York City"), "phrase");
+    assert.equal(
+        context.classifySelectionType("This is a full sentence with several words in it."),
+        "sentence"
+    );
+    assert.equal(
+        context.classifySelectionType("Short but ends with punctuation right here."),
+        "sentence"
+    );
+    assert.equal(context.classifySelectionType(""), null);
+    assert.equal(context.classifySelectionType("   "), null);
+
+    // Word selection keeps using the existing "+"/runLogic path; sentence
+    // selection is a distinct control/handler and never calls runLogic or
+    // translateWithTAS.
+    assert.match(contentSource, /button\.id = "add-new-sentence"/);
+    assert.match(contentSource, /handleSentenceSelection\(selectedText\)/);
+    assert.match(contentSource, /async function handleSentenceSelection\(rawText\)/);
+    const sentenceHandlerSource = contentSource.match(
+        /async function handleSentenceSelection\(rawText\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(sentenceHandlerSource, "expected the sentence selection handler");
+    assert.doesNotMatch(sentenceHandlerSource, /runLogic\(|translateWithTAS\(/);
+    assert.match(sentenceHandlerSource, /action: "getSubscriptionStatus"/);
+    assert.match(sentenceHandlerSource, /action: "translateSentence"/);
+    assert.match(sentenceHandlerSource, /showSentencePremiumNotification\(\)/);
+    assert.match(contentSource, /SENTENCE_MAX_LENGTH = 500/);
+
+    // Background: a distinct callable/action from translateWord, entitlement
+    // checked before any network call, and storage kept out of the shared
+    // words/translations/lexicon paths.
+    assert.match(backgroundSource, /async function translateSentenceMutation\(text, targetLanguage\)/);
+    const translateSentenceSource = backgroundSource.match(
+        /async function translateSentenceMutation\(text, targetLanguage\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(translateSentenceSource, "expected the sentence translation mutation");
+    assert.match(translateSentenceSource, /getSubscriptionStatus\(\)/);
+    assert.match(translateSentenceSource, /code: "entitlement"/);
+    assert.match(translateSentenceSource, /\$\{functionsBaseUrl\}\/translateSentence/);
+    assert.doesNotMatch(translateSentenceSource, /\/translateWord/);
+    assert.match(backgroundSource, /users\/\$\{uid\}\/sentences/);
+    assert.doesNotMatch(backgroundSource, /sentences.*translations\/|translations\/.*sentences/);
+    assert.match(backgroundSource, /request\.action === "translateSentence"/);
+    assert.match(backgroundSource, /request\.action === "deleteSentence"/);
+    assert.match(backgroundSource, /request\.action === "getSubscriptionStatus"/);
+
+    // Popup: separate list/render path from the word dictionary, and
+    // sentences are cleared on logout alongside other per-account data.
+    assert.match(popupSource, /function renderSentences\(sentences\)/);
+    assert.doesNotMatch(popupSource, /sentences\.concat\(words\)|words\.concat\(sentences\)/);
+    assert.match(popupSource, /"sentences",\s*\n\s*"sentencesOwnerUid"/);
+});
+
+test("YouTube SPA navigation is detected and reprocessed exactly once per video change", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    assert.match(contentSource, /yt-navigate-start/);
+    assert.match(contentSource, /yt-navigate-finish/);
+    assert.match(contentSource, /addEventListener\("popstate"/);
+    assert.match(contentSource, /youtubeNavigationHandlersInstalled/);
+    assert.match(contentSource, /resyncHighlightsForCurrentPage/);
+    assert.match(contentSource, /clearHighlighting\(\);/);
+
+    // installYouTubeNavigationHandlers must be guarded so it can be called
+    // more than once (e.g. re-entrant script evaluation) without attaching
+    // duplicate listeners or re-wrapping history.pushState twice.
+    const installerSource = contentSource.match(
+        /function installYouTubeNavigationHandlers\(\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(installerSource, "expected the navigation-handler installer");
+    assert.match(installerSource, /if \(youtubeNavigationHandlersInstalled/);
+
+    const pureLogicSource = contentSource.match(
+        /const YOUTUBE_HOSTNAMES[\s\S]*?(?=\nlet lastProcessedYouTubeVideoId)/
+    )?.[0];
+    assert.ok(pureLogicSource, "expected the pure YouTube navigation-decision helpers");
+
+    const context = vm.createContext({ URL });
+    vm.runInContext(pureLogicSource, context);
+
+    const videoOne = "https://www.youtube.com/watch?v=aaaaaaaaaaa&list=PL1";
+    const videoTwo = "https://www.youtube.com/watch?v=bbbbbbbbbbb&list=PL1";
+
+    // First transition into a watch page: treated as a new video.
+    const first = context.isNewYouTubeNavigation(null, videoOne);
+    assert.equal(first.isNewVideo, true);
+    assert.equal(first.videoId, "aaaaaaaaaaa");
+
+    // Switching to a second, different video id is also a new navigation.
+    const second = context.isNewYouTubeNavigation(first.videoId, videoTwo);
+    assert.equal(second.isNewVideo, true);
+    assert.equal(second.videoId, "bbbbbbbbbbb");
+
+    // Re-triggering on the same video (e.g. the interval fallback firing
+    // again, or yt-navigate-finish plus a pushState hook both firing for
+    // the same transition) must not be treated as another navigation, so
+    // the new title is processed exactly once.
+    const repeat = context.isNewYouTubeNavigation(second.videoId, videoTwo);
+    assert.equal(repeat.isNewVideo, false);
+
+    // Non-YouTube and non-watch URLs never trigger a reprocess.
+    assert.equal(context.getYouTubeVideoIdFromUrl("https://example.com/watch?v=zzz"), null);
+    assert.equal(context.getYouTubeVideoIdFromUrl("https://www.youtube.com/"), null);
+    assert.equal(
+        context.getYouTubeVideoIdFromUrl("https://www.youtube.com/shorts/ccccccccccc"),
+        "ccccccccccc"
+    );
+});
+
 test("obsolete development server and runtime dependencies are removed", async () => {
     const packageJson = JSON.parse(
         await readFile(path.join(repositoryRoot, "package.json"), "utf8")
@@ -360,6 +484,19 @@ test("popup dictionary sort breaks identical timestamps by id, newest first", as
         sorted.map((word) => word.word),
         ["actually-newest", "newest-same-timestamp", "middle-same-timestamp", "older-same-timestamp"]
     );
+});
+
+test("newly added words are broadcast to every open tab, not just the active one", async () => {
+    const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
+
+    const notifySource = backgroundSource.match(
+        /async function notifyContentAboutChanges\([\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(notifySource, "expected notifyContentAboutChanges to be defined");
+    assert.match(notifySource, /chrome\.tabs\.query\(\{\}\)/);
+    assert.match(notifySource, /tabs\.map/);
+    assert.doesNotMatch(notifySource, /getCurrentTab\(\)/);
+    assert.match(notifySource, /Receiving end does not exist/);
 });
 
 test("CI verifies security checks, tests, and the unpacked package", async () => {
