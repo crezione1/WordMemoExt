@@ -104,6 +104,9 @@
                         </defs>
                     </svg>
                 </button>
+                <button type="button" class="tab-action icon-btn" id="sentencesTab" title="Sentences (Premium)" aria-label="Sentences (Premium)">
+                    <span style="font-size:13px;font-weight:700;line-height:20px;">Aa</span>
+                </button>
                 <button type="button" class="tab-action icon-btn" id="settingsTab">
                     <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -247,6 +250,21 @@
             </div>
 
             <ul class="word-list list" id="wordList"></ul>
+        </div>
+
+        <!-- Saved sentences: intentionally a separate model/list from the word
+             dictionary above (issue #28). Sentences are premium-gated and
+             private to the signed-in account; they are never merged into
+             wordList/allWords. -->
+        <div id="sentencesContent" class="tab-content" style="display: none">
+            <h2 class="title-large">My Sentences</h2>
+            <div class="desc" style="margin-bottom: 8px;">
+                Premium feature. Select a full sentence on any page and save its translation here.
+            </div>
+            <ul class="word-list list" id="sentenceList"></ul>
+            <div class="desc" id="sentenceListEmpty" style="display:none;">
+                No saved sentences yet.
+            </div>
         </div>
 
         <!-- Word details (SPA panel) -->

@@ -267,6 +267,74 @@ test("popup identity placeholders and settings language values are safe", async 
     );
 });
 
+test("sentence selections are classified distinctly from words/phrases and gated to premium", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
+    const popupSource = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
+
+    // Pure classifier: extract and execute it directly (same no-DOM-
+    // dependency style as the getChangedWords/YouTube-navigation tests).
+    const classifierSource = contentSource.match(
+        /function classifySelectionType\(text\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(classifierSource, "expected the selection classifier");
+    const context = vm.createContext({});
+    vm.runInContext(classifierSource, context);
+
+    assert.equal(context.classifySelectionType("dog"), "word");
+    assert.equal(context.classifySelectionType("New York City"), "phrase");
+    assert.equal(
+        context.classifySelectionType("This is a full sentence with several words in it."),
+        "sentence"
+    );
+    assert.equal(
+        context.classifySelectionType("Short but ends with punctuation right here."),
+        "sentence"
+    );
+    assert.equal(context.classifySelectionType(""), null);
+    assert.equal(context.classifySelectionType("   "), null);
+
+    // Word selection keeps using the existing "+"/runLogic path; sentence
+    // selection is a distinct control/handler and never calls runLogic or
+    // translateWithTAS.
+    assert.match(contentSource, /button\.id = "add-new-sentence"/);
+    assert.match(contentSource, /handleSentenceSelection\(selectedText\)/);
+    assert.match(contentSource, /async function handleSentenceSelection\(rawText\)/);
+    const sentenceHandlerSource = contentSource.match(
+        /async function handleSentenceSelection\(rawText\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(sentenceHandlerSource, "expected the sentence selection handler");
+    assert.doesNotMatch(sentenceHandlerSource, /runLogic\(|translateWithTAS\(/);
+    assert.match(sentenceHandlerSource, /action: "getSubscriptionStatus"/);
+    assert.match(sentenceHandlerSource, /action: "translateSentence"/);
+    assert.match(sentenceHandlerSource, /showSentencePremiumNotification\(\)/);
+    assert.match(contentSource, /SENTENCE_MAX_LENGTH = 500/);
+
+    // Background: a distinct callable/action from translateWord, entitlement
+    // checked before any network call, and storage kept out of the shared
+    // words/translations/lexicon paths.
+    assert.match(backgroundSource, /async function translateSentenceMutation\(text, targetLanguage\)/);
+    const translateSentenceSource = backgroundSource.match(
+        /async function translateSentenceMutation\(text, targetLanguage\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(translateSentenceSource, "expected the sentence translation mutation");
+    assert.match(translateSentenceSource, /getSubscriptionStatus\(\)/);
+    assert.match(translateSentenceSource, /code: "entitlement"/);
+    assert.match(translateSentenceSource, /\$\{functionsBaseUrl\}\/translateSentence/);
+    assert.doesNotMatch(translateSentenceSource, /\/translateWord/);
+    assert.match(backgroundSource, /users\/\$\{uid\}\/sentences/);
+    assert.doesNotMatch(backgroundSource, /sentences.*translations\/|translations\/.*sentences/);
+    assert.match(backgroundSource, /request\.action === "translateSentence"/);
+    assert.match(backgroundSource, /request\.action === "deleteSentence"/);
+    assert.match(backgroundSource, /request\.action === "getSubscriptionStatus"/);
+
+    // Popup: separate list/render path from the word dictionary, and
+    // sentences are cleared on logout alongside other per-account data.
+    assert.match(popupSource, /function renderSentences\(sentences\)/);
+    assert.doesNotMatch(popupSource, /sentences\.concat\(words\)|words\.concat\(sentences\)/);
+    assert.match(popupSource, /"sentences",\s*\n\s*"sentencesOwnerUid"/);
+});
+
 test("YouTube SPA navigation is detected and reprocessed exactly once per video change", async () => {
     const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
 

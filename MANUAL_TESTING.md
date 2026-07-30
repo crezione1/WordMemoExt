@@ -80,6 +80,33 @@ npm run build:local -- --oauth-client-id=YOUR_REGISTERED_CLIENT_ID --extension-k
 10. Change the target language or highlighting settings and confirm the page responds.
 11. Sign out, reopen the popup, and confirm authenticated data is no longer shown.
 
+## Premium sentence selection (issue #28)
+
+Note: the backend `translateSentence` callable described in
+`crezione1/LazyLexFunctions#1` is not deployed yet as of this writing, so
+steps 4+ below (the actual translate/save call) cannot be fully verified
+until that backend work ships. Steps 1-3 (free-user gating) do not depend
+on the backend and can be verified now.
+
+1. As a **free** account, select a full sentence (roughly 6+ words, or any
+   selection ending in `.`/`!`/`?`) on a normal webpage. Confirm a distinct
+   "S+" control appears (not the usual "+" word button).
+2. Click it. Confirm a "Sentence Saving is Premium" upsell appears and no
+   network request to a translation endpoint is made (check the service
+   worker's Network tab / console).
+3. Confirm a short single-word or short-phrase selection still shows the
+   normal "+" control and saves through the existing word flow unchanged.
+4. As a **premium/lifetime** account (once the backend function is live),
+   repeat step 1-2; confirm a loading state, then a saved-sentence
+   confirmation, and that the sentence appears under the popup's
+   "Sentences" tab (not mixed into "My Word List").
+5. Select text longer than 500 characters as a premium account; confirm a
+   length error appears and no network call is made.
+6. Delete a saved sentence from the "Sentences" tab; confirm it is removed
+   from Firestore (`users/{uid}/sentences/{id}`) as well as locally.
+7. Sign out (or switch Google accounts) and confirm the "Sentences" tab no
+   longer shows the previous account's sentences.
+
 ## YouTube SPA navigation (issue #26)
 
 1. Open a YouTube watch page (`https://www.youtube.com/watch?v=...`).
