@@ -33,6 +33,148 @@ function classifySelectionType(text) {
     return wordCount > 1 ? "phrase" : "word";
 }
 
+// YouTube SPA navigation handling
+//
+// YouTube swaps videos through client-side (pushState-based) navigation, so
+// the content script is never re-injected between videos. Without explicit
+// handling, LazyLex wrappers created for the previous video's title/page
+// text are never cleaned up and sit on screen next to the new video.
+
+const YOUTUBE_HOSTNAMES = new Set(["www.youtube.com", "youtube.com", "m.youtube.com"]);
+
+function getYouTubeVideoIdFromUrl(url) {
+    try {
+        const parsed = new URL(url);
+        if (!YOUTUBE_HOSTNAMES.has(parsed.hostname)) {
+            return null;
+        }
+        if (parsed.pathname === "/watch") {
+            return parsed.searchParams.get("v");
+        }
+        const shortsMatch = parsed.pathname.match(/^\/shorts\/([^/?#]+)/);
+        if (shortsMatch) {
+            return shortsMatch[1];
+        }
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+
+// Pure decision helper (kept side-effect free and exported to the file's
+// top level so it can be unit tested in isolation): given the video id we
+// last processed and a candidate URL, decide whether this is a transition
+// to a genuinely different video that requires a DOM cleanup + reprocess.
+function isNewYouTubeNavigation(previousVideoId, url) {
+    const videoId = getYouTubeVideoIdFromUrl(url);
+    return {
+        videoId,
+        isNewVideo: videoId !== null && videoId !== previousVideoId
+    };
+}
+
+function isYouTubeHost(hostname = window.location.hostname) {
+    return YOUTUBE_HOSTNAMES.has(hostname);
+}
+
+let lastProcessedYouTubeVideoId = isYouTubeHost() ? getYouTubeVideoIdFromUrl(window.location.href) : null;
+let youtubeNavigationHandlersInstalled = false;
+let youtubeNavigationChain = Promise.resolve();
+
+// Removes every LazyLex-owned DOM node (wrappers, highlights, translations,
+// delete controls) and reprocesses the current word list against the
+// current DOM exactly once. Reuses the same clear+highlight primitives the
+// "reload" wordsChanged broadcast already relies on, so there is a single,
+// already-tested code path for "wipe the page and rehighlight."
+async function resyncHighlightsForCurrentPage() {
+    clearHighlighting();
+    const existingDeleteButton = document.getElementById("deleteWordBtn");
+    if (existingDeleteButton) {
+        existingDeleteButton.remove();
+    }
+
+    const { words } = await chrome.storage.local.get({ words: [] });
+    if (words && words.length > 0) {
+        await highlightWords(words);
+    }
+}
+
+// YouTube renders the new video's metadata asynchronously after
+// yt-navigate-finish fires, so poll briefly (bounded attempts) for the
+// title element to carry text before reprocessing, instead of racing it.
+function waitForYouTubeTitleReady(videoId, attemptsLeft = 10) {
+    return new Promise((resolve) => {
+        const titleElement = document.querySelector(
+            "#title h1, ytd-watch-metadata h1, h1.ytd-watch-metadata, #container h1.title"
+        );
+        const isStillCurrent = getYouTubeVideoIdFromUrl(window.location.href) === videoId;
+        const hasTitleText = !!(titleElement && titleElement.textContent && titleElement.textContent.trim());
+
+        if (!isStillCurrent || hasTitleText || attemptsLeft <= 0) {
+            resolve();
+            return;
+        }
+
+        setTimeout(() => resolve(waitForYouTubeTitleReady(videoId, attemptsLeft - 1)), 150);
+    });
+}
+
+function handleYouTubeNavigation(url = window.location.href) {
+    if (!isYouTubeHost()) {
+        return;
+    }
+
+    const { videoId, isNewVideo } = isNewYouTubeNavigation(lastProcessedYouTubeVideoId, url);
+    if (!isNewVideo) {
+        return;
+    }
+    lastProcessedYouTubeVideoId = videoId;
+
+    // Chain onto any in-flight navigation handling so overlapping triggers
+    // (yt-navigate-finish, the pushState hook, and the polling fallback can
+    // all fire for the same transition) process the new video exactly once
+    // instead of racing or duplicating cleanup/highlight work.
+    youtubeNavigationChain = youtubeNavigationChain
+        .then(() => waitForYouTubeTitleReady(videoId))
+        .then(() => resyncHighlightsForCurrentPage())
+        .catch((error) => {
+            console.warn(
+                "[LazyLexExt] Unable to refresh highlights after YouTube navigation:",
+                error?.message || error
+            );
+        });
+}
+
+function installYouTubeNavigationHandlers() {
+    if (youtubeNavigationHandlersInstalled || !isYouTubeHost()) {
+        return;
+    }
+    youtubeNavigationHandlersInstalled = true;
+
+    // Primary signal: YouTube's own SPA router dispatches these on window.
+    window.addEventListener("yt-navigate-start", () => clearHighlighting());
+    window.addEventListener("yt-navigate-finish", () => handleYouTubeNavigation());
+
+    // Fallback signal: some navigations (or older/changed YouTube markup)
+    // may not dispatch the events above. Cover both pushState-driven
+    // navigation and browser Back/Forward.
+    const originalPushState = history.pushState;
+    history.pushState = function (...args) {
+        const result = originalPushState.apply(this, args);
+        handleYouTubeNavigation();
+        return result;
+    };
+    window.addEventListener("popstate", () => handleYouTubeNavigation());
+
+    // Last-resort fallback in case none of the above fire for a given
+    // transition; cheap (a URL parse) and only runs on YouTube hosts.
+    setInterval(() => handleYouTubeNavigation(), 1000);
+}
+
+if (isYouTubeHost()) {
+    installYouTubeNavigationHandlers();
+}
+
 // Saving/deleting words
 
 async function deleteWordFromStorage(wordId) {
