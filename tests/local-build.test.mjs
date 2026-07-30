@@ -403,6 +403,19 @@ test("obsolete development server and runtime dependencies are removed", async (
     assert.deepEqual(packageJson.devDependencies || {}, {});
 });
 
+test("newly added words are broadcast to every open tab, not just the active one", async () => {
+    const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
+
+    const notifySource = backgroundSource.match(
+        /async function notifyContentAboutChanges\([\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(notifySource, "expected notifyContentAboutChanges to be defined");
+    assert.match(notifySource, /chrome\.tabs\.query\(\{\}\)/);
+    assert.match(notifySource, /tabs\.map/);
+    assert.doesNotMatch(notifySource, /getCurrentTab\(\)/);
+    assert.match(notifySource, /Receiving end does not exist/);
+});
+
 test("CI verifies security checks, tests, and the unpacked package", async () => {
     const workflow = await readFile(
         path.join(repositoryRoot, ".github", "workflows", "extension-ci.yml"),
