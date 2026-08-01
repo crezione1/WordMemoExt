@@ -388,6 +388,21 @@ async function fsHeaders(required = false) {
     };
 }
 
+// fsHeaders() reuses the cached token while our stored expiry says it is still
+// valid, so it cannot recover from a token the server has actually rejected
+// (clock skew, revocation, a password change). This forces a new one.
+async function forceRefreshFsHeaders() {
+    try {
+        const { firebase_refresh_token } = await chrome.storage.local.get(['firebase_refresh_token']);
+        if (!firebase_refresh_token) return null;
+        await refreshFirebaseIdTokenBg(firebase_refresh_token);
+    } catch (error) {
+        console.warn('Forced token refresh failed:', error?.message || error);
+        return null;
+    }
+    return await fsHeaders();
+}
+
 async function fsEnsureUserDoc(userInfo) {
     try {
         const headers = await fsHeaders();
@@ -1197,12 +1212,30 @@ async function checkSubscriptionLimits() {
         if (!uid) return { canAdd: true, reason: 'no_uid' };
 
         const url = `${FIRESTORE_BASE}/users/${uid}`;
-        const response = await fetch(url, { headers });
-        
-        if (!response.ok) {
-            // User document doesn't exist, create default and allow
+        let response = await fetch(url, { headers });
+
+        // A stale ID token surfaces as 401/403. Refresh and retry once before
+        // drawing any conclusion about the document: this branch used to fall
+        // through to "document missing" and wipe the user's stored state.
+        if (response.status === 401 || response.status === 403) {
+            const refreshedHeaders = await forceRefreshFsHeaders();
+            if (refreshedHeaders) {
+                response = await fetch(url, { headers: refreshedHeaders });
+            }
+        }
+
+        if (response.status === 404) {
+            // Genuinely no document yet — seed defaults for a first-time user.
             await createDefaultUserSubscription(uid);
             return { canAdd: true, reason: 'new_user', dailyWordsAdded: 0, dailyWordLimit: 5 };
+        }
+
+        if (!response.ok) {
+            // Auth still bad, 5xx, or offline. Write nothing: a PATCH here
+            // would reset dailyWordsAdded and, worse, overwrite
+            // subscriptionStatus with 'free' for a paying user.
+            console.warn(`Subscription lookup failed (${response.status}); leaving stored state untouched`);
+            return { canAdd: true, reason: 'lookup_failed' };
         }
 
         const userData = await response.json();
@@ -1259,8 +1292,17 @@ async function incrementDailyWordCount() {
 
         // Get current subscription data
         const limitCheck = await checkSubscriptionLimits();
+
+        // Without a trusted current count there is nothing safe to write:
+        // `undefined + 1` is NaN, which would corrupt the stored field, and
+        // guessing a value would overwrite the real one.
+        if (typeof limitCheck.dailyWordsAdded !== 'number') {
+            console.warn(`Skipping daily count update — no reliable count (${limitCheck.reason})`);
+            return;
+        }
+
         const today = new Date().toISOString().split('T')[0];
-        
+
         let newCount = limitCheck.dailyWordsAdded + 1;
         if (limitCheck.needsReset) {
             newCount = 1; // Reset to 1 for new day
@@ -1295,7 +1337,11 @@ async function createDefaultUserSubscription(uid) {
         const today = new Date().toISOString().split('T')[0];
         const now = new Date().toISOString();
 
-        const url = `${FIRESTORE_BASE}/users/${uid}`;
+        // `currentDocument.exists=false` makes this a create, not an upsert.
+        // Defence in depth: even if a future caller reaches this on a user who
+        // already has a document, Firestore rejects the write rather than
+        // resetting dailyWordsAdded and downgrading subscriptionStatus to free.
+        const url = `${FIRESTORE_BASE}/users/${uid}?currentDocument.exists=false`;
         const userData = {
             fields: {
                 uid: { stringValue: uid },
