@@ -48,16 +48,18 @@
         "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; connect-src https://europe-central2-lazylex-9d161.cloudfunctions.net https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; base-uri 'none'; form-action 'none';"
     },
     "icons": {
-        "16": "images/lazylex_logo.png",
-        "48": "images/lazylex_logo.png",
-        "128": "images/lazylex_logo.png"
+        "16": "images/icon-16.png",
+        "32": "images/icon-32.png",
+        "48": "images/icon-48.png",
+        "128": "images/icon-128.png"
     },
     "action": {
         "default_popup": "popup.html",
         "default_icon": {
-            "16": "images/lazylex_logo.png",
-            "48": "images/lazylex_logo.png",
-            "128": "images/lazylex_logo.png"
+            "16": "images/icon-16.png",
+            "32": "images/icon-32.png",
+            "48": "images/icon-48.png",
+            "128": "images/icon-128.png"
         }
     }
 }
