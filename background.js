@@ -235,40 +235,58 @@ function isSiteEqualToCurrentSite(url, domain) {
     }
 }
 
-async function checkIfExtensionEnabled() {
+// Pure and side-effect free (no chrome.* access) so it can be unit tested
+// directly, matching this repo's existing no-DOM-dependency test style.
+function isExtensionEnabledForUrl(url, excludedSites) {
+    const sites = Array.isArray(excludedSites) ? excludedSites : [];
+    return !sites.some((site) => isSiteEqualToCurrentSite(url, site));
+}
+
+// `url` is the URL of the tab that is actually asking. Falling back to the
+// focused tab is only correct for extension surfaces (popup/options), which
+// have no `sender.tab` of their own -- a content script in a background tab
+// must never be answered with whatever tab happens to be focused (#48).
+async function checkIfExtensionEnabled(url) {
     const result = await chrome.storage.local.get({
         excludedSites: [],
     });
-    const excludedSites = result.excludedSites;
-    const currentTab = await getCurrentTab();
+    const targetUrl = url || (await getCurrentTab())?.url;
 
-    const isEnabled = !excludedSites.some((site) => isSiteEqualToCurrentSite(currentTab.url, site));
-
-    return isEnabled;
+    return isExtensionEnabledForUrl(targetUrl, result.excludedSites);
 }
 
-function getChangedSite(changes) {
-    const newValue = changes.newValue;
-    const oldValue = changes.oldValue;
+// Every open tab is told about its own site, not about the focused one.
+// This matters three ways:
+//   * excluding site A must not disable an open tab on site B (#48 AC7);
+//   * the change is often made from the popup or the options page, where the
+//     "active tab" is not the page being excluded at all -- the old
+//     focused-tab comparison simply dropped the broadcast in that case;
+//   * a bulk edit (clearing several exclusions at once) is handled by
+//     recomputing per tab instead of guessing a single changed entry.
+async function handleExcludedSitesChange() {
+    const { excludedSites } = await chrome.storage.local.get({ excludedSites: [] });
+    const tabs = await chrome.tabs.query({});
 
-    const [changedItem] =
-        newValue.length > oldValue.length
-            ? newValue.filter((item) => !oldValue.includes(item))
-            : oldValue.filter((item) => !newValue.includes(item));
+    await Promise.all(
+        tabs.map(async (tab) => {
+            if (!tab || !tab.id || !tab.url) {
+                return;
+            }
 
-    return changedItem;
-}
-
-async function handleExcludedSitesChange(changes) {
-    const changedSite = getChangedSite(changes);
-
-    const currentTab = await getCurrentTab();
-    const isCurrentChanged = isSiteEqualToCurrentSite(currentTab.url, changedSite);
-
-    if (!isCurrentChanged) return;
-
-    const enabled = await checkIfExtensionEnabled();
-    await notifyContentAboutChanges("extensionStateChanged", enabled);
+            try {
+                await chrome.tabs.sendMessage(tab.id, {
+                    action: "extensionStateChanged",
+                    newValue: isExtensionEnabledForUrl(tab.url, excludedSites),
+                });
+            } catch (error) {
+                if (error.message.includes("Receiving end does not exist")) {
+                    console.log("Content script not available on this tab. Can be ignored.");
+                } else {
+                    console.error("Error sending message to content script:", error);
+                }
+            }
+        })
+    );
 }
 
 // Getting all words and manipulating them
@@ -990,7 +1008,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "checkExtensionState") {
-        checkIfExtensionEnabled()
+        // Answer from the asking tab's own URL, not the focused tab's.
+        checkIfExtensionEnabled(sender?.tab?.url)
             .then((enabled) => {
                 sendResponse({ enabled });
             })
@@ -1137,7 +1156,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 chrome.storage.onChanged.addListener(async (changes, namespace) => {
     if (namespace === "local" && "excludedSites" in changes) {
-        await handleExcludedSitesChange(changes.excludedSites);
+        await handleExcludedSitesChange();
     }
 
     if (namespace === "local" && "words" in changes) {
