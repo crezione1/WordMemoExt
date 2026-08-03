@@ -107,53 +107,49 @@
 }
 
 /*
- * These buttons are rendered by a content script on arbitrary host pages.
- * Aggressive global resets (e.g. "button { all: unset }" or "!important"
- * rules targeting buttons/links) can strip an ordinary stylesheet's
- * declarations. The visual properties below are load-bearing for the
- * button to be visible/clickable at all, so they are pinned with
- * !important to resist host-page overrides.
+ * The widget controls are NOT styled here any more (#52).
+ *
+ * This stylesheet is injected into the host page, so every rule in it competes
+ * with the page's own CSS. The controls used to live here and defended
+ * themselves with a partial `!important` list, which could never cover the
+ * inherited properties (font-family, line-height, letter-spacing,
+ * text-transform, ...) -- those arrive through inheritance, not through a rule
+ * that can be outranked. That is why the same button rendered differently on
+ * every site.
+ *
+ * The controls -- the add-word/add-sentence buttons, the delete button, the
+ * translation edit field and its save button -- now render inside a shadow
+ * root, and their stylesheet is CONTROL_STYLESHEET in content.js. Host-page
+ * selectors cannot reach into a shadow root, so that stylesheet needs no
+ * `!important` at all. #11's delete-button visibility guarantees (dark red,
+ * white border, drop shadow) moved there verbatim.
+ *
+ * What is left below is what genuinely cannot move into a shadow root: the
+ * highlight itself. `.highlight-wrapper` is inline inside the page's own text
+ * and has to keep flowing with it, so it stays in light DOM and keeps needing
+ * defensive rules.
+ *
+ * Also removed here: `#add-new-word { position: absolute }`. It conflicted
+ * with the inline positioning the JS applied, and `#add-new-sentence` had no
+ * matching rule at all, which is why "S+" landed in normal body flow.
+ * Positioning is now settled in one place, mountControl() in content.js.
  */
-.action-button {
-    width: 24px !important;
-    height: 24px !important;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    background-color: #ff6b35 !important;
-    border-radius: 50%;
-    border: none !important;
-    cursor: pointer;
-    z-index: 999999 !important;
-}
 
-#deleteWordBtn {
-    width: 32px !important;
-    height: 32px !important;
-    color: #fff;
-    background: #c4320a !important;
-    border: 2px solid #fff !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28) !important;
-}
-
-#add-new-word {
-    position: absolute;
-}
-
-.edit-translation-input {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 14px;
-    margin-right: 5px;
-}
-
-.edit-translation-input:focus {
-    outline: none;
-    border-color: #ff6b35;
-    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+/*
+ * The shadow host. It is light DOM, so the page can still try to reach it --
+ * the host's own inline `!important` declarations (set in content.js) are what
+ * actually protect it, since an inline important declaration outranks any
+ * author important rule a page can write. This rule is only a readable
+ * statement of intent for anyone inspecting the page.
+ */
+#lazylex-controls {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 2147483647;
 }
 
 .translation-loader {

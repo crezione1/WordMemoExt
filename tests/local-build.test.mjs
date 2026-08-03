@@ -437,24 +437,263 @@ test("obsolete development server and runtime dependencies are removed", async (
     assert.deepEqual(packageJson.devDependencies || {}, {});
 });
 
-test("delete and add-word buttons resist host-page CSS overrides", async () => {
-    const styles = await readFile(path.join(repositoryRoot, "styles.css"), "utf8");
+// Reads the shadow-root control stylesheet out of content.js. Since #52 this,
+// not styles.css, is where every control rule lives.
+async function readControlStylesheet() {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const stylesheet = contentSource.match(/const CONTROL_STYLESHEET = `([\s\S]*?)`;/)?.[1];
+    assert.ok(stylesheet, "expected the CONTROL_STYLESHEET constant in content.js");
+    return stylesheet;
+}
 
-    const actionButtonBlock = styles.match(/\.action-button\s*\{[\s\S]*?\}/)?.[0];
-    assert.ok(actionButtonBlock, "expected .action-button rule block");
-    assert.match(actionButtonBlock, /width:\s*24px\s*!important/);
-    assert.match(actionButtonBlock, /height:\s*24px\s*!important/);
-    assert.match(actionButtonBlock, /background-color:\s*#ff6b35\s*!important/);
-    assert.match(actionButtonBlock, /border:\s*none\s*!important/);
-    assert.match(actionButtonBlock, /z-index:\s*999999\s*!important/);
+function readRuleBlock(stylesheet, selector) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const block = stylesheet.match(new RegExp(`${escaped}\\s*\\{[\\s\\S]*?\\}`))?.[0];
+    assert.ok(block, `expected a "${selector}" rule block`);
+    return block;
+}
 
-    const deleteButtonBlock = styles.match(/#deleteWordBtn\s*\{[\s\S]*?\}/)?.[0];
-    assert.ok(deleteButtonBlock, "expected #deleteWordBtn rule block");
-    assert.match(deleteButtonBlock, /width:\s*32px\s*!important/);
-    assert.match(deleteButtonBlock, /height:\s*32px\s*!important/);
-    assert.match(deleteButtonBlock, /background:\s*#c4320a\s*!important/);
-    assert.match(deleteButtonBlock, /border:\s*2px solid #fff\s*!important/);
-    assert.match(deleteButtonBlock, /box-shadow:[^;]+!important/);
+// Comments in styles.css explain what moved into the shadow root and name the
+// selectors that used to live there, so "is this selector still styled here?"
+// has to be asked of the declarations only.
+function stripCssComments(source) {
+    return source.replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+test("delete and add-word buttons keep #11's visibility guarantees inside the shadow root", async () => {
+    const stylesheet = await readControlStylesheet();
+
+    // The properties are the same ones #11 pinned; what changed is that they
+    // no longer need `!important`, because no host-page selector can match
+    // inside a shadow root. An `!important` here would be a sign the controls
+    // had drifted back into light DOM.
+    const actionButtonBlock = readRuleBlock(stylesheet, ".action-button");
+    assert.match(actionButtonBlock, /width:\s*24px;/);
+    assert.match(actionButtonBlock, /height:\s*24px;/);
+    assert.match(actionButtonBlock, /background-color:\s*#ff6b35;/);
+    assert.match(actionButtonBlock, /border:\s*none;/);
+    assert.match(actionButtonBlock, /border-radius:\s*50%;/);
+    assert.match(actionButtonBlock, /color:\s*#ffffff;/);
+    assert.match(actionButtonBlock, /cursor:\s*pointer;/);
+
+    const deleteButtonBlock = readRuleBlock(stylesheet, "#deleteWordBtn");
+    assert.match(deleteButtonBlock, /width:\s*32px;/);
+    assert.match(deleteButtonBlock, /height:\s*32px;/);
+    assert.match(deleteButtonBlock, /background-color:\s*#c4320a;/);
+    assert.match(deleteButtonBlock, /border:\s*2px solid #ffffff;/);
+    assert.match(deleteButtonBlock, /box-shadow:\s*0 2px 8px rgba\(0, 0, 0, 0\.28\);/);
+
+    assert.equal(
+        stylesheet.includes("!important"),
+        false,
+        "a shadow-root stylesheet must not need !important; its presence means a control leaked back into light DOM"
+    );
+
+    // styles.css is injected into the page and must no longer carry control
+    // rules -- that is the whole point of #52.
+    const styles = stripCssComments(
+        await readFile(path.join(repositoryRoot, "styles.css"), "utf8")
+    );
+    for (const deadSelector of [".action-button", "#deleteWordBtn", ".edit-translation-input", "#add-new-word"]) {
+        assert.equal(
+            styles.includes(deadSelector),
+            false,
+            `${deadSelector} must not be styled in the page-injected stylesheet any more`
+        );
+    }
+});
+
+test("the widget controls are style-isolated in a shadow root (#52)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const stylesheet = await readControlStylesheet();
+
+    // The root of the fix.
+    assert.match(contentSource, /attachShadow\(\{ mode: "open" \}\)/);
+
+    // Inheritance crosses a shadow boundary, so it has to be cut at the host
+    // *and* the inherited properties have to be declared explicitly. Either
+    // one alone leaves the controls picking up the page's typography.
+    assert.match(contentSource, /\["all", "initial"\]/);
+    const resetBlock = stylesheet.match(/\*,\s*\*::before,\s*\*::after\s*\{[\s\S]*?\}/)?.[0];
+    assert.ok(resetBlock, "expected the universal reset block in the control stylesheet");
+    for (const property of [
+        "font-family",
+        "font-size",
+        "font-weight",
+        "font-style",
+        "line-height",
+        "letter-spacing",
+        "word-spacing",
+        "text-transform",
+        "text-indent",
+        "white-space",
+        "direction",
+        "box-sizing"
+    ]) {
+        assert.match(
+            resetBlock,
+            new RegExp(`\\n\\s*${property}:`),
+            `the control reset must declare ${property} rather than inherit it from the host page (#52, criterion 4)`
+        );
+    }
+
+    // The host is light DOM. Inline `!important` is what protects it: a
+    // style-attribute important declaration outranks any author important rule
+    // the page can write.
+    const hostStyleBlock = contentSource.match(/const CONTROL_HOST_STYLE = \[[\s\S]*?\];/)?.[0];
+    assert.ok(hostStyleBlock, "expected the CONTROL_HOST_STYLE constant");
+    assert.match(contentSource, /setProperty\(property, value, "important"\)/);
+    for (const property of ["position", "top", "left", "pointer-events", "z-index"]) {
+        assert.ok(
+            hostStyleBlock.includes(`["${property}"`),
+            `the shadow host must pin ${property} inline`
+        );
+    }
+    // `all: initial` expands to every longhand, so it has to come first or it
+    // would wipe the geometry declared after it.
+    assert.equal(
+        hostStyleBlock.indexOf('["all", "initial"]') < hostStyleBlock.indexOf('["position", "fixed"]'),
+        true,
+        "`all: initial` must be applied before the geometry it would otherwise reset"
+    );
+
+    // The translation editor was the control with no protection at all in
+    // light DOM (#52, criterion 3); it must be mounted into the layer too.
+    const editUiSource = contentSource.match(
+        /function showEditUI\(translationSpan, wordId\)[\s\S]*?\r?\n\}\r?\n/
+    )?.[0];
+    assert.ok(editUiSource, "expected showEditUI");
+    assert.match(editUiSource, /mountControl\(editContainer, \{/);
+    assert.doesNotMatch(editUiSource, /insertBefore\(editContainer/);
+    // The anchor rect has to be read before the span is hidden, or the editor
+    // would be positioned from a collapsed rect.
+    assert.equal(
+        editUiSource.indexOf("translationSpan.getBoundingClientRect()") <
+            editUiSource.indexOf("translationSpan.style.display = 'none'"),
+        true,
+        "the editor's anchor rect must be captured before the translation span is hidden"
+    );
+
+    // The highlight deliberately stays in light DOM and keeps its defensive
+    // rules -- it is inline inside the page's own text.
+    const styles = stripCssComments(
+        await readFile(path.join(repositoryRoot, "styles.css"), "utf8")
+    );
+    assert.match(styles, /\.highlight-wrapper \{/);
+    assert.match(styles, /\.highlighted-word \{/);
+});
+
+test("outside-click detection reads composedPath, not the retargeted target (#52 vs #51)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    assert.match(contentSource, /function isWidgetControlEvent\(event\) \{[\s\S]*?composedPath\(\)/);
+
+    // The two document-level handlers that dismiss on interaction are exactly
+    // where using event.target would make the widget close on its own first
+    // click, because the shadow root retargets the event to the host.
+    for (const [name, pattern] of [
+        ["mouseup", /document\.addEventListener\("mouseup", function \(event\) \{[\s\S]*?\r?\n\}\);/],
+        ["click", /document\.addEventListener\("click", \(e\) => \{[\s\S]*?\r?\n\}\);/]
+    ]) {
+        const handler = contentSource.match(pattern)?.[0];
+        assert.ok(handler, `expected the ${name} handler`);
+        assert.match(handler, /isWidgetControlEvent\(/);
+        assert.doesNotMatch(
+            handler,
+            /isWidgetControlNode\((?:event|e)\.target\)/,
+            `${name} must not test the retargeted event.target once the controls are in a shadow root`
+        );
+    }
+});
+
+test("control sizes agree with the control stylesheet (#52, criterion 6)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const stylesheet = await readControlStylesheet();
+
+    const readConstant = (name) => {
+        const value = contentSource.match(new RegExp(`const ${name} = (\\d+);`))?.[1];
+        assert.ok(value, `expected the ${name} constant`);
+        return Number(value);
+    };
+
+    // The clamp maths uses these instead of measuring, so a drift between the
+    // constant and the CSS would silently mis-place a control.
+    assert.match(readRuleBlock(stylesheet, ".action-button"), new RegExp(`width:\\s*${readConstant("ACTION_BUTTON_SIZE")}px;`));
+    assert.match(readRuleBlock(stylesheet, "#deleteWordBtn"), new RegExp(`width:\\s*${readConstant("DELETE_BUTTON_SIZE")}px;`));
+    assert.match(readRuleBlock(stylesheet, ".edit-translation-input"), new RegExp(`width:\\s*${readConstant("EDIT_INPUT_WIDTH")}px;`));
+
+    // The 24px/32px difference is deliberate (#11 made the delete button
+    // bigger so it stays findable); criterion 6 asks for it to be justified
+    // rather than silently different.
+    assert.notEqual(readConstant("ACTION_BUTTON_SIZE"), readConstant("DELETE_BUTTON_SIZE"));
+    assert.match(
+        stylesheet,
+        /Deliberately larger than the other controls[\s\S]*?#11/,
+        "the delete button's larger size must carry the reason it is larger"
+    );
+});
+
+test("every control is positioned by one rule in viewport coordinates (#52, criterion 7)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const styles = stripCssComments(
+        await readFile(path.join(repositoryRoot, "styles.css"), "utf8")
+    );
+
+    // Defect 1: the dead `position: absolute` declaration is gone, and no
+    // control sets `position` inline any more either -- the stylesheet inside
+    // the shadow root is the only thing that positions a control.
+    assert.equal(styles.includes("#add-new-word"), false);
+
+    const mouseupHandler = contentSource.match(
+        /document\.addEventListener\("mouseup", function \(event\) \{[\s\S]*?\r?\n\}\);/
+    )?.[0];
+    assert.ok(mouseupHandler, "expected the selection handler");
+    const clickHandler = contentSource.match(
+        /document\.addEventListener\("click", \(e\) => \{[\s\S]*?\r?\n\}\);/
+    )?.[0];
+    assert.ok(clickHandler, "expected the click-delegate handler");
+    const editUiSource = contentSource.match(
+        /function showEditUI\(translationSpan, wordId\)[\s\S]*?\r?\n\}\r?\n/
+    )?.[0];
+    assert.ok(editUiSource, "expected showEditUI");
+
+    for (const [name, source] of [
+        ["the selection handler", mouseupHandler],
+        ["the delete handler", clickHandler],
+        ["showEditUI", editUiSource]
+    ]) {
+        assert.doesNotMatch(
+            source,
+            /\.style\.position\s*=/,
+            `${name} must not set position inline; mountControl and the shadow stylesheet own placement`
+        );
+    }
+
+    // Defect 2: "S+" no longer depends on a per-id `position` rule existing --
+    // both selection buttons take the same mount path.
+    assert.equal(
+        [...mouseupHandler.matchAll(/mountControl\(button, \{/g)].length,
+        1,
+        "both add-word and add-sentence must go through the same single mount call"
+    );
+
+    // Defect 3 (the mixed coordinate systems behind it): document coordinates
+    // are gone; everything is placed from viewport coordinates, because the
+    // shadow host is fixed at the viewport origin. Before this, the selection
+    // buttons used pageX/pageY while the delete button used a viewport rect.
+    assert.doesNotMatch(mouseupHandler, /event\.pageX/);
+    assert.doesNotMatch(mouseupHandler, /event\.pageY/);
+    assert.match(mouseupHandler, /left: event\.clientX \+ 20/);
+    assert.match(mouseupHandler, /top: event\.clientY \+ 20/);
+
+    // Exactly three mount sites: the selection button, the delete button and
+    // the translation editor. A fourth would mean a control had been added
+    // without going through the shared placement rule.
+    assert.equal(
+        [...contentSource.matchAll(/^\s*mountControl\(/gm)].length,
+        3,
+        "expected exactly three control mount sites"
+    );
 });
 
 test("link-hosted highlight clicks are fully isolated from the host link", async () => {
@@ -707,11 +946,13 @@ test("interactive UI is excluded from highlighting while prose links stay eligib
     assert.match(contentSource, /createTreeWalker/);
 });
 
-// A minimal DOM good enough to run the widget-ownership block for real:
-// element identity, class/id matching for closest()/querySelectorAll(), a
-// style object, sibling links, captured listeners and a controllable clock.
-// The block is self-contained (no highlighting, no chrome.* calls), so it can
-// be extracted and executed the same way getChangedWords and
+// A minimal DOM good enough to run the control-layer and widget-ownership
+// blocks for real: element identity, class/id matching for
+// closest()/querySelectorAll(), a style object with setProperty(), a shadow
+// root that document.querySelectorAll() cannot see into (the property the
+// whole of #52 rests on), captured listeners and a controllable clock.
+// Both blocks are self-contained (no highlighting, no chrome.* calls), so they
+// can be extracted and executed the same way getChangedWords and
 // classifySelectionType already are.
 function createWidgetTestDom() {
     const registry = [];
@@ -726,29 +967,95 @@ function createWidgetTestDom() {
             .some((token) => (
                 token.startsWith("#")
                     ? element.id === token.slice(1)
-                    : element.classes.has(token.slice(1))
+                    : element.classes?.has(token.slice(1))
             ));
     }
 
+    function createStyle() {
+        const priorities = {};
+        return {
+            display: "",
+            priorities,
+            setProperty(property, value, priority = "") {
+                this[property] = value;
+                priorities[property] = priority;
+            },
+            getPropertyPriority: (property) => priorities[property] || ""
+        };
+    }
+
+    class FakeShadowRoot {
+        constructor(host, mode) {
+            this.nodeType = 11;
+            this.host = host;
+            this.mode = mode;
+            this.children = [];
+        }
+
+        appendChild(child) {
+            child.inShadow = true;
+            child.attached = true;
+            child.shadowParent = this;
+            this.children.push(child);
+            return child;
+        }
+
+        querySelectorAll(selector) {
+            return this.children.filter((child) => child.attached && matches(child, selector));
+        }
+    }
+
     class FakeElement {
-        constructor({ id = "", classes = [], attached = true } = {}) {
+        constructor({ id = "", classes = [], tagName = "DIV", attached = true } = {}) {
             this.nodeType = 1;
             this.id = id;
+            this.tagName = tagName;
             this.classes = new Set(classes);
-            this.classList = { contains: (name) => this.classes.has(name) };
-            this.style = { display: "" };
+            this.classList = {
+                contains: (name) => this.classes.has(name),
+                add: (name) => this.classes.add(name)
+            };
+            this.style = createStyle();
             this.parentElement = null;
             this.previousElementSibling = null;
+            this.children = [];
+            this.shadowRoot = null;
+            // Shadow children are invisible to document.querySelectorAll --
+            // this is exactly the isolation #52 relies on, so the fake has to
+            // model it or the tests would prove nothing.
+            this.inShadow = false;
+            this.shadowParent = null;
             this.attached = attached;
+            this.isConnected = attached;
             registry.push(this);
         }
 
         attach() {
             this.attached = true;
+            this.isConnected = true;
+        }
+
+        attachShadow({ mode }) {
+            this.shadowRoot = new FakeShadowRoot(this, mode);
+            return this.shadowRoot;
+        }
+
+        appendChild(child) {
+            child.parentElement = this;
+            child.attach();
+            this.children.push(child);
+            return child;
         }
 
         remove() {
             this.attached = false;
+            this.isConnected = false;
+            if (this.shadowParent) {
+                this.shadowParent.children = this.shadowParent.children.filter(
+                    (child) => child !== this
+                );
+                this.shadowParent = null;
+            }
         }
 
         closest(selector) {
@@ -767,16 +1074,24 @@ function createWidgetTestDom() {
         (listeners[target][type] = listeners[target][type] || []).push(handler);
     }
 
+    const documentElement = new FakeElement({ tagName: "HTML" });
+
     const context = {
         Node: { ELEMENT_NODE: 1 },
         console: { warn() {} },
         Date: { now: () => now },
         document: {
+            documentElement,
             addEventListener: (type, handler) => record("document", type, handler),
+            createElement: (tagName) => new FakeElement({ tagName: tagName.toUpperCase() }),
             querySelectorAll: (selector) =>
-                registry.filter((element) => element.attached && matches(element, selector))
+                registry.filter(
+                    (element) => element.attached && !element.inShadow && matches(element, selector)
+                )
         },
         window: {
+            innerWidth: 1280,
+            innerHeight: 800,
             addEventListener: (type, handler) => record("window", type, handler)
         }
     };
@@ -785,6 +1100,7 @@ function createWidgetTestDom() {
         context,
         FakeElement,
         listeners,
+        documentElement,
         advanceClock(milliseconds) {
             now += milliseconds;
         },
@@ -794,13 +1110,19 @@ function createWidgetTestDom() {
     };
 }
 
-test("one widget at a time: the shared dismiss runs each control's own teardown (#51)", async () => {
+// Both blocks, in source order: the control layer declares controlHostElement
+// and controlLayerRoot, which the widget-ownership block sweeps.
+async function readWidgetRuntimeSource() {
     const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
-
-    const widgetSource = contentSource.match(
-        /\/\/ Widget ownership: one control on screen at a time \(#51\)[\s\S]*?(?=\r?\n\/\/ Selection classification)/
+    const source = contentSource.match(
+        /\/\/ Style isolation: every control lives in a shadow root \(#52\)[\s\S]*?(?=\r?\n\/\/ Selection classification)/
     )?.[0];
-    assert.ok(widgetSource, "expected the shared widget-ownership block");
+    assert.ok(source, "expected the control-layer + widget-ownership blocks");
+    return source;
+}
+
+test("one widget at a time: the shared dismiss runs each control's own teardown (#51)", async () => {
+    const widgetSource = await readWidgetRuntimeSource();
 
     const dom = createWidgetTestDom();
     const context = vm.createContext(dom.context);
@@ -810,16 +1132,20 @@ test("one widget at a time: the shared dismiss runs each control's own teardown 
     const readActiveWidget = () => vm.runInContext("activeWidget", context);
 
     // Mirrors showEditUI: the span is hidden, the container is built, the
-    // widget is registered, and only then is the container inserted.
+    // widget is registered, and only then is the container mounted. Since #52
+    // the container is mounted into the shadow layer instead of being inserted
+    // next to the span, so the sweep can no longer find the span by sibling
+    // relationship -- it finds it inside its highlight wrapper.
     const makeEditPair = () => {
+        const wrapper = new FakeElement({ classes: ["highlight-wrapper"] });
         const translation = new FakeElement({ classes: ["translation"] });
+        translation.parentElement = wrapper;
         const container = new FakeElement({
-            classes: ["edit-translation-container"],
+            classes: ["edit-translation-container", "lazylex-control"],
             attached: false
         });
-        container.previousElementSibling = translation;
         translation.style.display = "none";
-        return { translation, container };
+        return { wrapper, translation, container };
     };
     const openEdit = (pair) => {
         context.setActiveWidget({
@@ -893,6 +1219,118 @@ test("one widget at a time: the shared dismiss runs each control's own teardown 
     assert.equal(context.isWidgetControlNode(null), false);
 });
 
+test("the shadow control layer isolates, positions and sweeps its controls (#52)", async () => {
+    const widgetSource = await readWidgetRuntimeSource();
+
+    const dom = createWidgetTestDom();
+    const context = vm.createContext(dom.context);
+    vm.runInContext(widgetSource, context);
+    const { FakeElement } = dom;
+
+    // --- The host: light DOM, on <html>, pinned inline with !important ------
+    const button = new FakeElement({ id: "add-new-word", classes: ["action-button"] });
+    context.mountControl(button, { left: 100, top: 200, width: 24, height: 24 });
+
+    const host = vm.runInContext("controlHostElement", context);
+    assert.equal(host.id, "lazylex-controls");
+    assert.equal(host.parentElement, dom.documentElement, "the host belongs on <html>, not inside <body>");
+    assert.equal(host.shadowRoot.mode, "open");
+    for (const property of ["all", "position", "top", "left", "pointer-events", "z-index"]) {
+        assert.equal(
+            host.style.getPropertyPriority(property),
+            "important",
+            `${property} must be pinned with inline !important so no page rule can outrank it`
+        );
+    }
+    assert.equal(host.style.all, "initial");
+    assert.equal(host.style.position, "fixed", "`all: initial` must not be left overriding the geometry");
+
+    // --- Isolation: the page cannot see the control ------------------------
+    assert.equal(button.classes.has("lazylex-control"), true);
+    assert.equal(button.inShadow, true);
+    assert.equal(
+        context.document.querySelectorAll("#add-new-word").length,
+        0,
+        "a control in the shadow root must be invisible to light-DOM queries -- that is what stops host CSS reaching it"
+    );
+    assert.equal(host.shadowRoot.querySelectorAll(".lazylex-control").length, 1);
+
+    // --- One coordinate system, clamped to the viewport (criterion 7) ------
+    assert.equal(button.style.left, "100px");
+    assert.equal(button.style.top, "200px");
+    assert.equal(button.style.position, undefined, "position comes from the stylesheet, never inline");
+
+    const offscreen = new FakeElement({ id: "deleteWordBtn", classes: ["action-button"] });
+    context.mountControl(offscreen, { left: 5000, top: -400, width: 32, height: 32 });
+    assert.equal(offscreen.style.left, `${1280 - 32 - 8}px`, "a control past the right edge is pulled back on screen");
+    assert.equal(offscreen.style.top, "8px", "a control above the viewport is pulled back on screen");
+
+    // --- The sweep clears controls but must not eat the stylesheet ---------
+    context.sweepOrphanedWidgetControls();
+    assert.equal(button.attached, false);
+    assert.equal(offscreen.attached, false);
+    const survivors = host.shadowRoot.children;
+    assert.equal(survivors.length, 1);
+    assert.equal(survivors[0].tagName, "STYLE", "the control stylesheet must survive the sweep");
+
+    // --- The layer is reused, not rebuilt, on the next open ---------------
+    const reopened = new FakeElement({ id: "add-new-word", classes: ["action-button"] });
+    context.mountControl(reopened, { left: 10, top: 10, width: 24, height: 24 });
+    assert.equal(vm.runInContext("controlHostElement", context), host, "the host is created once and reused");
+    assert.equal(host.shadowRoot.children.length, 2);
+});
+
+test("shadow-root events are recognised by composedPath, not the retargeted target (#52 vs #51)", async () => {
+    const widgetSource = await readWidgetRuntimeSource();
+
+    const dom = createWidgetTestDom();
+    const context = vm.createContext(dom.context);
+    vm.runInContext(widgetSource, context);
+    const { FakeElement } = dom;
+
+    const saveButton = new FakeElement({ classes: ["action-button"] });
+    context.mountControl(saveButton, { left: 10, top: 10, width: 24, height: 24 });
+    const host = vm.runInContext("controlHostElement", context);
+    const pageParagraph = new FakeElement({ tagName: "P" });
+
+    // This is what Chrome actually delivers to a document-level listener when
+    // the user clicks a button inside a shadow root: target is the *host*, and
+    // only composedPath() reports the button. Testing event.target against the
+    // control selector would happen to work here (the host is in the
+    // selector), so the sharper case is the one below.
+    const retargeted = {
+        target: host,
+        composedPath: () => [saveButton, host, context.document]
+    };
+    assert.equal(context.isWidgetControlEvent(retargeted), true);
+
+    // The regression this guards: a control whose event.target says "page"
+    // while composedPath says "ours". If this returned false, the mouseup and
+    // click handlers would dismiss the widget on the user's first click on it
+    // and #51's mutual exclusion would look broken.
+    const misleadingTarget = {
+        target: pageParagraph,
+        composedPath: () => [saveButton, host, context.document]
+    };
+    assert.equal(
+        context.isWidgetControlEvent(misleadingTarget),
+        true,
+        "composedPath must win over event.target, or the widget dismisses itself when clicked"
+    );
+
+    // A genuine page interaction is still a page interaction.
+    const pageClick = {
+        target: pageParagraph,
+        composedPath: () => [pageParagraph, context.document]
+    };
+    assert.equal(context.isWidgetControlEvent(pageClick), false);
+
+    // Synthetic events with no composedPath fall back to event.target.
+    assert.equal(context.isWidgetControlEvent({ target: host }), true);
+    assert.equal(context.isWidgetControlEvent({ target: pageParagraph }), false);
+    assert.equal(context.isWidgetControlEvent(undefined), false);
+});
+
 test("every control path opens through the shared dismiss, including the SPA resync (#51)", async () => {
     const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
 
@@ -902,7 +1340,7 @@ test("every control path opens through the shared dismiss, including the SPA res
         /document\.addEventListener\("mouseup", function \(event\) \{[\s\S]*?\r?\n\}\);/
     )?.[0];
     assert.ok(mouseupHandler, "expected the selection (add word/sentence) handler");
-    assert.match(mouseupHandler, /if \(isWidgetControlNode\(event\.target\)\) \{/);
+    assert.match(mouseupHandler, /if \(isWidgetControlEvent\(event\)\) \{/);
     assert.match(mouseupHandler, /dismissActiveWidget\(\);/);
     assert.match(mouseupHandler, /setActiveWidget\(\{[\s\S]*?type: selectionType === "sentence"/);
     // The old self-only cleanup is gone: it is what allowed a selection to
@@ -916,7 +1354,7 @@ test("every control path opens through the shared dismiss, including the SPA res
         /document\.addEventListener\("click", \(e\) => \{[\s\S]*?\r?\n\}\);/
     )?.[0];
     assert.ok(clickHandler, "expected the click-delegate handler");
-    assert.match(clickHandler, /if \(isWidgetControlNode\(e\.target\)\) \{/);
+    assert.match(clickHandler, /if \(isWidgetControlEvent\(e\)\) \{/);
     assert.match(clickHandler, /dismissActiveWidget\(\);/);
     assert.match(clickHandler, /setActiveWidget\(\{\s*\r?\n\s*type: "delete"/);
     assert.equal(clickHandler.includes('const existingDeleteButton = document.getElementById("deleteWordBtn")'), false);

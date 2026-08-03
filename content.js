@@ -26,6 +26,291 @@ function setExtensionEnabledForSite(enabled) {
     return extensionEnabledForSite;
 }
 
+// Style isolation: every control lives in a shadow root (#52)
+//
+// The controls used to be plain elements appended to `document.body`, so they
+// inherited the host page's typography and were matched by its `button {}` /
+// `input {}` rules. styles.css fought that with a partial `!important` list,
+// which is an arms race we lose on every new site: it cannot pin the
+// *inherited* properties (font-family, line-height, letter-spacing,
+// text-transform, ...) at all, because those arrive through inheritance rather
+// than through a rule we can outrank.
+//
+// A shadow root ends the arms race. Host-page selectors cannot match anything
+// inside one, so the control stylesheet below needs no `!important` whatsoever
+// and the controls render identically on every site.
+//
+// Two things a shadow root does NOT give us for free, both handled here:
+//
+//   1. *Inheritance still crosses the boundary.* Inheritable properties flow
+//      from the light-DOM host element into the shadow tree. `all: initial` on
+//      the host cuts that off, so the shadow tree starts from initial values
+//      instead of the page's.
+//   2. *The host element itself is still light DOM* and can be targeted by the
+//      page (`div {}`, `* {}`, an aggressive reset). It is styled with inline
+//      `!important` declarations, which outrank any author `!important` rule a
+//      page can write, so nothing the page ships can move, hide, resize or
+//      re-stack the container.
+//
+// The highlight (`.highlight-wrapper` and friends) deliberately stays in light
+// DOM: it is inline inside the page's own text and has to keep flowing with
+// it, so it keeps its defensive rules in styles.css.
+//
+// `mode: "open"` rather than `"closed"`: style isolation is identical either
+// way (CSS never crosses a shadow boundary, open or closed), and an open root
+// stays inspectable from the devtools console, which is what makes the
+// computed-style verification in tests/fixtures possible. Nothing about our
+// security posture depends on the page being unable to reach the root -- a
+// page that wants to interfere with a content script has far easier options.
+const CONTROL_HOST_ID = "lazylex-controls";
+
+// Applied to the host element as inline `!important` declarations, in this
+// order: `all` first (it expands to every longhand, so anything after it wins),
+// then the geometry that makes the host a zero-sized anchor pinned at the
+// viewport origin.
+//
+// Zero-sized and `pointer-events: none` means the host never intercepts a
+// click meant for the page. Because it is `position: fixed`, it is also the
+// containing block for its absolutely positioned shadow children -- which is
+// what lets every control be placed in plain viewport coordinates.
+const CONTROL_HOST_STYLE = [
+    ["all", "initial"],
+    ["position", "fixed"],
+    ["top", "0"],
+    ["left", "0"],
+    ["width", "0"],
+    ["height", "0"],
+    ["margin", "0"],
+    ["padding", "0"],
+    ["border", "0"],
+    ["overflow", "visible"],
+    ["display", "block"],
+    ["pointer-events", "none"],
+    ["visibility", "visible"],
+    ["opacity", "1"],
+    ["transform", "none"],
+    ["filter", "none"],
+    ["clip-path", "none"],
+    ["contain", "none"],
+    ["color-scheme", "light"],
+    ["z-index", "2147483647"]
+];
+
+// The control stylesheet. It lives here rather than in styles.css because
+// styles.css is injected into the *page*, and a shadow root does not see it.
+// No declaration in here needs `!important`: nothing on the host page can
+// match these selectors.
+//
+// #11's delete-button visibility guarantees are reproduced verbatim (dark red
+// fill, white border, drop shadow). They were originally pinned with
+// `!important` because a Google results page could strip them; inside a shadow
+// root they cannot be stripped at all, so the guarantee is now structural
+// rather than a specificity bet.
+const CONTROL_STYLESHEET = `
+/*
+ * Reset first. The host already blocks inherited values from the page, but
+ * declaring them explicitly is what makes "identical on every site" a property
+ * of this file rather than of whatever the browser's initial values happen to
+ * be (#52, criterion 4).
+ */
+:host {
+    all: initial;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    font-style: normal;
+    font-stretch: normal;
+    font-variant: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    word-spacing: normal;
+    text-transform: none;
+    text-indent: 0;
+    text-decoration: none;
+    text-shadow: none;
+    white-space: nowrap;
+    direction: ltr;
+    float: none;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    transform: none;
+    transition: none;
+    animation: none;
+}
+
+/* Every element mounted directly into the layer is placed in viewport
+ * coordinates and is the only thing that accepts pointer input. */
+.lazylex-control {
+    position: absolute;
+    pointer-events: auto;
+}
+
+.action-button {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    color: #ffffff;
+    background-color: #ff6b35;
+    background-image: none;
+    border: none;
+    border-radius: 50%;
+    box-shadow: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    opacity: 1;
+    visibility: visible;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1;
+    user-select: none;
+}
+
+.action-button:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+/*
+ * Deliberately larger than the other controls (24px), not drift: #11 raised
+ * the delete button to 32px together with the white border and drop shadow so
+ * that it stays findable and hittable over dense, high-contrast result pages.
+ * Shrinking it to match the "+" button would undo that (#52, criterion 6).
+ */
+#deleteWordBtn {
+    width: 32px;
+    height: 32px;
+    color: #ffffff;
+    background-color: #c4320a;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    font-size: 16px;
+}
+
+.edit-translation-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.edit-translation-input {
+    width: 180px;
+    height: 26px;
+    padding: 4px 8px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.2;
+    color: #111111;
+    background-color: #ffffff;
+    background-image: none;
+    box-shadow: none;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    text-transform: none;
+}
+
+.edit-translation-input:focus {
+    outline: none;
+    border-color: #ff6b35;
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.25);
+}
+`;
+
+// Declared sizes, mirrored from CONTROL_STYLESHEET so that a control can be
+// clamped to the viewport without forcing a layout pass to measure it. The
+// "control sizes agree with the control stylesheet" test fails if these ever
+// drift apart from the CSS above.
+const ACTION_BUTTON_SIZE = 24;
+const DELETE_BUTTON_SIZE = 32;
+const EDIT_INPUT_WIDTH = 180;
+const EDIT_CONTAINER_HEIGHT = 26;
+
+let controlHostElement = null;
+let controlLayerRoot = null;
+
+// Creates the host + shadow root on first use and reuses them afterwards. Also
+// re-creates them if the page removed the host from the document (SPA route
+// swaps that wipe large subtrees do happen), so a control can never be mounted
+// into a detached tree.
+function ensureControlLayer() {
+    if (controlLayerRoot && controlHostElement?.isConnected) {
+        return controlLayerRoot;
+    }
+
+    controlHostElement = document.createElement("div");
+    controlHostElement.id = CONTROL_HOST_ID;
+    CONTROL_HOST_STYLE.forEach(([property, value]) => {
+        controlHostElement.style.setProperty(property, value, "important");
+    });
+
+    controlLayerRoot = controlHostElement.attachShadow({ mode: "open" });
+    const style = document.createElement("style");
+    style.textContent = CONTROL_STYLESHEET;
+    controlLayerRoot.appendChild(style);
+
+    // Attached to <html>, not <body>: it keeps the host out of every tree the
+    // highlighter walks (findTextNodes starts at document.body), and it leaves
+    // no light-DOM ancestor between the host and the viewport that could turn
+    // `position: fixed` into "fixed relative to a transformed ancestor".
+    document.documentElement.appendChild(controlHostElement);
+    return controlLayerRoot;
+}
+
+// Keeps a control fully on screen. The caller passes the size it declared in
+// the stylesheet, so this does not need a layout pass to clamp.
+const CONTROL_VIEWPORT_MARGIN = 8;
+
+function clampToViewport(value, size, extent) {
+    const upperBound = Math.max(CONTROL_VIEWPORT_MARGIN, extent - size - CONTROL_VIEWPORT_MARGIN);
+    return Math.round(Math.min(Math.max(value, CONTROL_VIEWPORT_MARGIN), upperBound));
+}
+
+// The single answer to "where does a control go" (#52, criterion 7).
+//
+// There used to be three different answers. `#add-new-word` was
+// `position: absolute` in styles.css and positioned from `event.pageX/pageY`;
+// `#add-new-sentence` had no `position` rule at all, so its top/left were
+// ignored and it landed in normal body flow; `#deleteWordBtn` set
+// `position: fixed` inline and positioned from a viewport rect. Two coordinate
+// systems, one control that did not position itself at all, and a stylesheet
+// declaration that only sometimes applied.
+//
+// Now there is one: a control is an absolutely positioned child of a fixed,
+// zero-sized host at the viewport origin, so `left`/`top` are always viewport
+// coordinates and no per-control `position` declaration exists to conflict.
+//
+// Note on the stale-rect problem: the anchor is still captured once, when the
+// control opens. Repositioning on scroll is deliberately NOT done here --
+// #51 chose scroll *dismissal* instead, and that decision stands (a control
+// anchored to a word the user has scrolled away from is noise either way).
+// Unifying the coordinate system is what makes that dismissal coherent: every
+// control is now fixed to the viewport, so every control is equally stale
+// after a scroll, rather than one drifting with the document and two not.
+function mountControl(element, { left, top, width, height }) {
+    const layer = ensureControlLayer();
+    element.classList.add("lazylex-control");
+    element.style.setProperty("left", `${clampToViewport(left, width, window.innerWidth)}px`);
+    element.style.setProperty("top", `${clampToViewport(top, height, window.innerHeight)}px`);
+    layer.appendChild(element);
+    return element;
+}
+
 // Widget ownership: one control on screen at a time (#51)
 //
 // LazyLex has three control surfaces -- the add-word/add-sentence button, the
@@ -66,23 +351,64 @@ let selectionGestureOpenedControl = false;
 // Anything the extension itself put on the page. A click or mouseup landing
 // inside one of these belongs to that control and must not be treated as
 // "the user interacted with the page", which would dismiss it mid-use.
+//
+// `#lazylex-controls` is the shadow host (#52); the per-control ids and
+// `.edit-translation-container` are kept so that a stray control left in light
+// DOM by an older injection of this script is still recognised.
 const WIDGET_CONTROL_SELECTOR =
-    "#add-new-word, #add-new-sentence, #deleteWordBtn, .edit-translation-container";
+    "#lazylex-controls, .lazylex-control, #add-new-word, #add-new-sentence, #deleteWordBtn, .edit-translation-container";
 
 function isWidgetControlNode(node) {
     const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
     return !!element?.closest?.(WIDGET_CONTROL_SELECTOR);
 }
 
-// Puts back the `.translation` span an edit container is hiding. Used both by
-// the editor's own teardown and by the defensive sweep below, so a translation
-// can never be left invisible no matter which route closed the editor (#51,
-// acceptance criterion 7).
-function restoreTranslationBehind(editContainer) {
-    const original = editContainer?.previousElementSibling;
-    if (original?.classList?.contains("translation") && original.style.display === "none") {
-        original.style.display = "";
+// "Did this event start inside one of our controls?"
+//
+// This MUST use composedPath() rather than event.target (#52). Events raised
+// inside a shadow root are retargeted on the way out: by the time a listener
+// on `document` sees a click on the "+" button, `event.target` is the shadow
+// *host*, and for anything nested it can be less useful still. composedPath()
+// is the only API that reports the real originating node across a shadow
+// boundary.
+//
+// Getting this wrong is the specific way moving the controls into a shadow
+// root breaks #51: the document-level mouseup/click handlers dismiss whatever
+// is open before doing their own work, so a control that fails this test
+// destroys itself on the user's very first click on it.
+//
+// The `event.target` fallback at the end is for synthetic events (and the unit
+// tests' fake DOM) that carry no composedPath.
+function isWidgetControlEvent(event) {
+    const path = typeof event?.composedPath === "function" ? event.composedPath() : null;
+    if (Array.isArray(path) || (path && typeof path.length === "number")) {
+        for (const node of path) {
+            if (node === controlHostElement || isWidgetControlNode(node)) {
+                return true;
+            }
+        }
     }
+
+    return isWidgetControlNode(event?.target);
+}
+
+// Puts back any `.translation` span an editor is hiding.
+//
+// The editor used to be inserted as the next sibling of the span it hid, so
+// the sweep could find the span with `previousElementSibling`. Now the editor
+// lives in the shadow layer and has no light-DOM sibling at all, so the sweep
+// asks the question directly: is any translation still hidden? That is a
+// stronger version of the same #51 guarantee (criterion 7) -- a translation
+// cannot be left invisible no matter which route closed the editor, and now
+// also no matter where the editor was mounted.
+function restoreHiddenTranslations() {
+    document.querySelectorAll(".translation").forEach((span) => {
+        // Ours only. A host page is free to ship its own `.translation` class,
+        // and un-hiding one of those would be vandalism.
+        if (span?.style?.display === "none" && span.closest?.(".highlight-wrapper")) {
+            span.style.display = "";
+        }
+    });
 }
 
 // Belt and braces: close anything that looks like a LazyLex control even if
@@ -90,14 +416,18 @@ function restoreTranslationBehind(editContainer) {
 // registration -- a re-injected content script, or a widget whose word was
 // destroyed underneath it by an SPA navigation.
 function sweepOrphanedWidgetControls() {
+    // The shadow layer holds every current control. Its <style> element is not
+    // a control and must survive the sweep, or the next control to open would
+    // be unstyled.
+    controlLayerRoot?.querySelectorAll(".lazylex-control").forEach((control) => control.remove());
+
+    // Light DOM, for controls left behind by a previous injection of this
+    // script (before #52 every control was appended to document.body).
     document
-        .querySelectorAll("#add-new-word, #add-new-sentence, #deleteWordBtn")
+        .querySelectorAll("#add-new-word, #add-new-sentence, #deleteWordBtn, .edit-translation-container")
         .forEach((control) => control.remove());
 
-    document.querySelectorAll(".edit-translation-container").forEach((container) => {
-        restoreTranslationBehind(container);
-        container.remove();
-    });
+    restoreHiddenTranslations();
 }
 
 // Closes whatever control is currently open. Safe to call when nothing is
@@ -1068,8 +1398,17 @@ function isEligibleTextNode(node) {
         return false;
     }
 
+    // LazyLex's own DOM is never prose to be highlighted.
+    //
+    // The control ids used to carry this on their own. Since #52 the controls
+    // live in a shadow root, and a TreeWalker over light DOM does not descend
+    // into one -- so their text is unreachable from here by construction.
+    // `#lazylex-controls` (the shadow host) replaces them: it is the only part
+    // of the control layer that still exists in light DOM, and excluding it
+    // keeps the guarantee explicit rather than relying on walker semantics.
+    // The notification ids stay, because notifications are still light DOM.
     return !parent.closest(
-        ".highlight-wrapper, #add-new-word, #add-new-sentence, #deleteWordBtn, #lazylex-limit-notification, #lazylex-status-notification, #lazylex-sentence-premium-notification"
+        ".highlight-wrapper, #lazylex-controls, .lazylex-control, #lazylex-limit-notification, #lazylex-status-notification, #lazylex-sentence-premium-notification"
     );
 }
 
@@ -1316,7 +1655,9 @@ document.addEventListener("mouseup", function (event) {
     // A mouseup inside one of our own controls is that control's business
     // (clicking "+", the delete button, or into the edit input). Dismissing
     // here would destroy the control before its own click handler ran.
-    if (isWidgetControlNode(event.target)) {
+    // composedPath(), not event.target: the controls are in a shadow root and
+    // event.target is retargeted to the host by the time we see it (#52).
+    if (isWidgetControlEvent(event)) {
         return;
     }
 
@@ -1335,9 +1676,8 @@ document.addEventListener("mouseup", function (event) {
             const selectionType = classifySelectionType(selectedText);
 
             const button = document.createElement("button");
+            button.type = "button";
             button.className = "action-button";
-            button.style.top = event.pageY + 20 + "px";
-            button.style.left = event.pageX + 20 + "px";
 
             if (selectionType === "sentence") {
                 // Distinct control: sentence saving is a separate, gated
@@ -1372,10 +1712,20 @@ document.addEventListener("mouseup", function (event) {
                 target: button,
                 dismiss: () => button.remove()
             });
-            document.body.appendChild(button);
+
+            // Viewport coordinates (clientX/clientY), because every control is
+            // now placed in the fixed shadow layer. This is also what fixes
+            // "S+" landing in body flow: it no longer depends on a per-control
+            // `position` declaration existing in styles.css (#52, criterion 7).
+            mountControl(button, {
+                left: event.clientX + 20,
+                top: event.clientY + 20,
+                width: ACTION_BUTTON_SIZE,
+                height: ACTION_BUTTON_SIZE
+            });
 
             // The click terminating this same gesture is still to come; tell
-            // the click handler to leave this control alone.
+            // the click handler to leave this control alone (#55).
             selectionGestureOpenedControl = true;
         }
     }
@@ -1395,10 +1745,10 @@ document.addEventListener("mousedown", (e) => {
 
 document.addEventListener("click", (e) => {
     // Clicks inside an open control (the edit input, its save button, the
-    // delete button) belong to that control. Without this the edit input --
-    // which lives inside the highlight wrapper -- would be read as "clicked
-    // the word" and pop a delete button next to the field being typed in.
-    if (isWidgetControlNode(e.target)) {
+    // delete button) belong to that control. Without this the click would be
+    // read as "clicked the page" and dismiss the control the user just
+    // pressed. composedPath(), not e.target -- see isWidgetControlEvent (#52).
+    if (isWidgetControlEvent(e)) {
         return;
     }
 
@@ -1438,14 +1788,12 @@ document.addEventListener("click", (e) => {
     if (!wrapper) return;
 
     const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
     deleteButton.textContent = "-";
     deleteButton.id = "deleteWordBtn";
     deleteButton.className = "action-button";
     deleteButton.title = "Delete saved word";
     const wrapperRect = wrapper.getBoundingClientRect();
-    deleteButton.style.position = "fixed";
-    deleteButton.style.top = `${Math.max(8, wrapperRect.top - 36)}px`;
-    deleteButton.style.left = `${Math.min(window.innerWidth - 40, wrapperRect.right + 4)}px`;
 
     deleteButton.setAttribute("aria-label", "Delete saved word");
     deleteButton.addEventListener("click", async (event) => {
@@ -1468,8 +1816,15 @@ document.addEventListener("click", (e) => {
         dismiss: () => deleteButton.remove()
     });
 
-    // Append to the document so clipped links/containers cannot hide the control.
-    document.body.appendChild(deleteButton);
+    // Mounted into the shadow layer, so a clipped or overflow-hidden container
+    // around the word cannot hide the control -- and no host `button {}` rule
+    // can reach it (#52).
+    mountControl(deleteButton, {
+        left: wrapperRect.right + 4,
+        top: wrapperRect.top - DELETE_BUTTON_SIZE - 4,
+        width: DELETE_BUTTON_SIZE,
+        height: DELETE_BUTTON_SIZE
+    });
 });
 
 function showEditUI(translationSpan, wordId) {
@@ -1482,6 +1837,9 @@ function showEditUI(translationSpan, wordId) {
         return;
     }
 
+    // The rect is captured before the span is hidden -- hiding it first would
+    // collapse it and leave the editor anchored at 0,0.
+    const anchorRect = translationSpan.getBoundingClientRect();
     translationSpan.style.display = 'none';
 
     const input = document.createElement('input');
@@ -1489,6 +1847,7 @@ function showEditUI(translationSpan, wordId) {
     const currentTranslation = translationSpan.textContent.slice(1, -1);
     input.value = currentTranslation;
     input.className = 'edit-translation-input';
+    input.setAttribute("aria-label", "Edit translation");
 
     const saveButton = document.createElement('button');
     saveButton.className = 'action-button';
@@ -1517,7 +1876,17 @@ function showEditUI(translationSpan, wordId) {
         }
     });
 
-    translationSpan.parentNode.insertBefore(editContainer, translationSpan.nextSibling);
+    // Mounted into the shadow layer instead of being inserted next to the
+    // translation span. In light DOM this field was the control most exposed
+    // to the host page -- styles.css gave it no `!important` at all, so any
+    // `input {}` rule reshaped it (#52, criterion 3). It is anchored to where
+    // the span was rather than flowing after it.
+    mountControl(editContainer, {
+        left: anchorRect.left,
+        top: anchorRect.bottom + 4,
+        width: EDIT_INPUT_WIDTH + ACTION_BUTTON_SIZE + 5,
+        height: EDIT_CONTAINER_HEIGHT
+    });
 
     // preventScroll: focusing an off-screen input would scroll the page, and
     // scrolling dismisses the control that was just opened.
