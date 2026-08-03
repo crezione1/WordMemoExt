@@ -11,11 +11,15 @@ const API_TIMEOUT_MS = 12000;
 const cloudConfirmedWordMutations = new Set();
 
 class LazyLexApiError extends Error {
-    constructor(message, { code = "api/error", status = 0 } = {}) {
+    constructor(message, { code = "api/error", status = 0, reason = null, entitlement = null } = {}) {
         super(message);
         this.name = "LazyLexApiError";
         this.code = code;
         this.status = status;
+        // Set only for callable refusals that name themselves -- see
+        // parseCallableErrorBody. Null for transport and infrastructure errors.
+        this.reason = reason;
+        this.entitlement = entitlement;
     }
 }
 
@@ -42,12 +46,45 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
     }
 }
 
+// A failed callable answers with `{ error: { message, status, details } }`.
+// `details.reason` is the machine-readable refusal from lib/entitlement.js --
+// `trial-expired`, `daily-translation-cap`, `sentence-daily-limit` -- and
+// `details.entitlement` is the state block every callable echoes back.
+//
+// This used to flatten the whole body into the message string, which meant a
+// caller could not tell an expired trial from a 500. The extension has to
+// distinguish them: one deserves a subscribe prompt, the other a retry.
+function parseCallableErrorBody(responseText) {
+    if (!responseText) return null;
+    try {
+        const parsed = JSON.parse(responseText);
+        return parsed?.error || null;
+    } catch (error) {
+        return null;
+    }
+}
+
 async function requireSuccessfulResponse(response, operation) {
     if (response.ok) {
         return response;
     }
 
     const responseText = await response.text().catch(() => "");
+    const callableError = parseCallableErrorBody(responseText);
+    const details = callableError?.details || null;
+
+    if (callableError) {
+        throw new LazyLexApiError(
+            callableError.message || `${operation} failed (${response.status})`,
+            {
+                code: `api/http-${response.status}`,
+                status: response.status,
+                reason: details?.reason || null,
+                entitlement: details?.entitlement || null
+            }
+        );
+    }
+
     const suffix = responseText ? `: ${responseText.slice(0, 240)}` : "";
     throw new LazyLexApiError(`${operation} failed (${response.status})${suffix}`, {
         code: `api/http-${response.status}`,
@@ -59,7 +96,11 @@ function serializeApiError(error) {
     return {
         code: error?.code || "api/error",
         message: error?.message || "The operation failed. Please try again.",
-        status: Number(error?.status) || 0
+        status: Number(error?.status) || 0,
+        // Carried so the content script can react to *why* it was refused
+        // rather than pattern-matching on the message text.
+        reason: error?.reason || null,
+        entitlement: error?.entitlement || null
     };
 }
 
@@ -576,7 +617,6 @@ async function persistWordMutation(candidate) {
         updatedWords[existingIndex] = word;
     } else {
         updatedWords.push(word);
-        await incrementDailyWordCount();
     }
 
     cloudConfirmedWordMutations.add(word.id);
@@ -947,10 +987,7 @@ async function handleWordsChange(changes) {
                 // Mirror legacy/local-only mutations. Interactive mutations use the
                 // strict message handlers below and reach storage only after cloud success.
                 try {
-                    if (operation === 'add') {
-                        await fsUpsertWord(changedWord);
-                        await incrementDailyWordCount();
-                    }
+                    if (operation === 'add') await fsUpsertWord(changedWord);
                     else if (operation === 'delete') await fsDeleteWord(changedWord);
                     else if (operation === 'update') await fsPatchWord(changedWord);
                 } catch (e) {
@@ -1093,31 +1130,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 });
                 await requireSuccessfulResponse(res, "Translation");
                 const json = await res.json();
-                sendResponse({ success: true, result: json.result || json });
+                const result = json.result || json;
+                // Every callable echoes the trial state back. This is the only
+                // way the extension learns it -- the entitlement document is
+                // unreadable from a client by design (issue #49).
+                await cacheEntitlement(result?.entitlement);
+                sendResponse({ success: true, result });
             } catch (e) {
                 console.error('translateWord error:', e);
+                // A refusal carries the state that caused it; cache that too,
+                // so the popup can show "trial ended" without another call.
+                await cacheEntitlement(e?.entitlement);
                 sendResponse({ success: false, error: serializeApiError(e) });
             }
         })();
         return true;
     }
 
-    if (request.action === "checkSubscriptionLimits") {
-        checkSubscriptionLimits()
-            .then((result) => sendResponse(result))
+    // Replaces `checkSubscriptionLimits` (issue #49). That handler answered
+    // "can this user add a word?" by evaluating a freemium limit locally. This
+    // one answers "what did the server last say about this account?" and
+    // nothing more -- the decision to refuse belongs to the callable.
+    if (request.action === "getEntitlementState") {
+        getCachedEntitlement()
+            .then((entitlement) => sendResponse({ success: true, entitlement }))
             .catch((error) => {
-                console.error('Error checking subscription limits:', error);
-                sendResponse({ canAdd: true, reason: 'error' });
-            });
-        return true;
-    }
-
-    if (request.action === "incrementDailyWordCount") {
-        incrementDailyWordCount()
-            .then(() => sendResponse({ success: true }))
-            .catch((error) => {
-                console.error('Error incrementing daily word count:', error);
-                sendResponse({ success: false, error: error.message });
+                console.error('Error reading entitlement state:', error);
+                sendResponse({ success: true, entitlement: null });
             });
         return true;
     }
@@ -1222,130 +1261,60 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
 });
 
 // Subscription management functions
-async function checkSubscriptionLimits() {
+// --- Entitlement (issue #49) -------------------------------------------------
+//
+// The freemium daily word limit is GONE. It was enforced here, entirely on the
+// client, by reading `dailyWordsAdded` off the user document and comparing it
+// to a hardcoded 5. Two things were wrong with that beyond the product change:
+// the document is client-writable, so the limit was advisory at best, and the
+// count lived in a field the client also reset -- which is how issue #45's
+// "the counter went back to 5 after navigating" happened.
+//
+// The product model is now a 7-day full-access trial (issue #49). Trial state
+// lives in `users/{uid}/private/entitlement`, which firestore.rules denies to
+// every client -- only the Admin SDK can touch it. So the extension **cannot**
+// read entitlement, by design, and must not try.
+//
+// Instead every callable echoes back an `entitlement` block --
+// `{ state, trialEndsAt, daysRemaining, enforced }` -- and refuses with
+// `details.reason === 'trial-expired'` when it is over. This module's whole
+// job is to cache the last block it saw so the popup has something to render
+// between calls. It never computes entitlement itself.
+const ENTITLEMENT_CACHE_KEY = 'lazylex_entitlement';
+
+async function cacheEntitlement(block) {
+    if (!block || typeof block !== 'object') return;
     try {
-        const headers = await fsHeaders();
-        if (!headers) return { canAdd: true, reason: 'no_auth' };
-
-        const uid = await getAuthUidBg();
-        if (!uid) return { canAdd: true, reason: 'no_uid' };
-
-        const url = `${FIRESTORE_BASE}/users/${uid}`;
-        let response = await fetch(url, { headers });
-
-        // A stale ID token surfaces as 401/403. Refresh and retry once before
-        // drawing any conclusion about the document: this branch used to fall
-        // through to "document missing" and wipe the user's stored state.
-        if (response.status === 401 || response.status === 403) {
-            const refreshedHeaders = await forceRefreshFsHeaders();
-            if (refreshedHeaders) {
-                response = await fetch(url, { headers: refreshedHeaders });
-            }
-        }
-
-        if (response.status === 404) {
-            // Genuinely no document yet — seed defaults for a first-time user.
-            await createDefaultUserSubscription(uid);
-            return { canAdd: true, reason: 'new_user', dailyWordsAdded: 0, dailyWordLimit: 5 };
-        }
-
-        if (!response.ok) {
-            // Auth still bad, 5xx, or offline. Write nothing: a PATCH here
-            // would reset dailyWordsAdded and, worse, overwrite
-            // subscriptionStatus with 'free' for a paying user.
-            console.warn(`Subscription lookup failed (${response.status}); leaving stored state untouched`);
-            return { canAdd: true, reason: 'lookup_failed' };
-        }
-
-        const userData = await response.json();
-        const fields = userData.fields || {};
-        
-        const subscriptionStatus = fields.subscriptionStatus?.stringValue || 'free';
-        const today = new Date().toISOString().split('T')[0];
-        const dailyWordsResetDate = fields.dailyWordsResetDate?.stringValue || today;
-        const dailyWordsAdded = fields.dailyWordsAdded?.integerValue || fields.dailyWordsAdded?.doubleValue || 0;
-        
-        // Reset daily count if it's a new day
-        const resetDailyCount = dailyWordsResetDate !== today;
-        const currentDailyCount = resetDailyCount ? 0 : Number(dailyWordsAdded);
-        
-        // Check if user has premium access
-        const isPremium = subscriptionStatus === 'premium' || subscriptionStatus === 'lifetime';
-        
-        if (isPremium) {
-            return { 
-                canAdd: true, 
-                reason: 'premium', 
-                dailyWordsAdded: currentDailyCount,
-                isPremium: true,
-                needsReset: resetDailyCount
-            };
-        }
-
-        // Free user - check daily limit
-        const dailyLimit = 5;
-        const canAdd = currentDailyCount < dailyLimit;
-        
-        return {
-            canAdd,
-            reason: canAdd ? 'within_limit' : 'daily_limit_reached',
-            dailyWordsAdded: currentDailyCount,
-            dailyWordLimit: dailyLimit,
-            isPremium: false,
-            needsReset: resetDailyCount
-        };
-    } catch (error) {
-        console.error('Error checking subscription limits:', error);
-        // Default to allowing on error to avoid blocking users
-        return { canAdd: true, reason: 'error' };
-    }
-}
-
-async function incrementDailyWordCount() {
-    try {
-        const headers = await fsHeaders();
-        if (!headers) return;
-
-        const uid = await getAuthUidBg();
-        if (!uid) return;
-
-        // Get current subscription data
-        const limitCheck = await checkSubscriptionLimits();
-
-        // Without a trusted current count there is nothing safe to write:
-        // `undefined + 1` is NaN, which would corrupt the stored field, and
-        // guessing a value would overwrite the real one.
-        if (typeof limitCheck.dailyWordsAdded !== 'number') {
-            console.warn(`Skipping daily count update — no reliable count (${limitCheck.reason})`);
-            return;
-        }
-
-        const today = new Date().toISOString().split('T')[0];
-
-        let newCount = limitCheck.dailyWordsAdded + 1;
-        if (limitCheck.needsReset) {
-            newCount = 1; // Reset to 1 for new day
-        }
-
-        const url = `${FIRESTORE_BASE}/users/${uid}`;
-        const updateData = {
-            fields: {
-                dailyWordsAdded: { integerValue: String(newCount) },
-                dailyWordsResetDate: { stringValue: today }
-            }
-        };
-
-        await fetch(url, {
-            method: 'PATCH',
-            headers,
-            body: JSON.stringify(updateData)
+        await chrome.storage.local.set({
+            [ENTITLEMENT_CACHE_KEY]: { ...block, observedAt: Date.now() }
         });
-
-        console.log(`Daily word count updated to ${newCount} for ${today}`);
     } catch (error) {
-        console.error('Error incrementing daily word count:', error);
+        console.warn('Could not cache entitlement state:', error?.message || error);
     }
 }
+
+// `null` means "the server has not told us anything yet" -- which is NOT the
+// same as "expired". Callers must treat it as unknown and never block on it.
+// Before the functions carrying the trial contract are deployed, this is the
+// state every user is in.
+async function getCachedEntitlement() {
+    try {
+        const stored = await chrome.storage.local.get([ENTITLEMENT_CACHE_KEY]);
+        return stored?.[ENTITLEMENT_CACHE_KEY] || null;
+    } catch (error) {
+        console.warn('Could not read cached entitlement state:', error?.message || error);
+        return null;
+    }
+}
+
+// `incrementDailyWordCount` was deleted here (issue #49).
+//
+// It maintained `dailyWordsAdded` / `dailyWordsResetDate` on the user document
+// so the client could meter the freemium 5-words-a-day limit. There is no free
+// tier left to meter, and the server keeps its own counters in
+// `users/{uid}/private/usage`, which the client cannot reach or forge. A
+// client-side mirror of a server-side counter is not a saving; it is a second
+// source of truth that drifts.
 
 async function createDefaultUserSubscription(uid) {
     try {
@@ -1353,13 +1322,12 @@ async function createDefaultUserSubscription(uid) {
         if (!headers) return;
 
         const { userInfo } = await chrome.storage.local.get(['userInfo']);
-        const today = new Date().toISOString().split('T')[0];
         const now = new Date().toISOString();
 
         // `currentDocument.exists=false` makes this a create, not an upsert.
         // Defence in depth: even if a future caller reaches this on a user who
         // already has a document, Firestore rejects the write rather than
-        // resetting dailyWordsAdded and downgrading subscriptionStatus to free.
+        // overwriting their profile.
         const url = `${FIRESTORE_BASE}/users/${uid}?currentDocument.exists=false`;
         const userData = {
             fields: {
@@ -1367,10 +1335,16 @@ async function createDefaultUserSubscription(uid) {
                 email: { stringValue: userInfo?.email || '' },
                 displayName: { stringValue: userInfo?.name || userInfo?.displayName || '' },
                 photoURL: { stringValue: userInfo?.picture || userInfo?.photoURL || '' },
+                // No `dailyWordsAdded` / `dailyWordsResetDate` / `dailyWordLimit`
+                // any more (issue #49): the freemium quota they served is gone,
+                // and the trial clock lives in `users/{uid}/private/entitlement`
+                // where only the Admin SDK can write it.
+                //
+                // `subscriptionStatus` stays for now because the deployed
+                // functions still fall back to it while
+                // ALLOW_LEGACY_ENTITLEMENT_FALLBACK is on (LazyLexFunctions#6).
+                // It goes when that flag is turned off.
                 subscriptionStatus: { stringValue: 'free' },
-                dailyWordsAdded: { integerValue: '0' },
-                dailyWordsResetDate: { stringValue: today },
-                dailyWordLimit: { integerValue: '5' },
                 createdAt: { timestampValue: now },
                 lastLoginAt: { timestampValue: now }
             }

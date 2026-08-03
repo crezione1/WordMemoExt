@@ -1474,3 +1474,148 @@ test("the click ending a selection gesture does not dismiss the control that ges
         "the guard must consume the flag and return, so the delete path cannot open a second control"
     );
 });
+
+test("the freemium daily word limit is gone from every client surface (#49)", async () => {
+    const sources = await Promise.all(
+        ["background.js", "content.js", "popup.js", "subscription-manager.js"].map(async (file) => [
+            file,
+            await readFile(path.join(repositoryRoot, file), "utf8")
+        ])
+    );
+
+    // The limit was enforced entirely on the client: read `dailyWordsAdded`
+    // off a client-writable document, compare to a hardcoded 5. It produced
+    // the "Daily Limit Reached" card in the #49 report, and -- because the
+    // client also reset that counter -- issue #45's "the quota came back after
+    // navigating".
+    //
+    // Comments are allowed to mention it; executable code is not. Stripping
+    // comments first is what makes this test able to fail for the right reason
+    // rather than tripping over its own explanation.
+    for (const [file, source] of sources) {
+        const code = source
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .split("\n")
+            .filter((line) => !line.trim().startsWith("//"))
+            .join("\n");
+
+        for (const banned of [
+            "daily_limit_reached",
+            "DAILY_FREE_LIMIT",
+            "dailyWordLimit",
+            "Daily Limit Reached",
+            "checkSubscriptionLimits",
+            "incrementDailyWordCount"
+        ]) {
+            assert.equal(
+                code.includes(banned),
+                false,
+                `${file} still contains the freemium construct ${banned}`
+            );
+        }
+    }
+});
+
+test("access is decided by the callable, never pre-flighted on the client (#49)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
+
+    // Trial state lives in `users/{uid}/private/entitlement`, which
+    // firestore.rules denies to every client. A client-side verdict is
+    // therefore not merely redundant, it is unbackable.
+    const saveWord = contentSource.match(
+        /async function saveWordToDictionary\([\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(saveWord, "expected saveWordToDictionary");
+    assert.equal(
+        /sendMessage\(\{\s*action:\s*"checkSubscriptionLimits"/.test(saveWord),
+        false,
+        "the pre-flight limit check must not come back"
+    );
+
+    // The refusal has to survive three hops: HTTP body -> LazyLexApiError ->
+    // the serialized message -> an Error in the content script. Losing
+    // `reason` anywhere makes an expired trial indistinguishable from a 500,
+    // which is exactly what the old flattened-message path did.
+    assert.match(backgroundSource, /function parseCallableErrorBody/);
+    assert.match(backgroundSource, /reason: details\?\.reason \|\| null/);
+    assert.match(backgroundSource, /reason: error\?\.reason \|\| null/);
+    assert.match(contentSource, /failure\.lazylexReason = response\?\.error\?\.reason \|\| null;/);
+    assert.match(contentSource, /const TRIAL_EXPIRED_REASON = 'trial-expired';/);
+});
+
+test("a trial refusal raises the card alone, never stacked with the toast (#49)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // Both surfaces are `position: fixed; top: 20px; right: 20px`. The old
+    // code raised both for one event -- showSubscriptionLimitNotification from
+    // inside the save path, then the thrown message through the generic catch
+    // -- so they landed exactly on top of each other. That overlap is the
+    // second half of the #49 screenshot.
+    const runLogicCatch = contentSource.match(
+        /saveWordToDictionary\(originalWord\)\.catch\([\s\S]*?\n {4}\}\);/
+    )?.[0];
+    assert.ok(runLogicCatch, "expected the save failure handler");
+
+    const trialBranch = runLogicCatch.indexOf("TRIAL_EXPIRED_REASON");
+    const toastCall = runLogicCatch.indexOf("showContentNotification");
+    assert.ok(trialBranch !== -1, "the trial refusal needs its own branch");
+    assert.ok(
+        trialBranch < toastCall,
+        "the trial branch must precede the generic toast, and return before reaching it"
+    );
+    assert.match(
+        runLogicCatch.slice(trialBranch),
+        /showTrialEndedNotification\([\s\S]*?\);\s*return;/,
+        "the trial branch must return, or both notifications are raised"
+    );
+
+    const card = contentSource.match(
+        /function showTrialEndedNotification\([\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(card, "expected showTrialEndedNotification");
+    assert.match(
+        card,
+        /getElementById\('lazylex-status-notification'\)\?\.remove\(\);/,
+        "the card must clear a toast already on screen from an earlier failure"
+    );
+    // Losing access is a state, not a transient event: the old card removed
+    // itself after 8 seconds, which reads as a glitch.
+    assert.equal(
+        /}, 8000\);/.test(card),
+        false,
+        "the trial-ended card must not auto-dismiss"
+    );
+});
+
+test("an absent entitlement block reads as unknown, never as expired (#49)", async () => {
+    const popupSource = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
+    const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
+
+    // The functions carrying the trial contract are merged but NOT deployed,
+    // so right now every user has a null entitlement block. Rendering null as
+    // "expired" would lock out the entire userbase on a deploy that never
+    // happened -- the same class of mistake as #45, where a failed lookup was
+    // treated as a definite answer.
+    assert.match(backgroundSource, /async function getCachedEntitlement/);
+    assert.match(
+        backgroundSource,
+        /return stored\?\.\[ENTITLEMENT_CACHE_KEY\] \|\| null;/
+    );
+
+    const display = popupSource.match(
+        /async function updateSubscriptionDisplay\([\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(display, "expected updateSubscriptionDisplay");
+    assert.match(
+        display,
+        /const trialOver = trialState === 'expired';/,
+        "expiry must be an explicit server state, not the absence of one"
+    );
+    // The lockout branch must key off that state and nothing looser.
+    assert.match(
+        display,
+        /if \(addWordBtn && trialOver\) \{[\s\S]*?addWordBtn\.disabled = true;/,
+        "the Add button may only be disabled by an explicit expired state"
+    );
+});

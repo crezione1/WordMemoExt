@@ -1,11 +1,16 @@
 /**
  * Subscription Manager for LazyLex WordMemo Extension
- * Handles user subscription status, daily limits, and premium features
+ *
+ * Reads and caches subscription state for display. It does NOT decide access:
+ * since issue #49 the product is a 7-day full-access trial, whose clock lives
+ * in `users/{uid}/private/entitlement` -- a document firestore.rules hides
+ * from every client. Access is granted or refused inside the callables.
+ *
+ * `DAILY_FREE_LIMIT` (5 words/day) was deleted along with the freemium tier.
  */
 
 class SubscriptionManager {
     constructor() {
-        this.DAILY_FREE_LIMIT = 5;
         this.SUBSCRIPTION_TYPES = {
             FREE: 'free',
             PREMIUM: 'premium', 
@@ -98,22 +103,16 @@ class SubscriptionManager {
         const today = new Date().toISOString().split('T')[0];
 
         const subscriptionStatus = fields.subscriptionStatus?.stringValue || this.SUBSCRIPTION_TYPES.FREE;
-        const dailyWordsResetDate = fields.dailyWordsResetDate?.stringValue || today;
-        const dailyWordsAdded = fields.dailyWordsAdded?.integerValue || fields.dailyWordsAdded?.doubleValue || 0;
-        
-        // Reset daily count if it's a new day
-        const resetDailyCount = dailyWordsResetDate !== today;
-        const currentDailyCount = resetDailyCount ? 0 : Number(dailyWordsAdded);
+
+        // `dailyWordsAdded` / `dailyWordsResetDate` are no longer read (issue
+        // #49). They may still be present on documents written before the
+        // freemium tier was removed; nothing consumes them.
 
         return {
             subscriptionStatus,
             subscriptionExpiresAt: fields.subscriptionExpiresAt?.timestampValue || null,
             subscriptionStartedAt: fields.subscriptionStartedAt?.timestampValue || null,
-            dailyWordsAdded: currentDailyCount,
-            dailyWordsResetDate: today,
-            dailyWordLimit: this.getDailyWordLimit(subscriptionStatus),
-            isPremium: this.isPremiumSubscription(subscriptionStatus),
-            needsResetUpdate: resetDailyCount
+            isPremium: this.isPremiumSubscription(subscriptionStatus)
         };
     }
 
@@ -127,11 +126,7 @@ class SubscriptionManager {
             subscriptionStatus: this.SUBSCRIPTION_TYPES.FREE,
             subscriptionExpiresAt: null,
             subscriptionStartedAt: null,
-            dailyWordsAdded: 0,
-            dailyWordsResetDate: today,
-            dailyWordLimit: this.DAILY_FREE_LIMIT,
-            isPremium: false,
-            needsResetUpdate: false
+            isPremium: false
         };
     }
 
@@ -140,120 +135,37 @@ class SubscriptionManager {
      * @returns {Promise<Object>} Limit check result
      */
     async canAddWord() {
-        const subscriptionData = await this.getUserSubscriptionStatus();
-        
-        if (subscriptionData.isPremium) {
-            return {
-                canAdd: true,
-                reason: 'premium',
-                wordsRemaining: 'unlimited',
-                dailyWordsAdded: subscriptionData.dailyWordsAdded
-            };
-        }
-
-        const wordsRemaining = Math.max(0, subscriptionData.dailyWordLimit - subscriptionData.dailyWordsAdded);
-        const canAdd = wordsRemaining > 0;
-
+        // Always yes (issue #49).
+        //
+        // This used to subtract a locally-read `dailyWordsAdded` from a
+        // hardcoded free limit of 5. Both halves are gone: the product has no
+        // free tier to meter, and the fields it read live on a document the
+        // user can write, so the answer was never trustworthy.
+        //
+        // The extension no longer decides access at all. The callable does,
+        // against `users/{uid}/private/entitlement` -- a document firestore
+        // rules hide from every client -- and refuses with
+        // `reason: 'trial-expired'`. This method survives only so the popup
+        // keeps a single call site while its UI is reworked; it must not grow
+        // a client-side verdict again.
         return {
-            canAdd,
-            reason: canAdd ? 'within_limit' : 'daily_limit_reached',
-            wordsRemaining,
-            dailyWordsAdded: subscriptionData.dailyWordsAdded,
-            dailyWordLimit: subscriptionData.dailyWordLimit
+            canAdd: true,
+            reason: 'server-authoritative',
+            wordsRemaining: 'unlimited'
         };
     }
 
-    /**
-     * Increment daily word count after successfully adding a word
-     * @returns {Promise<Object>} Updated subscription data
-     */
-    async incrementDailyWordCount() {
-        try {
-            const subscriptionData = await this.getUserSubscriptionStatus();
-            
-            if (subscriptionData.isPremium) {
-                // Premium users don't have limits, but we still track usage
-                const newCount = subscriptionData.dailyWordsAdded + 1;
-                await this.updateDailyWordCount(newCount, subscriptionData.dailyWordsResetDate);
-                return { ...subscriptionData, dailyWordsAdded: newCount };
-            }
-
-            // For free users, increment if under limit
-            if (subscriptionData.dailyWordsAdded < subscriptionData.dailyWordLimit) {
-                const newCount = subscriptionData.dailyWordsAdded + 1;
-                await this.updateDailyWordCount(newCount, subscriptionData.dailyWordsResetDate);
-                
-                return {
-                    ...subscriptionData,
-                    dailyWordsAdded: newCount
-                };
-            }
-
-            throw new Error('Daily word limit reached');
-        } catch (error) {
-            console.error('Error incrementing daily word count:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Update daily word count in both local storage and Firestore
-     * @param {number} newCount - New daily word count
-     * @param {string} resetDate - Current reset date
-     */
-    async updateDailyWordCount(newCount, resetDate) {
-        const today = new Date().toISOString().split('T')[0];
-        const actualResetDate = resetDate || today;
-        
-        try {
-            // Update local cache
-            const { subscriptionData } = await chrome.storage.local.get(['subscriptionData']);
-            if (subscriptionData) {
-                subscriptionData.dailyWordsAdded = newCount;
-                subscriptionData.dailyWordsResetDate = actualResetDate;
-                subscriptionData.lastFetched = Date.now();
-                await chrome.storage.local.set({ subscriptionData });
-            }
-
-            // Update Firestore
-            await this.updateFirestoreWordCount(newCount, actualResetDate);
-        } catch (error) {
-            console.error('Error updating daily word count:', error);
-        }
-    }
-
-    /**
-     * Update daily word count in Firestore
-     * @param {number} newCount - New daily word count
-     * @param {string} resetDate - Current reset date
-     */
-    async updateFirestoreWordCount(newCount, resetDate) {
-        try {
-            const headers = await this.getFirestoreHeaders();
-            if (!headers) return;
-
-            const uid = await this.getAuthUid();
-            if (!uid) return;
-
-            const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/lazylex-9d161/databases/(default)/documents`;
-            const url = `${FIRESTORE_BASE}/users/${uid}`;
-
-            const updateData = {
-                fields: {
-                    dailyWordsAdded: { integerValue: String(newCount) },
-                    dailyWordsResetDate: { stringValue: resetDate }
-                }
-            };
-
-            await fetch(url, {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify(updateData)
-            });
-        } catch (error) {
-            console.error('Error updating Firestore word count:', error);
-        }
-    }
+    // `incrementDailyWordCount`, `updateDailyWordCount` and
+    // `updateFirestoreWordCount` were deleted here (issue #49).
+    //
+    // Together they maintained `dailyWordsAdded` / `dailyWordsResetDate` on the
+    // user document so the popup could meter the freemium 5-words-a-day limit.
+    // That limit no longer exists in the product, and the server keeps its own
+    // counters in `users/{uid}/private/usage`, which no client can read or
+    // write. Keeping a client-side mirror of a server-side counter only
+    // creates a second number to disagree with the first.
+    //
+    // Nothing outside this class called them.
 
     /**
      * Create default user document in Firestore for new users
@@ -278,9 +190,6 @@ class SubscriptionManager {
                     displayName: { stringValue: userInfo?.name || userInfo?.displayName || '' },
                     photoURL: { stringValue: userInfo?.picture || userInfo?.photoURL || '' },
                     subscriptionStatus: { stringValue: this.SUBSCRIPTION_TYPES.FREE },
-                    dailyWordsAdded: { integerValue: '0' },
-                    dailyWordsResetDate: { stringValue: today },
-                    dailyWordLimit: { integerValue: String(this.DAILY_FREE_LIMIT) },
                     createdAt: { timestampValue: now },
                     lastLoginAt: { timestampValue: now }
                 }
@@ -296,21 +205,9 @@ class SubscriptionManager {
         }
     }
 
-    /**
-     * Get daily word limit based on subscription status
-     * @param {string} subscriptionStatus - User's subscription status
-     * @returns {number} Daily word limit
-     */
-    getDailyWordLimit(subscriptionStatus) {
-        switch (subscriptionStatus) {
-            case this.SUBSCRIPTION_TYPES.PREMIUM:
-            case this.SUBSCRIPTION_TYPES.LIFETIME:
-                return Number.MAX_SAFE_INTEGER; // Unlimited
-            case this.SUBSCRIPTION_TYPES.FREE:
-            default:
-                return this.DAILY_FREE_LIMIT;
-        }
-    }
+    // `getDailyWordLimit` was deleted here (issue #49). It mapped a
+    // subscription status to a words-per-day number, which only meant
+    // something while a free tier existed to be capped.
 
     /**
      * Check if subscription status is premium
@@ -374,19 +271,36 @@ class SubscriptionManager {
      */
     async getSubscriptionDisplayInfo() {
         const subscriptionData = await this.getUserSubscriptionStatus();
-        const limitCheck = await this.canAddWord();
+        const entitlement = await this.getEntitlementState();
 
         return {
             subscriptionStatus: subscriptionData.subscriptionStatus,
             isPremium: subscriptionData.isPremium,
-            dailyWordsAdded: subscriptionData.dailyWordsAdded,
-            dailyWordLimit: subscriptionData.dailyWordLimit,
-            wordsRemaining: limitCheck.wordsRemaining,
-            canAddWords: limitCheck.canAdd,
+            // The trial block, straight from the server, or null when it has
+            // not spoken yet. Null means UNKNOWN, never expired -- before the
+            // trial-aware functions are deployed every user is in that state,
+            // and rendering them as expired would lock out the whole userbase
+            // on a deploy that had not happened.
+            entitlement,
+            canAddWords: true,
             subscriptionExpiresAt: subscriptionData.subscriptionExpiresAt,
-            isExpired: subscriptionData.subscriptionExpiresAt ? 
+            isExpired: subscriptionData.subscriptionExpiresAt ?
                 new Date(subscriptionData.subscriptionExpiresAt) < new Date() : false
         };
+    }
+
+    /**
+     * Last entitlement block the background script saw on a callable response.
+     * @returns {Promise<Object|null>} `{ state, trialEndsAt, daysRemaining, enforced }` or null
+     */
+    async getEntitlementState() {
+        try {
+            const response = await chrome.runtime.sendMessage({ action: 'getEntitlementState' });
+            return response?.entitlement || null;
+        } catch (error) {
+            console.warn('Could not read entitlement state:', error?.message || error);
+            return null;
+        }
     }
 }
 

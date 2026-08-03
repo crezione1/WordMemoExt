@@ -298,46 +298,92 @@ async function updateSubscriptionDisplay() {
         // Show subscription status
         subscriptionStatus.style.display = 'block';
 
-        // Update plan display
-        const planText = displayInfo.isPremium ? 
-            (displayInfo.subscriptionStatus === 'lifetime' ? 'Lifetime Plan' : 'Premium Plan') : 
-            'Free Plan';
-        if (subscriptionPlan) subscriptionPlan.textContent = planText;
+        // Trial state, not a freemium quota (issue #49).
+        //
+        // What used to be here rendered "N of 5 words used today" from counters
+        // the client kept itself. There is no daily allowance any more, so
+        // there is no fraction to show. What matters to the user now is how
+        // much of the trial is left.
+        //
+        // `entitlement` is null until a callable has answered at least once --
+        // and it stays null entirely while the trial-aware functions are
+        // undeployed. Null is UNKNOWN, and unknown must read as working
+        // access, never as an expired trial.
+        const entitlement = displayInfo.entitlement;
+        const trialState = entitlement?.state || null;
+        const daysRemaining = Number.isFinite(entitlement?.daysRemaining)
+            ? entitlement.daysRemaining
+            : null;
+        const isSubscribed = displayInfo.isPremium || trialState === 'subscribed';
+        const trialOver = trialState === 'expired';
 
-        // Update limit display
-        const limitText = displayInfo.isPremium ? 'Unlimited words per day' : `${displayInfo.dailyWordLimit} words per day`;
-        if (subscriptionLimit) subscriptionLimit.textContent = limitText;
-
-        // Update usage display
-        if (displayInfo.isPremium) {
-            if (usageText) usageText.textContent = `${displayInfo.dailyWordsAdded} words added today`;
-            if (usageProgress) usageProgress.style.width = '100%';
-        } else {
-            if (usageText) usageText.textContent = `${displayInfo.dailyWordsAdded} of ${displayInfo.dailyWordLimit} words used today`;
-            const percentage = Math.min(100, (displayInfo.dailyWordsAdded / displayInfo.dailyWordLimit) * 100);
-            if (usageProgress) usageProgress.style.width = `${percentage}%`;
+        if (subscriptionPlan) {
+            subscriptionPlan.textContent = isSubscribed
+                ? (displayInfo.subscriptionStatus === 'lifetime' ? 'Lifetime Plan' : 'Premium Plan')
+                : (trialOver ? 'Trial ended' : 'Free trial');
         }
 
-        // Update CSS classes
+        if (subscriptionLimit) {
+            if (isSubscribed) {
+                subscriptionLimit.textContent = 'Full access';
+            } else if (trialOver) {
+                subscriptionLimit.textContent = 'Subscribe to keep translating';
+            } else if (daysRemaining !== null) {
+                subscriptionLimit.textContent = daysRemaining === 1
+                    ? '1 day left'
+                    : `${daysRemaining} days left`;
+            } else {
+                subscriptionLimit.textContent = 'Full access';
+            }
+        }
+
+        // The bar now tracks the trial running down, not words consumed. With
+        // no server answer yet there is nothing to draw, so it stays empty
+        // rather than inventing a position.
+        if (usageText) {
+            if (isSubscribed) {
+                usageText.textContent = 'Unlimited';
+            } else if (trialOver) {
+                usageText.textContent = 'Your free trial has ended';
+            } else if (daysRemaining !== null) {
+                usageText.textContent = `${daysRemaining} of 7 trial days remaining`;
+            } else {
+                usageText.textContent = 'Trial active';
+            }
+        }
+        if (usageProgress) {
+            if (isSubscribed) {
+                usageProgress.style.width = '100%';
+            } else if (trialOver) {
+                usageProgress.style.width = '0%';
+            } else if (daysRemaining !== null) {
+                usageProgress.style.width = `${Math.max(0, Math.min(100, (daysRemaining / 7) * 100))}%`;
+            } else {
+                usageProgress.style.width = '';
+            }
+        }
+
         subscriptionStatus.classList.remove('premium', 'limit-reached');
-        if (displayInfo.isPremium) {
+        if (isSubscribed) {
             subscriptionStatus.classList.add('premium');
-        } else if (!displayInfo.canAddWords) {
+        } else if (trialOver) {
+            // Same class as before so the existing styling still applies; only
+            // the condition that raises it changed.
             subscriptionStatus.classList.add('limit-reached');
         }
 
-        // Show/hide upgrade button
         if (upgradeBtn) {
-            upgradeBtn.style.display = displayInfo.isPremium ? 'none' : 'block';
+            upgradeBtn.style.display = isSubscribed ? 'none' : 'block';
         }
 
-        // Update add word button state
-        if (addWordBtn && !displayInfo.canAddWords && !displayInfo.isPremium) {
+        // The button is only ever disabled by a refusal the SERVER made. It is
+        // never disabled pre-emptively: the client cannot know the trial state
+        // before the server has answered, and guessing locks people out.
+        if (addWordBtn && trialOver) {
             addWordBtn.disabled = true;
-            addWordBtn.textContent = 'Daily Limit Reached';
+            addWordBtn.textContent = 'Trial ended';
         } else if (addWordBtn) {
             addWordBtn.textContent = 'Add';
-            // Re-enable if input has text and limit allows
             if (addWordInput && addWordInput.value.trim()) {
                 addWordBtn.disabled = false;
             }
@@ -1028,16 +1074,9 @@ async function addNewWordFromPopup() {
         if (!raw) return;
         const wordLower = raw.toLowerCase();
 
-        // Check subscription limits before adding
-        if (window.subscriptionManager) {
-            const limitCheck = await window.subscriptionManager.canAddWord();
-            if (!limitCheck.canAdd) {
-                if (limitCheck.reason === 'daily_limit_reached') {
-                    showNotification('Daily word limit reached. Upgrade to Premium for unlimited words.');
-                    return;
-                }
-            }
-        }
+        // No pre-flight limit check (issue #49). The freemium daily allowance
+        // it guarded is gone, and the trial verdict belongs to the callable --
+        // see the `translateWord` response handling below.
 
         // Get target language
         const { translateTo } = await chrome.storage.local.get(['translateTo']);
@@ -1049,6 +1088,15 @@ async function addNewWordFromPopup() {
             word: wordLower,
             targetLanguage
         });
+
+        // A closed trial is a state to render, not a failure to report. Refresh
+        // the panel so the plan line, the bar and the Add button all move to
+        // "trial ended" together rather than one toast contradicting them.
+        if (resp?.error?.reason === 'trial-expired') {
+            showNotification(resp.error.message || 'Your free trial has ended. Subscribe to keep translating.');
+            await updateSubscriptionDisplay();
+            return;
+        }
 
         if (!resp?.success || !resp?.result?.translation) {
             throw new Error(resp?.error?.message || "Translation failed. Please try again.");
