@@ -848,15 +848,86 @@ function escapeRegExp(value) {
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Where LazyLex refuses to render (#50).
+//
+// READ THIS BEFORE EDITING THE LIST.
+//
+// The distinction this list draws is *not* "interactive tag vs. not". It is
+// **prose vs. chrome**: running text a learner reads, versus the controls
+// they operate. Highlighting a control is actively harmful -- the injected
+// "[translation]" span widens the control, wraps its label and drops a second
+// click target on top of the first. The reported case was the
+// developer.chrome.com sidebar rendering "Before[перед] you publish".
+//
+// The original list only named controls as HTML wrote them in 2005. Every
+// modern component library (Material UI, Ant Design, Bootstrap, Radix)
+// composes its controls out of generic <div>/<span> elements carrying ARIA
+// roles, so all of them slipped straight through. The ARIA groups below are
+// the composed equivalents of the native tags in the first group.
+//
+// LINK POLICY -- deliberate, do not "fix" it by adding `a` here:
+//   A plain `<a href>` in body prose stays ELIGIBLE. Links inside article
+//   text are exactly where a learner meets useful vocabulary, and #11
+//   deliberately built capture-phase click isolation so a highlighted word
+//   inside a link shows the LazyLex controls without navigating. Excluding
+//   all anchors would silently undo that feature.
+//   Navigation links are still excluded -- not because they are anchors, but
+//   because they sit inside `nav` / `[role="navigation"]` / a menu / a
+//   toolbar, which is the chrome half of the distinction.
+//   The only anchors this list can reach are ones that are also composed
+//   controls (e.g. `<a role="menuitem">`), which is correct.
+//
+// The last group catches bespoke focusable widgets that declare no role at
+// all: anything the author put in the tab order is a control. `a[href]` is
+// carved back out of it so a prose link that also carries an explicit
+// tabindex keeps working, per the policy above.
+//
+// Role values are a token list, so `~=` is used rather than `=`; a
+// `role="button link"` element is still a button. `menu*` and `tab*` are
+// enumerated instead of prefix-matched on purpose: `role="tabpanel"` is a
+// *content* container whose text is prose and must stay eligible.
+//
+// If this turns out to be too coarse, the fallback discussed in #50 is to
+// decide by ancestry instead: a link whose nearest block ancestor is a `<p>`
+// or `<li>` in an article is prose; one inside a `<nav>` or a toolbar is
+// chrome.
+const NON_PROSE_SELECTOR = [
+    // Native controls, non-text content and editable regions.
+    "script, style, noscript, textarea, input, select, option, button",
+    "code, pre, svg, math, iframe, canvas, video, audio",
+    "[contenteditable]:not([contenteditable='false'])",
+
+    // Interactive containers that carry no ARIA role of their own.
+    // `summary` is the clickable half of a <details>; clicking a `label`
+    // activates its control.
+    "nav, menu, summary, label",
+
+    // ARIA-composed controls.
+    // Note the absence of [role="link"]: it is the ARIA spelling of a plain
+    // hyperlink, so it follows the same prose policy as <a href>.
+    '[role~="button"], [role~="checkbox"], [role~="radio"]',
+    '[role~="switch"], [role~="slider"], [role~="spinbutton"], [role~="searchbox"]',
+    '[role~="combobox"], [role~="listbox"], [role~="option"]',
+    '[role~="menu"], [role~="menubar"], [role~="menuitem"]',
+    '[role~="menuitemcheckbox"], [role~="menuitemradio"]',
+    '[role~="tab"], [role~="tablist"]',
+    '[role~="navigation"], [role~="toolbar"], [role~="tree"], [role~="treeitem"]',
+    '[role~="grid"], [role~="gridcell"], [role~="dialog"], [role~="alertdialog"]',
+
+    // Anything that opens a popup, whatever it is built from.
+    "[aria-haspopup]",
+
+    // Bespoke focusable widgets with no role -- but never a plain prose link.
+    '[tabindex]:not([tabindex="-1"]):not(a[href])'
+].join(", ");
+
 function isEligibleTextNode(node) {
     if (!node?.parentElement || !node.nodeValue || /^\s*$/.test(node.nodeValue)) {
         return false;
     }
 
     const parent = node.parentElement;
-    if (parent.closest(
-        "script, style, noscript, textarea, input, select, option, button, code, pre, svg, math, iframe, canvas, video, audio, [contenteditable]:not([contenteditable='false'])"
-    )) {
+    if (parent.closest(NON_PROSE_SELECTOR)) {
         return false;
     }
 
