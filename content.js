@@ -1,6 +1,31 @@
 let settings = {};
 const countedWordIdsOnPage = new Set();
 
+// Exclusion-list gating (#48)
+//
+// Whether LazyLex is allowed to render on this page. The background service
+// worker owns the exclusion list; the content script only ever mirrors the
+// answer here. Two things keep this flag honest:
+//
+//   1. `checkInitialExtensionState()` resolves it from the background worker
+//      at bootstrap, and the first highlight pass is chained onto that
+//      promise rather than racing it. Before this existed the check was
+//      defined but never called, so an excluded site still highlighted.
+//   2. The "extensionStateChanged" broadcast updates it live, so toggling a
+//      site removes (or restores) the translations on an already-open page
+//      with no reload.
+//
+// It defaults to `true` so that a page is never left permanently blank if
+// the service worker is slow or unreachable; the broadcast corrects it.
+let extensionEnabledForSite = true;
+
+function setExtensionEnabledForSite(enabled) {
+    // Anything other than an explicit `false` (including an undefined
+    // response from a torn-down service worker) means "render".
+    extensionEnabledForSite = enabled !== false;
+    return extensionEnabledForSite;
+}
+
 // Selection classification (word / phrase / sentence)
 //
 // Sentence saving is a premium-only feature with its own backend contract
@@ -91,6 +116,12 @@ async function resyncHighlightsForCurrentPage() {
     const existingDeleteButton = document.getElementById("deleteWordBtn");
     if (existingDeleteButton) {
         existingDeleteButton.remove();
+    }
+
+    if (!extensionEnabledForSite) {
+        // Excluded site: the cleanup above is still correct (stale wrappers
+        // from a previous video must go), but nothing may be re-rendered.
+        return;
     }
 
     const { words } = await chrome.storage.local.get({ words: [] });
@@ -633,6 +664,10 @@ function disableHighlightingDisplay() {
 }
 
 function showTemporaryHighlightWithLoader(text) {
+    if (!extensionEnabledForSite) {
+        return;
+    }
+
     const textNodes = Array.from(findTextNodes(document.body));
     const lowerCaseText = text.toLowerCase();
     const replacements = [];
@@ -676,6 +711,12 @@ function showTemporaryHighlightWithLoader(text) {
 }
 
 function addHighlightForWord(word) {
+    if (!extensionEnabledForSite) {
+        // Saving a word from an excluded page still works (the user asked
+        // for it); it just must not paint anything here. (#48 AC4)
+        return;
+    }
+
     if (word?.status === "learned" || word?.learned === true || Number(word?.encounterCount) > 200) {
         return;
     }
@@ -807,15 +848,86 @@ function escapeRegExp(value) {
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Where LazyLex refuses to render (#50).
+//
+// READ THIS BEFORE EDITING THE LIST.
+//
+// The distinction this list draws is *not* "interactive tag vs. not". It is
+// **prose vs. chrome**: running text a learner reads, versus the controls
+// they operate. Highlighting a control is actively harmful -- the injected
+// "[translation]" span widens the control, wraps its label and drops a second
+// click target on top of the first. The reported case was the
+// developer.chrome.com sidebar rendering "Before[перед] you publish".
+//
+// The original list only named controls as HTML wrote them in 2005. Every
+// modern component library (Material UI, Ant Design, Bootstrap, Radix)
+// composes its controls out of generic <div>/<span> elements carrying ARIA
+// roles, so all of them slipped straight through. The ARIA groups below are
+// the composed equivalents of the native tags in the first group.
+//
+// LINK POLICY -- deliberate, do not "fix" it by adding `a` here:
+//   A plain `<a href>` in body prose stays ELIGIBLE. Links inside article
+//   text are exactly where a learner meets useful vocabulary, and #11
+//   deliberately built capture-phase click isolation so a highlighted word
+//   inside a link shows the LazyLex controls without navigating. Excluding
+//   all anchors would silently undo that feature.
+//   Navigation links are still excluded -- not because they are anchors, but
+//   because they sit inside `nav` / `[role="navigation"]` / a menu / a
+//   toolbar, which is the chrome half of the distinction.
+//   The only anchors this list can reach are ones that are also composed
+//   controls (e.g. `<a role="menuitem">`), which is correct.
+//
+// The last group catches bespoke focusable widgets that declare no role at
+// all: anything the author put in the tab order is a control. `a[href]` is
+// carved back out of it so a prose link that also carries an explicit
+// tabindex keeps working, per the policy above.
+//
+// Role values are a token list, so `~=` is used rather than `=`; a
+// `role="button link"` element is still a button. `menu*` and `tab*` are
+// enumerated instead of prefix-matched on purpose: `role="tabpanel"` is a
+// *content* container whose text is prose and must stay eligible.
+//
+// If this turns out to be too coarse, the fallback discussed in #50 is to
+// decide by ancestry instead: a link whose nearest block ancestor is a `<p>`
+// or `<li>` in an article is prose; one inside a `<nav>` or a toolbar is
+// chrome.
+const NON_PROSE_SELECTOR = [
+    // Native controls, non-text content and editable regions.
+    "script, style, noscript, textarea, input, select, option, button",
+    "code, pre, svg, math, iframe, canvas, video, audio",
+    "[contenteditable]:not([contenteditable='false'])",
+
+    // Interactive containers that carry no ARIA role of their own.
+    // `summary` is the clickable half of a <details>; clicking a `label`
+    // activates its control.
+    "nav, menu, summary, label",
+
+    // ARIA-composed controls.
+    // Note the absence of [role="link"]: it is the ARIA spelling of a plain
+    // hyperlink, so it follows the same prose policy as <a href>.
+    '[role~="button"], [role~="checkbox"], [role~="radio"]',
+    '[role~="switch"], [role~="slider"], [role~="spinbutton"], [role~="searchbox"]',
+    '[role~="combobox"], [role~="listbox"], [role~="option"]',
+    '[role~="menu"], [role~="menubar"], [role~="menuitem"]',
+    '[role~="menuitemcheckbox"], [role~="menuitemradio"]',
+    '[role~="tab"], [role~="tablist"]',
+    '[role~="navigation"], [role~="toolbar"], [role~="tree"], [role~="treeitem"]',
+    '[role~="grid"], [role~="gridcell"], [role~="dialog"], [role~="alertdialog"]',
+
+    // Anything that opens a popup, whatever it is built from.
+    "[aria-haspopup]",
+
+    // Bespoke focusable widgets with no role -- but never a plain prose link.
+    '[tabindex]:not([tabindex="-1"]):not(a[href])'
+].join(", ");
+
 function isEligibleTextNode(node) {
     if (!node?.parentElement || !node.nodeValue || /^\s*$/.test(node.nodeValue)) {
         return false;
     }
 
     const parent = node.parentElement;
-    if (parent.closest(
-        "script, style, noscript, textarea, input, select, option, button, code, pre, svg, math, iframe, canvas, video, audio, [contenteditable]:not([contenteditable='false'])"
-    )) {
+    if (parent.closest(NON_PROSE_SELECTOR)) {
         return false;
     }
 
@@ -921,6 +1033,16 @@ async function recordEncounterCounts(words, textNodes) {
 }
 
 async function highlightWords(words) {
+    if (!extensionEnabledForSite) {
+        // Single chokepoint for the full-page pass: every caller
+        // (applySettings, the wordsChanged "reload" branch, the YouTube SPA
+        // resync, the initial bootstrap) funnels through here, so an
+        // excluded site cannot be re-highlighted by any of them. Returning
+        // before recordEncounterCounts also keeps encounter statistics from
+        // counting pages the user chose to opt out of.
+        return;
+    }
+
     const visibleWords = (Array.isArray(words) ? words : []).filter((word) => (
         word
         && word.word
@@ -947,7 +1069,11 @@ async function highlightWords(words) {
 }
 
 function handleExtensionStateChange(enabled) {
-    if (enabled) {
+    // Update the flag *before* touching the DOM: highlightWords() reads it,
+    // so setting it late would let the page re-highlight itself.
+    setExtensionEnabledForSite(enabled);
+
+    if (extensionEnabledForSite) {
         clearHighlighting();
         chrome.storage.local.get(["words"]).then((result) => {
             if (result.words !== undefined && result.words.length > 0) {
@@ -962,10 +1088,27 @@ function handleExtensionStateChange(enabled) {
     }
 }
 
+// Resolves the exclusion state for *this* tab from the background service
+// worker. Returns a promise so the bootstrap can await it before the first
+// highlight pass instead of racing it.
 function checkInitialExtensionState() {
-    chrome.runtime.sendMessage({ action: "checkExtensionState" }, function (response) {
-        const enabled = response.enabled;
-        handleExtensionStateChange(enabled);
+    return new Promise((resolve) => {
+        try {
+            chrome.runtime.sendMessage({ action: "checkExtensionState" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn(
+                        "[LazyLexExt] Unable to read the extension state:",
+                        chrome.runtime.lastError.message
+                    );
+                    resolve(setExtensionEnabledForSite(true));
+                    return;
+                }
+                resolve(setExtensionEnabledForSite(response?.enabled));
+            });
+        } catch (error) {
+            console.warn("[LazyLexExt] Unable to read the extension state:", error?.message || error);
+            resolve(setExtensionEnabledForSite(true));
+        }
     });
 }
 
@@ -980,6 +1123,11 @@ function applySettings(newSettings) {
     chrome.storage.local.get(["words"]).then((result) => {
         const words = result.words || [];
         clearHighlighting();
+        // On an excluded site the clear above is the whole job: changing a
+        // setting from the popup must not bring highlights back. (#48 AC5)
+        if (!extensionEnabledForSite) {
+            return;
+        }
         if (words.length > 0) {
             highlightWords(words);
             if (!settings.highlightingEnabled) {
@@ -1219,9 +1367,25 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 });
 
 chrome.runtime.onMessage.addListener((request) => {
+    // The background worker broadcasts this whenever the exclusion list
+    // changes, with the value computed for *this* tab's own URL. Without
+    // this listener the broadcast went nowhere and handleExtensionStateChange
+    // was dead code (#48).
+    if (request.action === "extensionStateChanged") {
+        console.log('[LazyLexExt] Extension state changed:', request.newValue);
+        handleExtensionStateChange(request.newValue);
+    }
+
     if (request.action === "wordsChanged") {
         console.log('[LazyLexExt] Received wordsChanged message', request);
         const { operation, word, words } = request.newValue;
+
+        if (!extensionEnabledForSite) {
+            // Adding, updating or reloading words must not repaint an
+            // excluded page. Clearing keeps a delete/clear correct too.
+            clearHighlighting();
+            return;
+        }
 
         switch (operation) {
             case 'add':
@@ -1253,6 +1417,12 @@ chrome.runtime.onMessage.addListener((request) => {
     }
 });
 
-loadInitialSettings();
+// Resolve the exclusion state first, then load settings. loadInitialSettings()
+// ends in applySettings(), which triggers the first highlight pass, so the
+// state has to be known by then -- otherwise an excluded site paints once and
+// only un-paints when the broadcast happens to arrive. (#48)
+checkInitialExtensionState().then(() => {
+    loadInitialSettings();
+});
 
 console.log('[LazyLexExt] Content script loaded');

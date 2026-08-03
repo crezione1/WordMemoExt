@@ -533,6 +533,180 @@ test("newly added words are broadcast to every open tab, not just the active one
     assert.match(notifySource, /Receiving end does not exist/);
 });
 
+test("the exclusion list reaches the content script and gates every render path (#48)", async () => {
+    const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // --- Background: per-tab resolution, executed for real ------------------
+    //
+    // isExtensionEnabledForUrl/isSiteEqualToCurrentSite are pure, so extract
+    // and run them (same style as the getChangedWords / classifySelectionType
+    // tests) instead of only pattern-matching the source.
+    const pureSource = backgroundSource.match(
+        /function isSiteEqualToCurrentSite\(url, domain\)[\s\S]*?(?=\n\/\/ `url` is the URL of the tab)/
+    )?.[0];
+    assert.ok(pureSource, "expected the pure exclusion-matching helpers");
+
+    const context = vm.createContext({ URL, Boolean, String, Array });
+    vm.runInContext(pureSource, context);
+
+    const excluded = ["developer.chrome.com", "example.com"];
+    assert.equal(
+        context.isExtensionEnabledForUrl("https://developer.chrome.com/docs/extensions/", excluded),
+        false
+    );
+    // Subdomains of an excluded domain stay excluded (#48 AC8).
+    assert.equal(context.isExtensionEnabledForUrl("https://docs.example.com/a", excluded), false);
+    // ...but a domain that merely ends with the same letters does not.
+    assert.equal(context.isExtensionEnabledForUrl("https://notexample.com/a", excluded), true);
+    assert.equal(context.isExtensionEnabledForUrl("https://example.com.evil.net/", excluded), true);
+    // An unrelated open tab keeps working while another site is excluded
+    // (#48 AC7).
+    assert.equal(context.isExtensionEnabledForUrl("https://wikipedia.org/wiki/X", excluded), true);
+    assert.equal(context.isExtensionEnabledForUrl("https://example.com/", []), true);
+
+    // The state answer must come from the asking tab, never the focused one
+    // (#48 AC9).
+    assert.match(backgroundSource, /checkIfExtensionEnabled\(sender\?\.tab\?\.url\)/);
+    assert.match(backgroundSource, /async function checkIfExtensionEnabled\(url\)/);
+
+    // The broadcast is computed per tab from that tab's own URL, and the old
+    // "only if it matches the focused tab" early return is gone.
+    const excludedSitesHandler = backgroundSource.match(
+        /async function handleExcludedSitesChange\(\)[\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(excludedSitesHandler, "expected handleExcludedSitesChange");
+    assert.match(excludedSitesHandler, /chrome\.tabs\.query\(\{\}\)/);
+    assert.match(excludedSitesHandler, /isExtensionEnabledForUrl\(tab\.url, excludedSites\)/);
+    assert.match(excludedSitesHandler, /action: "extensionStateChanged"/);
+    assert.doesNotMatch(excludedSitesHandler, /getCurrentTab\(\)/);
+    // getChangedSite assumed exactly one entry changed; it is gone.
+    assert.equal(backgroundSource.includes("function getChangedSite"), false);
+
+    // --- Content: the flag is resolved, listened for, and enforced ----------
+    assert.match(contentSource, /let extensionEnabledForSite = true;/);
+    assert.match(contentSource, /function setExtensionEnabledForSite\(enabled\)/);
+
+    // The initial check is actually invoked, and the first highlight pass is
+    // chained onto it rather than racing it.
+    assert.match(
+        contentSource,
+        /checkInitialExtensionState\(\)\.then\(\(\) => \{\s*\r?\n\s*loadInitialSettings\(\);/
+    );
+
+    // The broadcast now has a listener routing into handleExtensionStateChange.
+    assert.match(contentSource, /request\.action === "extensionStateChanged"/);
+    assert.match(contentSource, /handleExtensionStateChange\(request\.newValue\)/);
+    const stateHandler = contentSource.match(
+        /function handleExtensionStateChange\(enabled\)[\s\S]*?\r?\n\}\r?\n/
+    )?.[0];
+    assert.ok(stateHandler, "expected handleExtensionStateChange");
+    // Flag first, then DOM work -- otherwise highlightWords() reads a stale
+    // value and the page repaints itself right after being cleared.
+    assert.match(stateHandler, /setExtensionEnabledForSite\(enabled\);[\s\S]*clearHighlighting\(\)/);
+    // Disabling clears the already-open page: no reload required (#48 AC2).
+    assert.match(stateHandler, /\} else \{\s*\r?\n\s*clearHighlighting\(\);/);
+
+    // Every render path is gated. highlightWords is the single chokepoint for
+    // the full-page pass (applySettings, the wordsChanged "reload" branch and
+    // resyncHighlightsForCurrentPage all funnel through it), and the
+    // incremental paths are gated individually.
+    for (const [name, pattern] of [
+        ["highlightWords", /async function highlightWords\(words\) \{\s*\r?\n\s*if \(!extensionEnabledForSite\)/],
+        ["addHighlightForWord", /function addHighlightForWord\(word\) \{\s*\r?\n\s*if \(!extensionEnabledForSite\)/],
+        [
+            "showTemporaryHighlightWithLoader",
+            /function showTemporaryHighlightWithLoader\(text\) \{\s*\r?\n\s*if \(!extensionEnabledForSite\)/
+        ]
+    ]) {
+        assert.match(contentSource, pattern, `expected ${name} to be gated on the exclusion flag`);
+    }
+    assert.match(contentSource, /if \(!extensionEnabledForSite\) \{\s*\r?\n\s*\/\/ Excluded site: the cleanup above/);
+});
+
+test("interactive UI is excluded from highlighting while prose links stay eligible (#50)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // The rejection list is a named constant so the reasoning can live next
+    // to it, and isEligibleTextNode consumes exactly that constant.
+    const selectorBlock = contentSource.match(
+        /const NON_PROSE_SELECTOR = \[[\s\S]*?\]\.join\(", "\);/
+    )?.[0];
+    assert.ok(selectorBlock, "expected the NON_PROSE_SELECTOR constant");
+    assert.match(contentSource, /parent\.closest\(NON_PROSE_SELECTOR\)/);
+
+    // Native controls kept from the original list.
+    assert.match(selectorBlock, /script, style, noscript, textarea, input, select, option, button/);
+    assert.match(selectorBlock, /\[contenteditable\]:not\(\[contenteditable='false'\]\)/);
+
+    // ARIA-composed equivalents (#50): this is what modern component
+    // libraries actually ship, and none of it was matched before.
+    for (const role of [
+        "button",
+        "combobox",
+        "listbox",
+        "option",
+        "menu",
+        "menubar",
+        "menuitem",
+        "menuitemcheckbox",
+        "menuitemradio",
+        "tab",
+        "tablist",
+        "switch",
+        "checkbox",
+        "radio",
+        "slider",
+        "spinbutton",
+        "navigation",
+        "toolbar",
+        "tree",
+        "grid",
+        "dialog",
+        "alertdialog"
+    ]) {
+        assert.ok(
+            selectorBlock.includes(`[role~="${role}"]`),
+            `expected role="${role}" to be excluded from highlighting`
+        );
+    }
+
+    // Interactive containers with no role of their own, and anything that
+    // opens a popup.
+    assert.match(selectorBlock, /"nav, menu, summary, label"/);
+    assert.match(selectorBlock, /"\[aria-haspopup\]"/);
+
+    // Link policy (#11 vs #50). Plain anchors must stay eligible: prose
+    // links are where a learner meets vocabulary, and #11 built click
+    // isolation specifically so a highlight inside a link does not
+    // navigate. A bare `a` in this list would silently undo that.
+    assert.doesNotMatch(selectorBlock, /(^|[[",\s])a(\s*[,"]|$)/m);
+    assert.equal(selectorBlock.includes('[role~="link"]'), false);
+    // The focusable-widget catch-all explicitly carves plain links back out.
+    assert.match(selectorBlock, /\[tabindex\]:not\(\[tabindex="-1"\]\):not\(a\[href\]\)/);
+    // role="tabpanel" is a content container, not a control: it must not be
+    // swept up by a prefix match on "tab".
+    assert.equal(selectorBlock.includes('[role^="tab"]'), false);
+
+    // The reasoning has to survive the next person editing the list.
+    assert.match(contentSource, /READ THIS BEFORE EDITING THE LIST/);
+    assert.match(contentSource, /LINK POLICY -- deliberate, do not "fix" it by adding `a` here/);
+
+    // Every path that creates highlight wrappers goes through
+    // findTextNodes() -> isEligibleTextNode(), so nodes that appear later
+    // (a dropdown rendering its options only once opened) are filtered by
+    // the same rule on the next pass. There is no separate DOM-scanning
+    // path that could bypass it.
+    const replaceCallers = [...contentSource.matchAll(/^\s*replaceTextNode\(/gm)];
+    assert.equal(replaceCallers.length, 2, "expected exactly two replaceTextNode call sites");
+    assert.equal(
+        [...contentSource.matchAll(/findTextNodes\(document\.body\)/g)].length,
+        3,
+        "expected the three highlight passes to source their nodes from findTextNodes"
+    );
+    assert.match(contentSource, /createTreeWalker/);
+});
+
 test("CI verifies security checks, tests, and the unpacked package", async () => {
     const workflow = await readFile(
         path.join(repositoryRoot, ".github", "workflows", "extension-ci.yml"),
