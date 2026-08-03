@@ -707,6 +707,265 @@ test("interactive UI is excluded from highlighting while prose links stay eligib
     assert.match(contentSource, /createTreeWalker/);
 });
 
+// A minimal DOM good enough to run the widget-ownership block for real:
+// element identity, class/id matching for closest()/querySelectorAll(), a
+// style object, sibling links, captured listeners and a controllable clock.
+// The block is self-contained (no highlighting, no chrome.* calls), so it can
+// be extracted and executed the same way getChangedWords and
+// classifySelectionType already are.
+function createWidgetTestDom() {
+    const registry = [];
+    const listeners = { window: {}, document: {} };
+    let now = 1_000_000;
+
+    function matches(element, selector) {
+        return selector
+            .split(",")
+            .map((token) => token.trim())
+            .filter(Boolean)
+            .some((token) => (
+                token.startsWith("#")
+                    ? element.id === token.slice(1)
+                    : element.classes.has(token.slice(1))
+            ));
+    }
+
+    class FakeElement {
+        constructor({ id = "", classes = [], attached = true } = {}) {
+            this.nodeType = 1;
+            this.id = id;
+            this.classes = new Set(classes);
+            this.classList = { contains: (name) => this.classes.has(name) };
+            this.style = { display: "" };
+            this.parentElement = null;
+            this.previousElementSibling = null;
+            this.attached = attached;
+            registry.push(this);
+        }
+
+        attach() {
+            this.attached = true;
+        }
+
+        remove() {
+            this.attached = false;
+        }
+
+        closest(selector) {
+            let node = this;
+            while (node) {
+                if (matches(node, selector)) {
+                    return node;
+                }
+                node = node.parentElement;
+            }
+            return null;
+        }
+    }
+
+    function record(target, type, handler) {
+        (listeners[target][type] = listeners[target][type] || []).push(handler);
+    }
+
+    const context = {
+        Node: { ELEMENT_NODE: 1 },
+        console: { warn() {} },
+        Date: { now: () => now },
+        document: {
+            addEventListener: (type, handler) => record("document", type, handler),
+            querySelectorAll: (selector) =>
+                registry.filter((element) => element.attached && matches(element, selector))
+        },
+        window: {
+            addEventListener: (type, handler) => record("window", type, handler)
+        }
+    };
+
+    return {
+        context,
+        FakeElement,
+        listeners,
+        advanceClock(milliseconds) {
+            now += milliseconds;
+        },
+        fire(target, type, event = {}) {
+            (listeners[target][type] || []).forEach((handler) => handler(event));
+        }
+    };
+}
+
+test("one widget at a time: the shared dismiss runs each control's own teardown (#51)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    const widgetSource = contentSource.match(
+        /\/\/ Widget ownership: one control on screen at a time \(#51\)[\s\S]*?(?=\r?\n\/\/ Selection classification)/
+    )?.[0];
+    assert.ok(widgetSource, "expected the shared widget-ownership block");
+
+    const dom = createWidgetTestDom();
+    const context = vm.createContext(dom.context);
+    vm.runInContext(widgetSource, context);
+    const { FakeElement } = dom;
+
+    const readActiveWidget = () => vm.runInContext("activeWidget", context);
+
+    // Mirrors showEditUI: the span is hidden, the container is built, the
+    // widget is registered, and only then is the container inserted.
+    const makeEditPair = () => {
+        const translation = new FakeElement({ classes: ["translation"] });
+        const container = new FakeElement({
+            classes: ["edit-translation-container"],
+            attached: false
+        });
+        container.previousElementSibling = translation;
+        translation.style.display = "none";
+        return { translation, container };
+    };
+    const openEdit = (pair) => {
+        context.setActiveWidget({
+            type: "edit",
+            target: pair.translation,
+            dismiss: () => {
+                pair.container.remove();
+                pair.translation.style.display = "";
+            }
+        });
+        pair.container.attach();
+        return pair;
+    };
+
+    // --- Mutual exclusion: opening a control closes the previous one --------
+    const addButton = new FakeElement({ id: "add-new-word", attached: false });
+    context.setActiveWidget({
+        type: "add-word",
+        target: addButton,
+        dismiss: () => addButton.remove()
+    });
+    addButton.attach();
+
+    const first = openEdit(makeEditPair());
+
+    assert.equal(addButton.attached, false, "opening the editor must close the add button");
+    assert.equal(readActiveWidget().type, "edit");
+
+    // --- Escape closes it and puts the translation back (criteria 4 and 7) --
+    dom.fire("document", "keydown", { key: "Escape" });
+    assert.equal(first.container.attached, false);
+    assert.equal(first.translation.style.display, "", "Escape must restore the hidden translation");
+    assert.equal(readActiveWidget(), null);
+
+    // --- Trap 1: a control with no registration is still closed *and*
+    // restored, rather than having its container blindly removed ------------
+    const orphan = makeEditPair();
+    orphan.container.attach();
+    const strayDelete = new FakeElement({ id: "deleteWordBtn" });
+    context.dismissActiveWidget();
+    assert.equal(orphan.container.attached, false);
+    assert.equal(
+        orphan.translation.style.display,
+        "",
+        "the defensive sweep must restore a translation it un-hides, not orphan it"
+    );
+    assert.equal(strayDelete.attached, false);
+
+    // --- Scroll dismissal, with a short grace window so that focusing the
+    // edit input cannot close the control it just opened (criterion 6) ------
+    const scrolled = openEdit(makeEditPair());
+    dom.fire("window", "scroll");
+    assert.equal(scrolled.container.attached, true, "a scroll at open time must not dismiss");
+    dom.advanceClock(1000);
+    dom.fire("window", "scroll");
+    assert.equal(scrolled.container.attached, false, "scrolling must dismiss an open control");
+    assert.equal(scrolled.translation.style.display, "");
+    assert.equal(readActiveWidget(), null);
+
+    // --- Events inside a control belong to that control --------------------
+    const liveContainer = new FakeElement({ classes: ["edit-translation-container"] });
+    const input = new FakeElement({ classes: ["edit-translation-input"] });
+    input.parentElement = liveContainer;
+    assert.equal(context.isWidgetControlNode(input), true);
+    assert.equal(context.isWidgetControlNode({ nodeType: 3, parentElement: input }), true);
+
+    const wrapper = new FakeElement({ classes: ["highlight-wrapper"] });
+    const highlighted = new FakeElement({ classes: ["highlighted-word"] });
+    highlighted.parentElement = wrapper;
+    assert.equal(context.isWidgetControlNode(highlighted), false);
+    assert.equal(context.isWidgetControlNode(null), false);
+});
+
+test("every control path opens through the shared dismiss, including the SPA resync (#51)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // The three open paths each register with the shared owner instead of
+    // removing only their own kind.
+    const mouseupHandler = contentSource.match(
+        /document\.addEventListener\("mouseup", function \(event\) \{[\s\S]*?\r?\n\}\);/
+    )?.[0];
+    assert.ok(mouseupHandler, "expected the selection (add word/sentence) handler");
+    assert.match(mouseupHandler, /if \(isWidgetControlNode\(event\.target\)\) \{/);
+    assert.match(mouseupHandler, /dismissActiveWidget\(\);/);
+    assert.match(mouseupHandler, /setActiveWidget\(\{[\s\S]*?type: selectionType === "sentence"/);
+    // The old self-only cleanup is gone: it is what allowed a selection to
+    // leave an edit field or delete button open elsewhere on the page.
+    assert.equal(
+        mouseupHandler.includes('document.getElementById("add-new-word") || document.getElementById("add-new-sentence")'),
+        false
+    );
+
+    const clickHandler = contentSource.match(
+        /document\.addEventListener\("click", \(e\) => \{[\s\S]*?\r?\n\}\);/
+    )?.[0];
+    assert.ok(clickHandler, "expected the click-delegate handler");
+    assert.match(clickHandler, /if \(isWidgetControlNode\(e\.target\)\) \{/);
+    assert.match(clickHandler, /dismissActiveWidget\(\);/);
+    assert.match(clickHandler, /setActiveWidget\(\{\s*\r?\n\s*type: "delete"/);
+    assert.equal(clickHandler.includes('const existingDeleteButton = document.getElementById("deleteWordBtn")'), false);
+
+    const editUiSource = contentSource.match(
+        /function showEditUI\(translationSpan, wordId\)[\s\S]*?\r?\n\}\r?\n/
+    )?.[0];
+    assert.ok(editUiSource, "expected showEditUI");
+    assert.match(editUiSource, /dismissActiveWidget\(\);/);
+    assert.match(editUiSource, /setActiveWidget\(\{\s*\r?\n\s*type: "edit"/);
+    // Its teardown restores the span it hid -- the trap the shared dismiss
+    // exists to avoid.
+    assert.match(editUiSource, /dismiss: \(\) => \{[\s\S]*?translationSpan\.style\.display = ''/);
+    // Focusing the input must not scroll, or scroll-dismissal would close the
+    // field the moment it opened.
+    assert.match(editUiSource, /input\.focus\(\{ preventScroll: true \}\)/);
+    // Saving closes through the shared dismiss, so an empty value cannot
+    // leave the translation hidden.
+    assert.doesNotMatch(editUiSource, /\n\s*editContainer\.remove\(\);\r?\n\s*\}\);/);
+
+    // Trap 2: the SPA resync used to remove #deleteWordBtn and nothing else,
+    // leaving an edit field attached to a destroyed span.
+    const resyncSource = contentSource.match(
+        /async function resyncHighlightsForCurrentPage\(\)[\s\S]*?\r?\n\}\r?\n/
+    )?.[0];
+    assert.ok(resyncSource, "expected resyncHighlightsForCurrentPage");
+    assert.match(resyncSource, /dismissActiveWidget\(\);\r?\n\s*clearHighlighting\(\);/);
+    assert.equal(resyncSource.includes('document.getElementById("deleteWordBtn")'), false);
+
+    // ...and the same teardown runs wherever wrappers are destroyed under a
+    // control: the full clear and the per-word removal.
+    for (const [name, pattern] of [
+        ["clearHighlighting", /function clearHighlighting\(\) \{[\s\S]*?dismissActiveWidget\(\);/],
+        ["removeHighlightsForWord", /function removeHighlightsForWord\(word\) \{[\s\S]*?dismissActiveWidget\(\);/]
+    ]) {
+        assert.match(contentSource, pattern, `expected ${name} to run the shared teardown`);
+    }
+
+    // Escape and scroll dismissal are wired at the document/window level, and
+    // scroll is captured because it does not bubble from inner scrollers.
+    assert.match(contentSource, /event\.key === "Escape" && activeWidget/);
+    assert.match(contentSource, /"scroll",[\s\S]*?\{ capture: true, passive: true \}/);
+    // The open-time grace window must not depend on requestAnimationFrame:
+    // rAF does not run in a hidden or throttled tab, which would leave scroll
+    // dismissal permanently disarmed there.
+    assert.match(contentSource, /Date\.now\(\) - widgetOpenedAt > WIDGET_SCROLL_GRACE_MS/);
+    assert.doesNotMatch(contentSource, /requestAnimationFrame\(\(\) => \{\s*\r?\n\s*if \(activeWidget/);
+});
+
 test("CI verifies security checks, tests, and the unpacked package", async () => {
     const workflow = await readFile(
         path.join(repositoryRoot, ".github", "workflows", "extension-ci.yml"),

@@ -26,6 +26,121 @@ function setExtensionEnabledForSite(enabled) {
     return extensionEnabledForSite;
 }
 
+// Widget ownership: one control on screen at a time (#51)
+//
+// LazyLex has three control surfaces -- the add-word/add-sentence button, the
+// delete button and the inline translation editor. Before this existed each
+// one only removed *its own kind* when it opened, so any pair (or all three)
+// could be live at once, in different places, belonging to different words.
+//
+// The rule is now: whatever is open is recorded here, and every path that
+// opens a control -- or that has any reason to close one -- goes through
+// `setActiveWidget()` / `dismissActiveWidget()`.
+//
+// Why a teardown callback rather than "remove the node": the translation
+// editor hides the original `.translation` span (`display: none`) and only
+// its own teardown puts it back. A generic dismiss that called `.remove()`
+// on the container would leave the word permanently without a translation.
+// So each surface hands in the function that closes *it* cleanly, and the
+// shared dismiss runs that.
+let activeWidget = null;
+
+// Scroll dismissal ignores anything that arrives in the first moments after a
+// control opens: focusing the edit input can scroll the page by itself, and
+// that must not close the control that was just opened. A timestamp is used
+// rather than a requestAnimationFrame "arm it next frame", because rAF does
+// not run in a hidden or throttled tab -- which would leave scroll dismissal
+// permanently disarmed there.
+const WIDGET_SCROLL_GRACE_MS = 250;
+let widgetOpenedAt = 0;
+
+// Anything the extension itself put on the page. A click or mouseup landing
+// inside one of these belongs to that control and must not be treated as
+// "the user interacted with the page", which would dismiss it mid-use.
+const WIDGET_CONTROL_SELECTOR =
+    "#add-new-word, #add-new-sentence, #deleteWordBtn, .edit-translation-container";
+
+function isWidgetControlNode(node) {
+    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+    return !!element?.closest?.(WIDGET_CONTROL_SELECTOR);
+}
+
+// Puts back the `.translation` span an edit container is hiding. Used both by
+// the editor's own teardown and by the defensive sweep below, so a translation
+// can never be left invisible no matter which route closed the editor (#51,
+// acceptance criterion 7).
+function restoreTranslationBehind(editContainer) {
+    const original = editContainer?.previousElementSibling;
+    if (original?.classList?.contains("translation") && original.style.display === "none") {
+        original.style.display = "";
+    }
+}
+
+// Belt and braces: close anything that looks like a LazyLex control even if
+// no teardown was registered for it. This covers controls that outlived their
+// registration -- a re-injected content script, or a widget whose word was
+// destroyed underneath it by an SPA navigation.
+function sweepOrphanedWidgetControls() {
+    document
+        .querySelectorAll("#add-new-word, #add-new-sentence, #deleteWordBtn")
+        .forEach((control) => control.remove());
+
+    document.querySelectorAll(".edit-translation-container").forEach((container) => {
+        restoreTranslationBehind(container);
+        container.remove();
+    });
+}
+
+// Closes whatever control is currently open. Safe to call when nothing is
+// open, and safe to call twice; every open path calls it first.
+function dismissActiveWidget() {
+    const widget = activeWidget;
+    activeWidget = null;
+    widgetOpenedAt = 0;
+
+    if (widget?.dismiss) {
+        try {
+            widget.dismiss();
+        } catch (error) {
+            console.warn("[LazyLexExt] Unable to close the open control:", error?.message || error);
+        }
+    }
+
+    sweepOrphanedWidgetControls();
+}
+
+// Registers a freshly opened control, dismissing whatever was open before it.
+// `widget` is `{ type, target, dismiss }`; `target` lets a surface recognise a
+// repeat click on itself (the editor uses it to toggle closed).
+//
+// Call this *before* inserting the new control into the document: the
+// dismissal it performs includes the defensive sweep, which would otherwise
+// remove the node that was just attached.
+function setActiveWidget(widget) {
+    dismissActiveWidget();
+    activeWidget = widget;
+    widgetOpenedAt = Date.now();
+}
+
+// Every control is positioned from a rect captured when it opened, so it
+// detaches from its word the moment the page scrolls. Capture phase, because
+// scroll does not bubble from a scrollable element up to window.
+window.addEventListener(
+    "scroll",
+    () => {
+        if (activeWidget && Date.now() - widgetOpenedAt > WIDGET_SCROLL_GRACE_MS) {
+            dismissActiveWidget();
+        }
+    },
+    { capture: true, passive: true }
+);
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && activeWidget) {
+        dismissActiveWidget();
+    }
+});
+
 // Selection classification (word / phrase / sentence)
 //
 // Sentence saving is a premium-only feature with its own backend contract
@@ -112,11 +227,13 @@ let youtubeNavigationChain = Promise.resolve();
 // "reload" wordsChanged broadcast already relies on, so there is a single,
 // already-tested code path for "wipe the page and rehighlight."
 async function resyncHighlightsForCurrentPage() {
+    // Before anything is torn down: an open control is anchored to a wrapper
+    // that is about to be destroyed. This used to remove #deleteWordBtn only,
+    // so an open edit field survived an SPA navigation attached to a span that
+    // no longer existed (#51). The shared dismiss runs each surface's own
+    // teardown, which is also what restores a hidden translation.
+    dismissActiveWidget();
     clearHighlighting();
-    const existingDeleteButton = document.getElementById("deleteWordBtn");
-    if (existingDeleteButton) {
-        existingDeleteButton.remove();
-    }
 
     if (!extensionEnabledForSite) {
         // Excluded site: the cleanup above is still correct (stale wrappers
@@ -635,6 +752,13 @@ function animateWordToToolbar(selectedText, rect) {
 // Highlighting/clearing highlighting saved words
 
 function clearHighlighting() {
+    // Wrappers are about to be replaced by plain text, so any control anchored
+    // to one has to go first -- otherwise it is left floating over a word that
+    // no longer exists. This covers every re-highlight route (the exclusion
+    // toggle, the wordsChanged reload/clear broadcasts, yt-navigate-start and
+    // resyncHighlightsForCurrentPage). It is a no-op when nothing is open.
+    dismissActiveWidget();
+
     const wrappers = document.querySelectorAll('span.highlight-wrapper');
     const parentsToNormalize = new Set();
 
@@ -780,6 +904,10 @@ function updateHighlightsForWord(word) {
 }
 
 function removeHighlightsForWord(word) {
+    // The word is going away (deleted here, from the popup, or reclassified as
+    // learned). Any control anchored to one of its wrappers goes with it (#51).
+    dismissActiveWidget();
+
     const wrappers = document.querySelectorAll(`.highlight-wrapper[data-word-id="${word.id}"]`);
     const parentsToNormalize = new Set();
     wrappers.forEach(wrapper => {
@@ -1172,14 +1300,19 @@ document.addEventListener("keydown", function (event) {
 });
 
 document.addEventListener("mouseup", function (event) {
-    if (event.target.id === "add-new-word" || event.target.id === "add-new-sentence") {
+    // A mouseup inside one of our own controls is that control's business
+    // (clicking "+", the delete button, or into the edit input). Dismissing
+    // here would destroy the control before its own click handler ran.
+    if (isWidgetControlNode(event.target)) {
         return;
     }
 
-    const existingButton = document.getElementById("add-new-word") || document.getElementById("add-new-sentence");
-    if (existingButton) {
-        existingButton.remove();
-    }
+    // Any interaction with the page closes whatever is open, before a new
+    // selection can add a second control somewhere else (#51, criterion 3).
+    // mouseup runs ahead of click, so the delete/edit paths below still get a
+    // clean slate to open into.
+    dismissActiveWidget();
+
     if (event.target.tagName !== "BUTTON") {
         const selection = window.getSelection();
         const selectedText = selection.toString().trim();
@@ -1205,7 +1338,7 @@ document.addEventListener("mouseup", function (event) {
                     handleSentenceSelection(selectedText);
                     window.getSelection().empty();
                     window.getSelection().removeAllRanges();
-                    button.remove();
+                    dismissActiveWidget();
                 });
             } else {
                 button.id = "add-new-word";
@@ -1215,10 +1348,17 @@ document.addEventListener("mouseup", function (event) {
                     runLogic(selectedText, rect);
                     window.getSelection().empty();
                     window.getSelection().removeAllRanges();
-                    button.remove();
+                    dismissActiveWidget();
                 });
             }
 
+            // Registered before it is attached, so the dismissal sweep inside
+            // setActiveWidget cannot remove the button we are about to add.
+            setActiveWidget({
+                type: selectionType === "sentence" ? "add-sentence" : "add-word",
+                target: button,
+                dismiss: () => button.remove()
+            });
             document.body.appendChild(button);
         }
     }
@@ -1237,6 +1377,14 @@ document.addEventListener("mousedown", (e) => {
 }, true);
 
 document.addEventListener("click", (e) => {
+    // Clicks inside an open control (the edit input, its save button, the
+    // delete button) belong to that control. Without this the edit input --
+    // which lives inside the highlight wrapper -- would be read as "clicked
+    // the word" and pop a delete button next to the field being typed in.
+    if (isWidgetControlNode(e.target)) {
+        return;
+    }
+
     const wrapper = e.target.closest('.highlight-wrapper');
 
     // A highlighted word can live inside a link. Keep the first click on the
@@ -1246,15 +1394,18 @@ document.addEventListener("click", (e) => {
         e.stopPropagation();
     }
 
-    // Handle click on translation to edit
+    // Handle click on translation to edit. showEditUI() dismisses whatever is
+    // open (including the delete button raised by the previous click on this
+    // same word) before opening the field -- #51, criterion 1.
     if (e.target.classList.contains('translation') && wrapper) {
         showEditUI(e.target, wrapper.dataset.wordId);
         // Prevent delete button from showing up when we click to edit
         return;
     }
 
-    const existingDeleteButton = document.getElementById("deleteWordBtn");
-    if (existingDeleteButton) existingDeleteButton.remove();
+    // Any other click on the page closes what is open (#51, criterion 5),
+    // whether or not it lands on a highlighted word.
+    dismissActiveWidget();
 
     // This logic shows the delete button when a highlighted word is clicked
     if (!wrapper) return;
@@ -1275,11 +1426,19 @@ document.addEventListener("click", (e) => {
         deleteButton.disabled = true;
         try {
             await deleteWordFromStorage(wrapper.dataset.wordId);
-            deleteButton.remove();
+            dismissActiveWidget();
         } catch (error) {
             deleteButton.disabled = false;
             showContentNotification(error?.message || "Unable to delete the word.", "error");
         }
+    });
+
+    // Registered before it is attached (see setActiveWidget): opening the
+    // delete control closes an open edit field or add button first.
+    setActiveWidget({
+        type: "delete",
+        target: wrapper,
+        dismiss: () => deleteButton.remove()
     });
 
     // Append to the document so clipped links/containers cannot hide the control.
@@ -1287,17 +1446,13 @@ document.addEventListener("click", (e) => {
 });
 
 function showEditUI(translationSpan, wordId) {
-    const existingEditContainer = document.querySelector('.edit-translation-container');
-    if (existingEditContainer) {
-        const originalSpan = existingEditContainer.previousSibling;
-        if (originalSpan && originalSpan.style.display === 'none') {
-            originalSpan.style.display = '';
-        }
-        existingEditContainer.remove();
-
-        if (originalSpan === translationSpan) {
-            return;
-        }
+    // Clicking the translation whose field is already open still toggles it
+    // closed, exactly as before -- but "close it" is now the shared dismiss,
+    // so the translation is restored the same way from every route.
+    const wasEditingThisSpan = activeWidget?.type === "edit" && activeWidget.target === translationSpan;
+    dismissActiveWidget();
+    if (wasEditingThisSpan) {
+        return;
     }
 
     translationSpan.style.display = 'none';
@@ -1319,9 +1474,27 @@ function showEditUI(translationSpan, wordId) {
     editContainer.appendChild(input);
     editContainer.appendChild(saveButton);
 
+    // Registered before insertion (see setActiveWidget). The teardown is what
+    // makes the shared dismiss safe for this surface: it puts the hidden
+    // translation back rather than only deleting the container, so no route
+    // out of the editor can leave a word without its translation (#51,
+    // criterion 7).
+    setActiveWidget({
+        type: "edit",
+        target: translationSpan,
+        dismiss: () => {
+            editContainer.remove();
+            if (translationSpan.style.display === 'none') {
+                translationSpan.style.display = '';
+            }
+        }
+    });
+
     translationSpan.parentNode.insertBefore(editContainer, translationSpan.nextSibling);
 
-    input.focus();
+    // preventScroll: focusing an off-screen input would scroll the page, and
+    // scrolling dismisses the control that was just opened.
+    input.focus({ preventScroll: true });
 
     input.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
@@ -1344,7 +1517,11 @@ function showEditUI(translationSpan, wordId) {
             }
         }
 
-        editContainer.remove();
+        // Closing through the shared dismiss also restores the translation
+        // span. The old `editContainer.remove()` relied on the wordsChanged
+        // broadcast to un-hide it, so saving an empty value (or a word that
+        // had no id) left the translation invisible.
+        dismissActiveWidget();
     });
 }
 
