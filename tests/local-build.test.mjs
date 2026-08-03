@@ -1727,3 +1727,63 @@ test("translations render in one casing, and the rule lives in one place", async
         "sentence translations must keep their own casing"
     );
 });
+
+test("the options page toast does not collide with popup.css's bottom sheet", async () => {
+    const optionsHtml = await readFile(path.join(repositoryRoot, "options.html"), "utf8");
+    const optionsJs = await readFile(path.join(repositoryRoot, "options.js"), "utf8");
+    const popupCss = await readFile(path.join(repositoryRoot, "popup.css"), "utf8");
+
+    // options.html links popup.css, which styles `.notification` as a bottom
+    // sheet: `left: 0; right: 0; bottom: -20%; display: flex`. The options page
+    // declared its own `.notification` as a top-right toast. Same specificity,
+    // so the cascade resolved property by property rather than one rule
+    // replacing the other -- the element kept `bottom` and `left` from
+    // popup.css and `top` and `right` from options.html. A fixed box anchored
+    // on all four sides stretches, which is why an export confirmation
+    // rendered as a full-page orange block.
+    assert.match(popupCss, /\.notification \{/, "popup.css still owns .notification");
+    assert.ok(
+        popupCss.includes("bottom: -20%"),
+        "the bottom-sheet geometry this test guards against is still in popup.css"
+    );
+
+    // The fix is a distinct name, not a `bottom: auto` patch: sharing a class
+    // across two pages with different layouts is the defect itself.
+    assert.match(optionsHtml, /<div id="notification" class="options-toast"/);
+    assert.equal(
+        /class="notification"/.test(optionsHtml),
+        false,
+        "the options toast must not reuse popup.css's class"
+    );
+    assert.equal(
+        popupCss.includes(".options-toast"),
+        false,
+        "popup.css must not reach the options toast"
+    );
+
+    // Every caller already passed a type; nothing rendered it, so a failed
+    // import looked identical to a successful export.
+    for (const variant of ["success", "warning", "error"]) {
+        assert.ok(
+            optionsHtml.includes(`.options-toast.options-toast-${variant}`),
+            `expected a ${variant} variant`
+        );
+    }
+    assert.match(optionsJs, /notification\.classList\.remove\(\.\.\.TOAST_TYPE_CLASSES\)/);
+
+    // Settings save used to rely on static markup for its text, so after an
+    // export it re-announced the export.
+    const saveToast = optionsJs.match(/function showNotification\(\)[\s\S]*?\n\}/)?.[0];
+    assert.ok(saveToast, "expected showNotification");
+    assert.match(saveToast, /showToast\('Settings saved successfully!', 'success'\)/);
+    assert.match(
+        optionsHtml,
+        /<div id="notification"[^>]*><\/div>/,
+        "the toast element must ship empty, so no stale text can be revealed"
+    );
+
+    // Two toasts in quick succession shared a timer, so the first one's
+    // timeout hid the second early.
+    assert.match(optionsJs, /let toastHideTimer = null;/);
+    assert.match(optionsJs, /clearTimeout\(toastHideTimer\)/);
+});

@@ -7,13 +7,48 @@ let selectedTranslationColor = '#d0d0d0';
 let highlightingToggle, highlightingOptions, customHighlightColor, customTranslationColor;
 let previewHighlight, previewTranslation;
 
-function showNotification() {
+const TOAST_TYPE_CLASSES = [
+    'options-toast-success',
+    'options-toast-warning',
+    'options-toast-error'
+];
+
+// One handle, because two toasts in quick succession used to share a timer:
+// the first one's timeout fired while the second was still on screen and hid
+// it early. Export-then-save is exactly that sequence.
+let toastHideTimer = null;
+
+function showToast(message, type = 'info') {
     const notification = document.getElementById('notification');
+    if (!notification) {
+        return;
+    }
+
+    if (toastHideTimer !== null) {
+        clearTimeout(toastHideTimer);
+        toastHideTimer = null;
+    }
+
+    notification.textContent = String(message || '');
+    notification.classList.remove(...TOAST_TYPE_CLASSES);
+    if (type !== 'info') {
+        notification.classList.add(`options-toast-${type}`);
+    }
+    notification.setAttribute('role', type === 'error' ? 'alert' : 'status');
     notification.classList.add('show');
 
-    setTimeout(() => {
+    toastHideTimer = setTimeout(() => {
         notification.classList.remove('show');
-    }, 3000);
+        toastHideTimer = null;
+    }, 4000);
+}
+
+// Settings save used to call a variant that only toggled `.show` and never set
+// any text. It relied on the markup shipping "Settings saved successfully!" as
+// static content -- so once an export or import had overwritten it, saving
+// settings announced the previous export instead.
+function showNotification() {
+    showToast('Settings saved successfully!', 'success');
 }
 
 function updatePreview() {
@@ -302,16 +337,5 @@ function readFileContent(file) {
 
 function showNotificationWithMessage(message, type = "info") {
     console.log(`${type.toUpperCase()}: ${message}`);
-    
-    // Update the existing notification element
-    const notification = document.getElementById('notification');
-    if (notification) {
-        notification.textContent = message;
-        notification.classList.add('show');
-        
-        // Auto-hide after 4 seconds
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 4000);
-    }
+    showToast(message, type);
 }
