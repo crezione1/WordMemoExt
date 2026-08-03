@@ -24,6 +24,7 @@ const runtimeFiles = [
     "settings.json",
     "styles.css",
     "subscription-manager.js",
+    "translation-format.js",
     "word-io-manager.js"
 ];
 

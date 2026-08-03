@@ -164,7 +164,7 @@ function createDictionaryListItem(item) {
 
     const translation = document.createElement("span");
     translation.className = "word-list-translation";
-    translation.textContent = String(item?.translation || "");
+    translation.textContent = normalizeTranslationCase(item?.translation);
 
     const actions = document.createElement("div");
     actions.className = "word-list-actions";
@@ -436,6 +436,10 @@ function createSentenceListItem(item) {
 
     const translation = document.createElement("span");
     translation.className = "word-list-translation";
+    // Deliberately NOT normalizeTranslationCase: this is a whole sentence, and
+    // a sentence's leading capital is correct rather than provider noise. The
+    // rule applies to word and phrase translations, which are rendered inline
+    // beside a lowercased source word and have to match it.
     translation.textContent = String(item?.translation || "");
 
     const actions = document.createElement("div");
@@ -1102,7 +1106,7 @@ async function addNewWordFromPopup() {
             throw new Error(resp?.error?.message || "Translation failed. Please try again.");
         }
         const tr = resp.result;
-        const translation = String(tr.translation).trim();
+        const translation = normalizeTranslationCase(tr.translation);
         const synonyms = Array.isArray(tr.synonyms) ? tr.synonyms : [];
         const examples = Array.isArray(tr.examples) ? tr.examples : [];
 
