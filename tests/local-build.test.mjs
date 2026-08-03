@@ -1852,3 +1852,82 @@ test("an excluded site gets no widget either, not just no translations (#48)", a
         "the sentence control must not advertise a premium tier"
     );
 });
+
+test("exclusion entries are removed by data, not by the row's rendered text", async () => {
+    const popupSource = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
+
+    // A row is `<li><span>site</span><button>×</button></li>`, so
+    // `li.textContent` is `chatgpt.com×`. Both removal paths compared that
+    // against storage, matched nothing, and the "×" did nothing.
+    //
+    // The toggle path was worse: it used the same comparison to FIND the row,
+    // never found it, and then called `.remove()` on undefined. That threw
+    // before the storage write at the end of the function, so re-enabling a
+    // site silently did nothing at all.
+    assert.equal(
+        /node\.textContent\.trim\(\) === currentSiteHostname/.test(popupSource),
+        false,
+        "the toggle must not identify a row by its rendered text"
+    );
+    assert.equal(
+        /button\.parentElement\.textContent\.trim\(\)/.test(popupSource),
+        false,
+        "removal must not read the site name out of the row's text"
+    );
+    assert.match(popupSource, /listItem\.dataset\.site = String\(text \|\| ""\);/);
+
+    const remove = popupSource.match(
+        /async function removeSiteFromExclusion\(e\)[\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(remove, "expected removeSiteFromExclusion");
+    assert.match(remove, /listItem\.dataset\.site/);
+
+    // The row used to be removed unconditionally, so a failed removal still
+    // looked like it worked until the panel was reopened.
+    const removedIndex = remove.indexOf("listItem.remove();");
+    const guardIndex = remove.indexOf("updatedList.length === result.excludedSites.length");
+    assert.ok(guardIndex !== -1, "a no-op removal must not touch the DOM");
+    assert.ok(guardIndex < removedIndex, "the guard must run before the row is removed");
+    // Storage first, then the UI, so the panel never shows a state that was
+    // not persisted.
+    assert.ok(
+        remove.indexOf("chrome.storage.local.set") < removedIndex,
+        "storage must be written before the row is removed"
+    );
+
+    // Exercise the two filters, rather than asserting they look right.
+    const context = vm.createContext({});
+    vm.runInContext(
+        [
+            popupSource.match(/function normalizeExcludedSite\(value\)[\s\S]*?\n\}/)[0],
+            popupSource.match(/function hostnameMatches\(hostname, excludedHostname\)[\s\S]*?\n\}/)[0]
+        ].join("\n"),
+        context
+    );
+    const { normalizeExcludedSite, hostnameMatches } = context;
+
+    const removeFrom = (list, target) => {
+        const normalized = normalizeExcludedSite(target);
+        return list.filter((site) => normalizeExcludedSite(site) !== normalized);
+    };
+    assert.deepEqual(
+        removeFrom(["developer.chrome.com", "chatgpt.com"], "chatgpt.com"),
+        ["developer.chrome.com"]
+    );
+    // The value the old code actually compared with.
+    assert.deepEqual(
+        removeFrom(["developer.chrome.com", "chatgpt.com"], "chatgpt.com×"),
+        ["developer.chrome.com", "chatgpt.com"],
+        "the old comparison could never match -- this is the reported bug"
+    );
+    assert.deepEqual(removeFrom(["ChatGPT.com"], "chatgpt.com"), []);
+
+    // Enabling a site must clear a parent-domain entry too, or the site is
+    // re-disabled as soon as the list is re-read.
+    const enableFilter = (list, host) => list.filter((site) => !hostnameMatches(host, site));
+    assert.deepEqual(enableFilter(["example.com", "other.com"], "www.example.com"), ["other.com"]);
+
+    // Duplicates would defeat the normalised removal: one click clears both
+    // storage entries while only one row disappears.
+    assert.match(popupSource, /const alreadyExcluded = result\.excludedSites\.some\(/);
+});

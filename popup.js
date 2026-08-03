@@ -617,8 +617,25 @@ function checkIfCurrentSiteEnabled() {
     });
 }
 
+// Normalised the same way `hostnameMatches` normalises a stored entry, so a
+// site added as `WWW.Example.com.` can still be found and removed.
+function normalizeExcludedSite(value) {
+    return String(value || "")
+        .trim()
+        .replace(/^\.+|\.+$/g, "")
+        .toLocaleLowerCase();
+}
+
 function generateExclusionListItem(text) {
     const listItem = document.createElement("li");
+    // The site name is carried as data, not inferred from the row's text.
+    //
+    // Both removal paths used to read `listItem.textContent`, which is the
+    // label AND the button's own "×" glyph -- so the value they compared
+    // against storage was `chatgpt.com×`. It matched nothing, and neither
+    // removal worked. Reading a value back out of rendered text is what broke;
+    // an attribute cannot drift when the markup changes again.
+    listItem.dataset.site = String(text || "");
     const label = document.createElement("span");
     label.textContent = String(text || "");
     const button = document.createElement("button");
@@ -648,22 +665,39 @@ async function toggleExtensionState() {
     let updatedList;
 
     if (enableExtensionCheckbox.checked) {
-        updatedList = excludedSites.filter((site) => site !== currentSiteHostname);
+        // Removes every entry that covers this host, not only an exact string
+        // match: `example.com` is what shadows `www.example.com`, and leaving
+        // it behind would re-disable the site the moment the panel reloaded.
+        updatedList = excludedSites.filter(
+            (site) => !hostnameMatches(currentSiteHostname, site)
+        );
 
-        let currentSiteItem;
+        // This loop used to compare `node.textContent`, which includes the
+        // row's "×" glyph, so it never found the row -- and the
+        // `currentSiteItem.remove()` that followed threw on undefined. The
+        // throw happened BEFORE the storage write at the end of this function,
+        // so re-enabling a site silently did nothing at all. Matching on the
+        // data attribute, and not assuming a row was found, fixes both.
+        Array.from(exclusionList.children)
+            .filter((node) => hostnameMatches(currentSiteHostname, node.dataset.site))
+            .forEach((node) => node.remove());
 
-        exclusionList.childNodes.forEach((node) => {
-            if (!(node.textContent.trim() === currentSiteHostname)) return;
-            currentSiteItem = node;
-        });
-
-        currentSiteItem.remove();
         isEnabled = true;
     } else {
-        updatedList = [...excludedSites, currentSiteHostname];
+        // Same duplicate guard as addSiteToExclusion: this toggle and the
+        // input are two ways to add the same host, and the panel can be
+        // reopened between them.
+        const alreadyExcluded = excludedSites.some(
+            (site) => hostnameMatches(currentSiteHostname, site)
+        );
+        updatedList = alreadyExcluded
+            ? excludedSites
+            : [...excludedSites, currentSiteHostname];
 
-        const listItem = generateExclusionListItem(currentSiteHostname);
-        exclusionList.prepend(listItem);
+        if (!alreadyExcluded) {
+            const listItem = generateExclusionListItem(currentSiteHostname);
+            exclusionList.prepend(listItem);
+        }
         isEnabled = false;
     }
 
@@ -688,6 +722,20 @@ async function addSiteToExclusion() {
             excludedSites: [],
         });
 
+        // Adding the same site twice used to store it twice and render two
+        // rows. Removal matches on the normalised host, so one click would
+        // clear both entries from storage while only one row disappeared --
+        // leaving a row that refuses to remove because it is no longer there.
+        const normalizedSite = normalizeExcludedSite(site);
+        const alreadyExcluded = result.excludedSites.some(
+            (existing) => normalizeExcludedSite(existing) === normalizedSite
+        );
+        if (alreadyExcluded) {
+            siteInput.value = "";
+            showNotification(`${site} is already excluded.`);
+            return;
+        }
+
         const updatedList = [...result.excludedSites, site];
         await chrome.storage.local.set({excludedSites: updatedList});
 
@@ -704,25 +752,40 @@ async function addSiteToExclusion() {
 
 async function removeSiteFromExclusion(e) {
     const button = e.target.closest("button");
-
-    console.log(button);
-
-    if (button && button.parentElement.tagName === "LI") {
-        const siteToRemove = button.parentElement.textContent.trim();
-
-        const result = await chrome.storage.local.get({
-            excludedSites: [],
-        });
-
-        const updatedList = result.excludedSites.filter((site) => site !== siteToRemove);
-        await chrome.storage.local.set({excludedSites: updatedList});
-        button.parentElement.remove();
-
-        const currentSiteHostname = getSiteHostname(currentSite);
-
-        isEnabled = siteToRemove === currentSiteHostname || isEnabled;
-        enableExtensionCheckbox.checked = isEnabled;
+    const listItem = button?.closest("li");
+    if (!listItem) {
+        return;
     }
+
+    const siteToRemove = listItem.dataset.site || "";
+    const normalizedTarget = normalizeExcludedSite(siteToRemove);
+    if (!normalizedTarget) {
+        return;
+    }
+
+    const result = await chrome.storage.local.get({
+        excludedSites: [],
+    });
+
+    const updatedList = result.excludedSites.filter(
+        (site) => normalizeExcludedSite(site) !== normalizedTarget
+    );
+
+    // The row used to be removed unconditionally, so when the filter matched
+    // nothing the entry vanished from the panel and came back on reopen. The
+    // UI now only claims what storage actually did.
+    if (updatedList.length === result.excludedSites.length) {
+        console.warn(`[LazyLex] "${siteToRemove}" was not in the exclusion list.`);
+        return;
+    }
+
+    await chrome.storage.local.set({excludedSites: updatedList});
+    listItem.remove();
+
+    const currentSiteHostname = getSiteHostname(currentSite);
+
+    isEnabled = hostnameMatches(currentSiteHostname, siteToRemove) || isEnabled;
+    enableExtensionCheckbox.checked = isEnabled;
 }
 
 function showNotification(message) {
