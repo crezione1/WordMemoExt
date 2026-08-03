@@ -1435,14 +1435,19 @@ test("the click ending a selection gesture does not dismiss the control that ges
     )?.[0];
     assert.ok(mouseupHandler, "expected the mouseup handler");
 
+    // The early return is now composedPath-based (#52) -- the controls live in
+    // a shadow root, so event.target is retargeted to the host. The ordering
+    // requirement is unchanged: clear the flag before anything can return.
     assert.match(
         mouseupHandler,
-        /selectionGestureOpenedControl = false;[\s\S]*?isWidgetControlNode\(event\.target\)/,
+        /selectionGestureOpenedControl = false;[\s\S]*?isWidgetControlEvent\(event\)/,
         "the flag must be cleared before the early return, so it cannot leak into a later gesture"
     );
+    // The control is attached by mountControl now rather than appended to the
+    // body, but the flag must still be set only after it is actually attached.
     assert.match(
         mouseupHandler,
-        /document\.body\.appendChild\(button\);[\s\S]*?selectionGestureOpenedControl = true;/,
+        /mountControl\(button, \{[\s\S]*?\}\);[\s\S]*?selectionGestureOpenedControl = true;/,
         "the flag must be set once the add control is actually attached"
     );
 
