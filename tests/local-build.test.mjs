@@ -301,7 +301,7 @@ test("popup identity placeholders and settings language values are safe", async 
     );
 });
 
-test("sentence selections are classified distinctly from words/phrases and gated to premium", async () => {
+test("sentence selections are classified distinctly and gated by the trial, not by premium (#49)", async () => {
     const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
     const backgroundSource = await readFile(path.join(repositoryRoot, "background.js"), "utf8");
     const popupSource = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
@@ -339,10 +339,38 @@ test("sentence selections are classified distinctly from words/phrases and gated
     )?.[0];
     assert.ok(sentenceHandlerSource, "expected the sentence selection handler");
     assert.doesNotMatch(sentenceHandlerSource, /runLogic\(|translateWithTAS\(/);
-    assert.match(sentenceHandlerSource, /action: "getSubscriptionStatus"/);
     assert.match(sentenceHandlerSource, /action: "translateSentence"/);
-    assert.match(sentenceHandlerSource, /showSentencePremiumNotification\(\)/);
     assert.match(contentSource, /SENTENCE_MAX_LENGTH = 500/);
+
+    // Sentences are NOT a premium feature (issue #49). #28 was closed when the
+    // product moved to a trial where everything is open until it ends, and
+    // translateSentence server-side runs the same `requireAccess` trial gate
+    // as translateWord. A client-side premium check here refused a feature the
+    // backend would have served -- the "Sentence Saving is Premium" card in
+    // the report.
+    assert.doesNotMatch(sentenceHandlerSource, /action: "getSubscriptionStatus"/);
+    // Comments are allowed to name what was removed; executable code is not.
+    // Stripping them first is what lets this fail for the right reason instead
+    // of tripping over the note that explains the deletion.
+    const contentCode = contentSource
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//"))
+        .join("\n");
+    assert.equal(
+        contentCode.includes("showSentencePremiumNotification("),
+        false,
+        "the premium upsell card must not come back"
+    );
+    assert.equal(
+        contentCode.includes("Sentence Saving is Premium"),
+        false,
+        "the premium upsell copy must not come back"
+    );
+    // An ended trial gets the same card a refused word gets: one explanation
+    // of one account state, not a separate upsell per feature.
+    assert.match(sentenceHandlerSource, /error\?\.reason === TRIAL_EXPIRED_REASON/);
+    assert.match(sentenceHandlerSource, /showTrialEndedNotification\(/);
 
     // Background: a distinct callable/action from translateWord, entitlement
     // checked before any network call, and storage kept out of the shared
@@ -352,8 +380,12 @@ test("sentence selections are classified distinctly from words/phrases and gated
         /async function translateSentenceMutation\(text, targetLanguage\)[\s\S]*?\r?\n}\r?\n/
     )?.[0];
     assert.ok(translateSentenceSource, "expected the sentence translation mutation");
-    assert.match(translateSentenceSource, /getSubscriptionStatus\(\)/);
-    assert.match(translateSentenceSource, /code: "entitlement"/);
+    // The background half of the same removal: no premium pre-check before the
+    // network call, and no locally-manufactured 403.
+    assert.doesNotMatch(translateSentenceSource, /getSubscriptionStatus\(\)/);
+    assert.doesNotMatch(translateSentenceSource, /code: "entitlement"/);
+    // The trial block this callable echoes back is cached like translateWord's.
+    assert.match(translateSentenceSource, /cacheEntitlement\(result\?\.entitlement\)/);
     assert.match(translateSentenceSource, /\$\{functionsBaseUrl\}\/translateSentence/);
     assert.doesNotMatch(translateSentenceSource, /\/translateWord/);
     assert.match(backgroundSource, /users\/\$\{uid\}\/sentences/);
