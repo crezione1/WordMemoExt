@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-fixture="reset.html">
+<head>
+    <meta charset="utf-8">
+    <title>LazyLex fixture - Hostile: aggressive global reset</title>
+    <style>
+        /* The worst case: a global reset with !important everywhere, including a
+           `div` rule aimed squarely at our shadow host. The host survives because its
+           own declarations are inline !important, which outranks any author
+           !important rule a page can write. */
+        *, *::before, *::after {
+            all: revert;
+            box-sizing: content-box;
+        }
+        * {
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: "Comic Sans MS", cursive !important;
+            font-size: 19px !important;
+            line-height: 3 !important;
+            letter-spacing: 2px !important;
+            word-spacing: 5px !important;
+            text-transform: lowercase !important;
+            white-space: pre-wrap !important;
+        }
+        button, input, select, textarea {
+            all: unset !important;
+        }
+        /* Aimed at the shadow host itself. */
+        div {
+            position: static !important;
+            z-index: auto !important;
+            pointer-events: auto !important;
+            display: inline !important;
+            width: auto !important;
+            height: auto !important;
+            opacity: 0.2 !important;
+            transform: scale(3) !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>LazyLex hostile fixture</h1>
+
+    <p id="word">Serendipity</p>
+
+    <p id="sentence">The quick brown fox jumps over the lazy dog every single morning without fail.</p>
+
+    <p id="saved">
+        Here is a
+        <span id="saved-slot"></span>
+        that has already been saved.
+    </p>
+
+    <p>Ordinary page furniture, so the fixture has a host <button type="button">button</button> and an
+        <input type="text" value="input"> of its own for the hostile rules to bite on.</p>
+
+    <script src="/probe.js"></script>
+</body>
+</html>
