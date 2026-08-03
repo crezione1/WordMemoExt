@@ -1787,3 +1787,68 @@ test("the options page toast does not collide with popup.css's bottom sheet", as
     assert.match(optionsJs, /let toastHideTimer = null;/);
     assert.match(optionsJs, /clearTimeout\(toastHideTimer\)/);
 });
+
+test("an excluded site gets no widget either, not just no translations (#48)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // #48 gated every path that RENDERS -- highlightWords,
+    // addHighlightForWord, showTemporaryHighlightWithLoader,
+    // resyncHighlightsForCurrentPage -- so an excluded page stopped showing
+    // translations. It did not gate the paths that OFFER, so selecting text
+    // still produced the "+" button on a site the user had excluded, and the
+    // keyboard shortcut still translated and saved a word there.
+    const mouseupHandler = contentSource.match(
+        /document\.addEventListener\("mouseup",[\s\S]*?\n\}\);/
+    )?.[0];
+    assert.ok(mouseupHandler, "expected the mouseup handler");
+
+    const dismissIndex = mouseupHandler.indexOf("dismissActiveWidget();");
+    const gateIndex = mouseupHandler.indexOf("if (!extensionEnabledForSite) {");
+    const createIndex = mouseupHandler.indexOf('document.createElement("button")');
+    assert.ok(gateIndex !== -1, "the mouseup handler must check the exclusion state");
+    assert.ok(
+        gateIndex < createIndex,
+        "the check must run before the control is built, or the button still appears"
+    );
+    // After the teardown, so a control open when the site becomes excluded is
+    // still removed rather than stranded.
+    assert.ok(
+        dismissIndex !== -1 && dismissIndex < gateIndex,
+        "the gate must not skip dismissActiveWidget()"
+    );
+
+    // The keyboard shortcut never passes through mouseup, so the same check is
+    // needed at the entry point it does use. Without it the rendering was
+    // suppressed downstream while a billable translation had already run --
+    // silent from the user's side, not free from ours.
+    const runLogic = contentSource.match(/async function runLogic\([\s\S]*?\n\}/)?.[0];
+    assert.ok(runLogic, "expected runLogic");
+    const runLogicGate = runLogic.indexOf("if (!extensionEnabledForSite) {");
+    const storageRead = runLogic.indexOf("chrome.storage.local.get");
+    assert.ok(runLogicGate !== -1, "runLogic must check the exclusion state");
+    assert.ok(
+        runLogicGate < storageRead,
+        "the check must come before any work is done"
+    );
+
+    // Excluding a site takes effect without a reload (#48's requirement), and
+    // that has to cover the controls, not only the highlights.
+    const stateChange = contentSource.match(
+        /function handleExtensionStateChange\(enabled\)[\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(stateChange, "expected handleExtensionStateChange");
+    const disabledBranch = stateChange.slice(stateChange.indexOf("} else {"));
+    assert.match(
+        disabledBranch,
+        /dismissActiveWidget\(\);/,
+        "excluding a site must tear down any control already open"
+    );
+
+    // Stale copy: the sentence control still advertised "(Premium)" after #28
+    // was closed and the gate became the trial.
+    assert.equal(
+        contentSource.includes('"Save sentence (Premium)"'),
+        false,
+        "the sentence control must not advertise a premium tier"
+    );
+});
