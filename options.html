@@ -161,25 +161,53 @@
             background: var(--accent-color-dark);
         }
 
-        .notification {
+        /*
+         * Deliberately NOT called `.notification`.
+         *
+         * This page links popup.css, which has its own `.notification` -- a
+         * bottom sheet pinned `left: 0; right: 0; bottom: -20%`. Two rules of
+         * identical specificity do not simply replace one another: the cascade
+         * resolves property by property, so the toast inherited `bottom` and
+         * `left` from popup.css while taking `top` and `right` from here. A
+         * fixed element anchored on all four sides stretches, which is why
+         * "Successfully exported 58 words" rendered as a full-page orange
+         * block with the text floated to the middle-left by popup.css's
+         * `display: flex; align-items: center`.
+         *
+         * Sharing a class name across two pages with different layouts is the
+         * actual defect. A distinct name removes it rather than patching the
+         * symptom with `bottom: auto`.
+         */
+        .options-toast {
             position: fixed;
             top: 20px;
             right: 20px;
+            max-width: 360px;
             padding: 15px 20px;
             background: var(--accent-color);
             color: white;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transform: translateX(100%);
+            transform: translateX(calc(100% + 20px));
             opacity: 0;
-            transition: all 0.3s ease;
+            /* Not `all`: transitioning every property means a colour change
+             * between two toasts animates as well, which reads as a smear. */
+            transition: transform 0.3s ease, opacity 0.3s ease;
             z-index: 1000;
+            pointer-events: none;
         }
 
-        .notification.show {
+        .options-toast.show {
             transform: translateX(0);
             opacity: 1;
         }
+
+        /* `type` was already being passed by every caller and then ignored, so
+         * a failed import announced itself in the same friendly orange as a
+         * successful one. */
+        .options-toast.options-toast-success { background: #1a7f45; }
+        .options-toast.options-toast-warning { background: #b54708; }
+        .options-toast.options-toast-error { background: #b42318; }
 
         .preview-container {
             margin-top: 15px;
@@ -411,9 +439,7 @@
     </div>
 </div>
 
-<div id="notification" class="notification">
-    Settings saved successfully!
-</div>
+<div id="notification" class="options-toast" role="status" aria-live="polite"></div>
 
 <script src="options.js"></script>
 </body>
