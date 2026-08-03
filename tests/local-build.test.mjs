@@ -978,3 +978,56 @@ test("CI verifies security checks, tests, and the unpacked package", async () =>
     assert.match(workflow, /npm run build/);
     assert.match(workflow, /Smoke-check unpacked package/);
 });
+
+test("the click ending a selection gesture does not dismiss the control that gesture just opened (#55)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // The regression this guards against: a text-selection gesture ends with
+    // mouseup AND a click. mouseup opens the add-word button; the trailing
+    // click reached the document handler's blanket dismissal and removed it
+    // within the same gesture, so the button was never usable.
+    assert.match(
+        contentSource,
+        /let selectionGestureOpenedControl = false;/,
+        "expected the gesture flag that survives mouseup into the trailing click"
+    );
+
+    const mouseupHandler = contentSource.match(
+        /document\.addEventListener\("mouseup",[\s\S]*?\n\}\);/
+    )?.[0];
+    assert.ok(mouseupHandler, "expected the mouseup handler");
+
+    assert.match(
+        mouseupHandler,
+        /selectionGestureOpenedControl = false;[\s\S]*?isWidgetControlNode\(event\.target\)/,
+        "the flag must be cleared before the early return, so it cannot leak into a later gesture"
+    );
+    assert.match(
+        mouseupHandler,
+        /document\.body\.appendChild\(button\);[\s\S]*?selectionGestureOpenedControl = true;/,
+        "the flag must be set once the add control is actually attached"
+    );
+
+    const clickHandlers = contentSource.match(
+        /document\.addEventListener\("click",[\s\S]*?\n\}\);/g
+    ) || [];
+    const dismissingClickHandler = clickHandlers.find((handler) =>
+        handler.includes("dismissActiveWidget()")
+    );
+    assert.ok(dismissingClickHandler, "expected the click handler that dismisses on outside clicks");
+
+    const guardIndex = dismissingClickHandler.indexOf("if (selectionGestureOpenedControl)");
+    const blanketDismissIndex = dismissingClickHandler.search(
+        /\n {4}dismissActiveWidget\(\);/
+    );
+    assert.ok(guardIndex !== -1, "expected the gesture guard in the click handler");
+    assert.ok(
+        guardIndex < blanketDismissIndex,
+        "the gesture guard must run before the blanket dismissal, or the button is removed anyway"
+    );
+    assert.match(
+        dismissingClickHandler.slice(guardIndex),
+        /if \(selectionGestureOpenedControl\) \{\s*selectionGestureOpenedControl = false;\s*return;/,
+        "the guard must consume the flag and return, so the delete path cannot open a second control"
+    );
+});

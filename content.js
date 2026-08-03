@@ -54,6 +54,15 @@ let activeWidget = null;
 const WIDGET_SCROLL_GRACE_MS = 250;
 let widgetOpenedAt = 0;
 
+// A text-selection gesture ends with mouseup AND a click: the browser fires
+// click on the common ancestor of mousedown/mouseup right after mouseup. The
+// mouseup handler opens the add-word control, so without this flag the very
+// next event -- part of the same gesture -- reaches the document click
+// handler, is read as "the user clicked elsewhere", and dismisses the button
+// before it can be seen. Set when mouseup opens a control, consumed by the
+// click that closes the same gesture.
+let selectionGestureOpenedControl = false;
+
 // Anything the extension itself put on the page. A click or mouseup landing
 // inside one of these belongs to that control and must not be treated as
 // "the user interacted with the page", which would dismiss it mid-use.
@@ -1300,6 +1309,10 @@ document.addEventListener("keydown", function (event) {
 });
 
 document.addEventListener("mouseup", function (event) {
+    // Cleared first so a flag can never survive into a later, unrelated
+    // gesture -- e.g. if a gesture ended without the trailing click arriving.
+    selectionGestureOpenedControl = false;
+
     // A mouseup inside one of our own controls is that control's business
     // (clicking "+", the delete button, or into the edit input). Dismissing
     // here would destroy the control before its own click handler ran.
@@ -1360,6 +1373,10 @@ document.addEventListener("mouseup", function (event) {
                 dismiss: () => button.remove()
             });
             document.body.appendChild(button);
+
+            // The click terminating this same gesture is still to come; tell
+            // the click handler to leave this control alone.
+            selectionGestureOpenedControl = true;
         }
     }
 });
@@ -1400,6 +1417,16 @@ document.addEventListener("click", (e) => {
     if (e.target.classList.contains('translation') && wrapper) {
         showEditUI(e.target, wrapper.dataset.wordId);
         // Prevent delete button from showing up when we click to edit
+        return;
+    }
+
+    // This click is the tail of the selection gesture that just opened the
+    // add-word control, not a new interaction. Returning here keeps that one
+    // control open and, when the selection sits on an already-highlighted
+    // word, stops the delete path below from opening a second one -- which
+    // would break #51's "one control at a time" in the other direction.
+    if (selectionGestureOpenedControl) {
+        selectionGestureOpenedControl = false;
         return;
     }
 
