@@ -811,17 +811,18 @@ async function translateSentenceMutation(text, targetLanguage) {
         });
     }
 
-    // Authoritative-as-possible check from the extension side: never call
-    // the (billable) translation backend for a non-premium account. The
-    // deployed callable function is expected to re-check this server side
-    // (see crezione1/LazyLexFunctions#1) -- that is the real authority.
-    const subscription = await getSubscriptionStatus();
-    if (!subscription.isPremium) {
-        throw new LazyLexApiError("Sentence translation requires Premium.", {
-            code: "entitlement",
-            status: 403
-        });
-    }
+    // The premium pre-check that stood here is gone (issue #49).
+    //
+    // It refused to call the backend unless `subscriptionStatus` on the user
+    // document said premium. Two things ended it. The product no longer has a
+    // premium/free split -- during the trial everything is open, and #28 was
+    // closed for that reason. And `translateSentence` server-side now runs the
+    // same `requireAccess` trial gate as `translateWord`, so the check here
+    // was not mirroring the server's rule, it was enforcing a stricter one the
+    // server had already dropped. The result was a user being refused a
+    // feature the backend would have served.
+    //
+    // Refusals arrive as `trial-expired`, the same way they do for words.
 
     const idToken = await getFirebaseIdTokenBg();
     if (!idToken) {
@@ -853,6 +854,8 @@ async function translateSentenceMutation(text, targetLanguage) {
     await requireSuccessfulResponse(res, "Sentence translation");
     const json = await res.json();
     const result = json.result || json;
+    // Every callable echoes the trial state back, this one included.
+    await cacheEntitlement(result?.entitlement);
     const translation = String(result?.translation || "").trim();
     if (!translation) {
         throw new LazyLexApiError("LazyLex did not return a sentence translation.", {
@@ -1174,8 +1177,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "translateSentence") {
         translateSentenceMutation(request.text, request.targetLanguage)
             .then((sentence) => sendResponse({ success: true, sentence }))
-            .catch((error) => {
+            .catch(async (error) => {
                 console.error('translateSentence error:', error);
+                await cacheEntitlement(error?.entitlement);
                 sendResponse({ success: false, error: serializeApiError(error) });
             });
         return true;

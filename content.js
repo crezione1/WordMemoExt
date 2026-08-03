@@ -971,65 +971,30 @@ function showContentNotification(message, type = "info") {
     setTimeout(() => notification.remove(), 5000);
 }
 
-// Premium sentence selection (issue #28)
+// Sentence selection (issues #28, #49)
 //
-// Sentences are gated to premium/lifetime users, never touch the shared
-// word/phrase translation flow (translateWithTAS/translateWord), and are
-// stored privately per-account -- see background.js's translateSentence
-// handler and persistSentenceMutation/deleteSentenceMutation.
-
-function showSentencePremiumNotification() {
-    const existing = document.getElementById("lazylex-sentence-premium-notification");
-    if (existing) {
-        existing.remove();
-    }
-
-    const notification = document.createElement("div");
-    notification.id = "lazylex-sentence-premium-notification";
-    notification.setAttribute("role", "status");
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        max-width: 320px;
-        padding: 16px 20px;
-        color: white;
-        background: linear-gradient(135deg, #ff9d7b, #e17e5d);
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(255, 157, 123, 0.4);
-        z-index: 999999;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    `;
-
-    const title = document.createElement("div");
-    title.style.cssText = "font-size:16px;font-weight:700;margin-bottom:8px";
-    title.textContent = "Sentence Saving is Premium";
-
-    const description = document.createElement("div");
-    description.style.cssText = "margin-bottom:12px;opacity:.9;line-height:1.4;font-size:13px";
-    description.textContent = "Saving and translating full sentences is a Premium feature. Word lookups stay free.";
-
-    const upgradeButton = document.createElement("button");
-    upgradeButton.type = "button";
-    upgradeButton.id = "lazylex-sentence-upgrade-btn";
-    upgradeButton.style.cssText = "background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:white;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;width:100%;min-height:44px";
-    upgradeButton.textContent = "Upgrade to Premium";
-    upgradeButton.addEventListener("click", () => {
-        window.open("https://lazylex.com/#/pricing", "_blank");
-        notification.remove();
-    });
-
-    notification.append(title, description, upgradeButton);
-    document.body.appendChild(notification);
-
-    setTimeout(() => notification.remove(), 8000);
-}
+// Sentences never touch the shared word/phrase translation flow
+// (translateWithTAS/translateWord) and are stored privately per-account --
+// see background.js's translateSentence handler and
+// persistSentenceMutation/deleteSentenceMutation.
+//
+// The premium upsell card was deleted here (issue #49). It announced that
+// saving and translating full sentences was a Premium feature and that word
+// lookups stayed free. That describes a product that no longer exists: the
+// freemium split is gone, #28 was closed for that reason, and
+// translateSentence server-side runs the same trial gate as translateWord.
+// The card was refusing a feature the backend would have served.
+//
+// An ended trial now shows showTrialEndedNotification, the same card a refused
+// word gets -- one explanation of one account state rather than a separate
+// upsell per feature.
 
 function describeSentenceError(error) {
     const code = error?.code || "";
-    if (code === "entitlement" || code.includes("403")) {
-        return null; // Caller shows the premium upsell instead of a generic error.
-    }
+    // The `entitlement` / 403 branch that returned null is gone (issue #49).
+    // It existed to tell the caller "show the Premium upsell instead of an
+    // error". There is no premium tier to upsell to, and an ended trial is
+    // matched by `reason`, not by a status code.
     if (code === "validation" || code.includes("400") || code.includes("413")) {
         return error?.message || `Sentences are limited to ${SENTENCE_MAX_LENGTH} characters.`;
     }
@@ -1056,20 +1021,12 @@ async function handleSentenceSelection(rawText) {
         return;
     }
 
-    // Entitlement is checked here purely so a free user never triggers a
-    // network call -- the background handler re-checks authoritatively
-    // before it will call the translation backend.
-    let subscription;
-    try {
-        subscription = await chrome.runtime.sendMessage({ action: "getSubscriptionStatus" });
-    } catch (error) {
-        subscription = null;
-    }
-
-    if (!subscription?.isPremium) {
-        showSentencePremiumNotification();
-        return;
-    }
+    // No entitlement pre-check (issue #49). Sentences are not a premium
+    // feature any more -- #28 was closed when the product moved to a trial
+    // where everything is open until it ends -- and `translateSentence`
+    // server-side runs exactly the same `requireAccess` trial gate as
+    // `translateWord`. Checking here refused a feature the backend would have
+    // served.
 
     showContentNotification("Translating sentence…", "info");
 
@@ -1082,12 +1039,14 @@ async function handleSentenceSelection(rawText) {
 
         if (!response?.success) {
             const error = response?.error;
-            const message = describeSentenceError(error);
-            if (message === null) {
-                showSentencePremiumNotification();
-            } else {
-                showContentNotification(message, "error");
+            // The only entitlement refusal left is an ended trial, and it gets
+            // the same card as a refused word -- one explanation of one state,
+            // not a per-feature upsell.
+            if (error?.reason === TRIAL_EXPIRED_REASON) {
+                showTrialEndedNotification(error.message, error.entitlement);
+                return;
             }
+            showContentNotification(describeSentenceError(error), "error");
             return;
         }
 
@@ -1443,7 +1402,7 @@ function isEligibleTextNode(node) {
     // keeps the guarantee explicit rather than relying on walker semantics.
     // The notification ids stay, because notifications are still light DOM.
     return !parent.closest(
-        ".highlight-wrapper, #lazylex-controls, .lazylex-control, #lazylex-limit-notification, #lazylex-status-notification, #lazylex-sentence-premium-notification"
+        ".highlight-wrapper, #lazylex-controls, .lazylex-control, #lazylex-limit-notification, #lazylex-status-notification"
     );
 }
 
