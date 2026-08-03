@@ -755,7 +755,7 @@ async function saveWordToDictionary(word) {
     }
 
     const tr = await translateWithTAS(baseWord, settings["languageCode"] || "uk");
-    const translation = String(tr.translation || "").trim();
+    const translation = normalizeTranslationCase(tr.translation);
     if (!translation) {
         throw new Error("LazyLex did not return a translation. Please try again.");
     }
@@ -1187,7 +1187,7 @@ function addHighlightForWord(word) {
 
             const translationNode = document.createElement("span");
             translationNode.classList.add("translation");
-            translationNode.textContent = `[${word.translation}]`;
+            translationNode.textContent = `[${normalizeTranslationCase(word.translation)}]`;
             wrapper.appendChild(translationNode);
 
             wrapper.dataset.wordId = word.id;
@@ -1230,7 +1230,7 @@ function updateHighlightsForWord(word) {
     wrappers.forEach(wrapper => {
         const translationSpan = wrapper.querySelector('.translation');
         if (translationSpan) {
-            translationSpan.textContent = `[${word.translation}]`;
+            translationSpan.textContent = `[${normalizeTranslationCase(word.translation)}]`;
             translationSpan.style.display = ''; // Ensure span is visible
         }
     });
@@ -1294,7 +1294,7 @@ function replaceTextNode(node, targetWords, translations) {
 
             const translationNode = document.createElement("span");
             translationNode.classList.add("translation");
-            translationNode.textContent = `[${translations[lowerPart].translation}]`;
+            translationNode.textContent = `[${normalizeTranslationCase(translations[lowerPart].translation)}]`;
             wrapper.appendChild(translationNode);
             fragment.appendChild(wrapper);
         } else {

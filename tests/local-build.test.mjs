@@ -1651,3 +1651,79 @@ test("an absent entitlement block reads as unknown, never as expired (#49)", asy
         "the Add button may only be disabled by an explicit expired state"
     );
 });
+
+test("translations render in one casing, and the rule lives in one place", async () => {
+    const formatSource = await readFile(path.join(repositoryRoot, "translation-format.js"), "utf8");
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const popupSource = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
+    const manifest = JSON.parse(
+        await readFile(path.join(repositoryRoot, "manifest.json"), "utf8")
+    );
+
+    // Providers capitalise inconsistently: the same page showed
+    // `[пограбування]` and `[банк]` next to `[Підготуйтеся]` and `[Повільно]`,
+    // with nothing about the words to explain the difference. The source word
+    // is already lowercased before storage; the translation was the only half
+    // still carrying provider casing.
+    const context = vm.createContext({ globalThis: {} });
+    context.globalThis = context;
+    vm.runInContext(formatSource, context);
+    const normalize = context.normalizeTranslationCase;
+    assert.equal(typeof normalize, "function", "expected the shared formatter");
+
+    assert.equal(normalize("Підготуйтеся"), "підготуйтеся");
+    assert.equal(normalize("Повільно"), "повільно");
+    assert.equal(normalize("пограбування"), "пограбування");
+    assert.equal(normalize("  Банк  "), "банк");
+    // An all-caps remainder is an acronym, not a capitalised word.
+    assert.equal(normalize("ЄС"), "ЄС");
+    assert.equal(normalize("USA"), "USA");
+    // Only the first character moves; an internal capital survives.
+    assert.equal(normalize("Метод; Спосіб"), "метод; Спосіб");
+    // No cased characters is not the same as all-caps.
+    assert.equal(normalize("123"), "123");
+    assert.equal(normalize(""), "");
+    assert.equal(normalize(null), "");
+    assert.equal(normalize(undefined), "");
+
+    // Loaded before the scripts that call it, in both surfaces that render a
+    // translation. If it were only in one, the two would disagree.
+    const contentScript = manifest.content_scripts?.[0]?.js || [];
+    assert.deepEqual(contentScript, ["translation-format.js", "content.js"]);
+    const popupHtml = await readFile(path.join(repositoryRoot, "popup.html"), "utf8");
+    assert.ok(
+        popupHtml.indexOf("translation-format.js") < popupHtml.indexOf("popup.js"),
+        "the formatter must load before popup.js"
+    );
+
+    // Applied at RENDER, not only at save. Words stored before this change
+    // still carry provider casing, and normalising only on the way in would
+    // leave every existing entry inconsistent with every new one.
+    const renderCalls = contentSource.match(/normalizeTranslationCase\(/g) || [];
+    assert.ok(
+        renderCalls.length >= 4,
+        `expected every content.js render and save site to normalise, found ${renderCalls.length}`
+    );
+    assert.equal(
+        /textContent = `\[\$\{word\.translation\}\]`/.test(contentSource),
+        false,
+        "a raw translation must not reach the page"
+    );
+    assert.match(popupSource, /translation\.textContent = normalizeTranslationCase\(item\?\.translation\)/);
+
+    // Sentences are exempt: a sentence's leading capital is correct, not
+    // provider noise.
+    const sentenceItem = popupSource.match(
+        /function createSentenceListItem\(item\)[\s\S]*?\n\}/
+    )?.[0];
+    assert.ok(sentenceItem, "expected the sentence list item builder");
+    const sentenceItemCode = sentenceItem
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//"))
+        .join("\n");
+    assert.equal(
+        sentenceItemCode.includes("normalizeTranslationCase"),
+        false,
+        "sentence translations must keep their own casing"
+    );
+});
