@@ -695,6 +695,16 @@ async function updateWordInStorage(wordId, newTranslation) {
 }
 
 async function runLogic(selectedText, rect) {
+    // The keyboard shortcut reaches here without passing the mouseup handler,
+    // so the exclusion check has to exist here too. Without it the word was
+    // still translated and saved on an excluded page -- the rendering was
+    // suppressed by the gates #48 added downstream, which made it look like
+    // nothing happened while a billable translation call had already been made.
+    if (!extensionEnabledForSite) {
+        console.log('[LazyLexExt] Site is excluded; ignoring the add request.');
+        return;
+    }
+
     // Clean the selection to only get the original word, not the translation
     const originalWord = selectedText.split('[')[0].trim();
     if (!originalWord) return;
@@ -1554,6 +1564,11 @@ function handleExtensionStateChange(enabled) {
         console.log("Extension is enabled for this site.");
     } else {
         clearHighlighting();
+        // A control opened a moment before the site was excluded would
+        // otherwise be left floating over a page LazyLex is no longer part of.
+        // #48's requirement was that translations go without a page reload;
+        // the same has to be true of the controls.
+        dismissActiveWidget();
         console.log("Extension is disabled for this site.");
     }
 }
@@ -1661,6 +1676,21 @@ document.addEventListener("mouseup", function (event) {
     // clean slate to open into.
     dismissActiveWidget();
 
+    // Nothing may be OFFERED on an excluded site either.
+    //
+    // #48 gated every path that RENDERS -- highlightWords, addHighlightForWord,
+    // showTemporaryHighlightWithLoader, resyncHighlightsForCurrentPage -- so an
+    // excluded page stopped showing translations. It did not gate this handler,
+    // so selecting text still produced the "+" button. Excluding a site means
+    // LazyLex is absent from it, not that it renders nothing while still
+    // reaching for the user's selection.
+    //
+    // Placed after dismissActiveWidget() deliberately: a control already open
+    // when the site is excluded must still be torn down.
+    if (!extensionEnabledForSite) {
+        return;
+    }
+
     if (event.target.tagName !== "BUTTON") {
         const selection = window.getSelection();
         const selectedText = selection.toString().trim();
@@ -1674,12 +1704,14 @@ document.addEventListener("mouseup", function (event) {
             button.className = "action-button";
 
             if (selectionType === "sentence") {
-                // Distinct control: sentence saving is a separate, gated
-                // action and must never fall through to the word flow.
+                // Distinct control: sentence saving has its own backend
+                // contract and must never fall through to the word flow.
                 button.id = "add-new-sentence";
                 button.innerText = "S+";
-                button.title = "Save sentence (Premium)";
-                button.setAttribute("aria-label", "Save sentence (Premium)");
+                // No longer "(Premium)" -- #28 was closed and the server
+                // gate is the trial, same as for words (#49, #62).
+                button.title = "Save sentence";
+                button.setAttribute("aria-label", "Save sentence");
                 button.addEventListener("click", function () {
                     console.log('[LazyLexExt] sentence button clicked, length:', selectedText.length);
                     handleSentenceSelection(selectedText);
