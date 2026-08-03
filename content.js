@@ -720,6 +720,14 @@ async function runLogic(selectedText, rect) {
     saveWordToDictionary(originalWord).catch((error) => {
         console.error("Error saving word:", error);
         removeTemporaryHighlight(originalWord);
+        // A trial refusal gets the full card, and ONLY the card. Both surfaces
+        // are `position: fixed; top: 20px; right: 20px`, so raising them
+        // together stacked one directly on top of the other -- the overlap in
+        // the #49 bug report.
+        if (error?.lazylexReason === TRIAL_EXPIRED_REASON) {
+            showTrialEndedNotification(error.message, error.lazylexEntitlement);
+            return;
+        }
         showContentNotification(error?.message || "Unable to save this word.", "error");
     });
 }
@@ -727,12 +735,18 @@ async function runLogic(selectedText, rect) {
 // Replace saveWordToDictionary to use local storage and GPT API for translation
 async function saveWordToDictionary(word) {
     console.log('[LazyLexExt] saveWordToDictionary called with:', word);
-        
-    const limitCheck = await chrome.runtime.sendMessage({ action: "checkSubscriptionLimits" });
-    if (!limitCheck.canAdd && limitCheck.reason === 'daily_limit_reached') {
-        showSubscriptionLimitNotification();
-        throw new Error("Daily word limit reached.");
-    }
+
+    // There is no client-side pre-flight check any more (issue #49).
+    //
+    // The old one asked the background script whether a locally-computed
+    // freemium limit of 5 words/day had been hit. That limit no longer exists
+    // in the product, and the client was never in a position to evaluate it
+    // anyway: trial state lives in `users/{uid}/private/entitlement`, which
+    // firestore.rules denies to every client.
+    //
+    // Access is decided where it can be enforced -- inside the callable, which
+    // refuses with `reason: 'trial-expired'`. That refusal arrives through
+    // translateWithTAS below and is handled by runLogic's catch.
 
     const { words } = await chrome.storage.local.get({ words: [] });
     const baseWord = (word || '').trim().toLowerCase();
@@ -789,15 +803,37 @@ async function translateWithTAS(word, targetLang) {
             console.log('[LazyLexExt] translateWithTAS success', { word, translation: response.result.translation, synonymsCount: (response.result.synonyms||[]).length });
             return response.result;
         }
-        throw new Error(response?.error?.message || response?.error || 'Translate failed');
+        // Carry the machine-readable refusal across the Error boundary.
+        // `message` alone cannot be branched on: an expired trial and a 500
+        // both arrive as a string, and they deserve different UI.
+        const failure = new Error(response?.error?.message || response?.error || 'Translate failed');
+        failure.lazylexReason = response?.error?.reason || null;
+        failure.lazylexEntitlement = response?.error?.entitlement || null;
+        throw failure;
     } catch (e) {
         console.warn('[LazyLexExt] translateWithTAS failed:', e?.message || e);
         throw e;
     }
 }
 
-function showSubscriptionLimitNotification() {
-    // Remove any existing notification
+// The refusal `lib/entitlement.js` names when the trial window has closed.
+const TRIAL_EXPIRED_REASON = 'trial-expired';
+
+// Was `showSubscriptionLimitNotification` (issue #49).
+//
+// It announced "You've reached your daily limit of 5 words" -- a limit the
+// product no longer has, raised by a check the client should never have been
+// making. What replaces it fires only when the SERVER refuses, and says the
+// one true thing: the trial is over.
+//
+// Deliberately not auto-dismissed. The old card vanished after 8 seconds,
+// which is fine for "something went wrong" and wrong for "your access just
+// ended, here is how to restore it".
+function showTrialEndedNotification(serverMessage, entitlement) {
+    // Never show this alongside the transient toast -- they occupy identical
+    // fixed coordinates and would overlap.
+    document.getElementById('lazylex-status-notification')?.remove();
+
     const existingNotification = document.getElementById('lazylex-limit-notification');
     if (existingNotification) {
         existingNotification.remove();
@@ -830,7 +866,7 @@ function showSubscriptionLimitNotification() {
 
     const title = document.createElement("div");
     title.style.cssText = "font-size:16px;font-weight:700";
-    title.textContent = "Daily Limit Reached";
+    title.textContent = "Your free trial has ended";
 
     const closeButton = document.createElement("button");
     closeButton.id = "lazylex-close-notification";
@@ -841,13 +877,16 @@ function showSubscriptionLimitNotification() {
 
     const description = document.createElement("div");
     description.style.cssText = "margin-bottom:12px;opacity:.9;line-height:1.4";
-    description.textContent = "You've reached your daily limit of 5 words. Upgrade to Premium for unlimited words!";
+    // Prefer the server's wording: it is the side that knows whether this is a
+    // plain expiry or an expiry after an extension was already used.
+    description.textContent = String(serverMessage || "").trim()
+        || "Your 7-day free trial has ended. Subscribe to keep translating.";
 
     const upgradeButton = document.createElement("button");
     upgradeButton.id = "lazylex-upgrade-btn";
     upgradeButton.type = "button";
     upgradeButton.style.cssText = "background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:white;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:all .2s ease;width:100%;min-height:44px";
-    upgradeButton.textContent = "Upgrade to Premium";
+    upgradeButton.textContent = "Subscribe";
 
     header.append(title, closeButton);
     notification.append(header, description, upgradeButton);
@@ -884,13 +923,9 @@ function showSubscriptionLimitNotification() {
         setTimeout(() => notification.remove(), 300);
     });
 
-    // Auto-remove after 8 seconds
-    setTimeout(() => {
-        if (document.getElementById('lazylex-limit-notification')) {
-            notification.style.animation = 'slideOutRight 0.3s ease-in';
-            setTimeout(() => notification.remove(), 300);
-        }
-    }, 8000);
+    // No auto-dismiss timer. See the note on this function: the user has just
+    // lost access, and a card that removes itself after 8 seconds reads as a
+    // glitch rather than as a state. It closes on × or on Subscribe.
 }
 
 function removeTemporaryHighlight(text) {
