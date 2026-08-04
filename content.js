@@ -186,20 +186,25 @@ const CONTROL_STYLESHEET = `
 }
 
 /*
- * Deliberately larger than the other controls (24px), not drift: #11 raised
- * the delete button to 32px together with the white border and drop shadow so
- * that it stays findable and hittable over dense, high-contrast result pages.
- * Shrinking it to match the "+" button would undo that (#52, criterion 6).
+ * The delete button now matches the add button exactly -- same 24px circle,
+ * same #ff6b35, no border, no shadow. Only the glyph differs.
+ *
+ * It used to be 32px, dark red, white-bordered and drop-shadowed. That was
+ * #11: at the time every control was plain DOM in the host page, so a dense
+ * high-contrast results page could wash it out, and the extra weight was what
+ * kept it findable. #52 moved every control into a shadow root, where no host
+ * selector can reach it and nothing it sits over can change how it renders --
+ * so the reason for the difference no longer exists, and what remained was two
+ * of our own controls looking unrelated for a historical reason.
+ *
+ * Worth knowing: delete is the destructive action, and it is now
+ * distinguishable from add by its glyph alone. The two never appear in the
+ * same situation -- delete opens on an already-saved highlighted word, add on
+ * a fresh selection -- so the glyph is carrying a distinction the context
+ * already makes. If that turns out to be too little, the place to add weight
+ * back is here, and it should be something that does not re-open the "every
+ * control looks different" complaint (#52).
  */
-#deleteWordBtn {
-    width: 32px;
-    height: 32px;
-    color: #ffffff;
-    background-color: #c4320a;
-    border: 2px solid #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
-    font-size: 16px;
-}
 
 .edit-translation-container {
     display: flex;
@@ -237,7 +242,11 @@ const CONTROL_STYLESHEET = `
 // "control sizes agree with the control stylesheet" test fails if these ever
 // drift apart from the CSS above.
 const ACTION_BUTTON_SIZE = 24;
-const DELETE_BUTTON_SIZE = 32;
+// Same as the add button now: the delete control no longer has its own size.
+// Kept as a named constant rather than folded into ACTION_BUTTON_SIZE so the
+// call site still reads as "the delete button's size" -- if the two ever need
+// to diverge again, this is the one line to change.
+const DELETE_BUTTON_SIZE = ACTION_BUTTON_SIZE;
 const EDIT_INPUT_WIDTH = 180;
 const EDIT_CONTAINER_HEIGHT = 26;
 
@@ -401,6 +410,12 @@ function isWidgetControlEvent(event) {
 // stronger version of the same #51 guarantee (criterion 7) -- a translation
 // cannot be left invisible no matter which route closed the editor, and now
 // also no matter where the editor was mounted.
+// Kept unconditional on purpose. A counter guard was tried here and removed:
+// it made the sweep restore only what THIS script instance hid, which quietly
+// weakened #51 criterion 7 -- a translation hidden by a previous injection of
+// the content script would have stayed invisible forever. Measured cost on a
+// ~40k-element page is 0.3ms, against the 3.8ms control query that was the
+// actual source of the lag. Not worth trading a guarantee for.
 function restoreHiddenTranslations() {
     document.querySelectorAll(".translation").forEach((span) => {
         // Ours only. A host page is free to ship its own `.translation` class,
@@ -419,15 +434,34 @@ function sweepOrphanedWidgetControls() {
     // The shadow layer holds every current control. Its <style> element is not
     // a control and must survive the sweep, or the next control to open would
     // be unstyled.
+    //
+    // This query is scoped to the shadow root, which holds at most one control,
+    // so it stays cheap no matter how large the host page is. That matters:
+    // dismissActiveWidget runs on every mouseup AND every document click.
     controlLayerRoot?.querySelectorAll(".lazylex-control").forEach((control) => control.remove());
 
-    // Light DOM, for controls left behind by a previous injection of this
-    // script (before #52 every control was appended to document.body).
+    restoreHiddenTranslations();
+}
+
+// The document-wide half of the sweep, which used to run inside
+// sweepOrphanedWidgetControls on every gesture.
+//
+// Measured on a ~40k-element page (a long ChatGPT conversation is that order),
+// that query cost 3.8ms. dismissActiveWidget is called from both the mouseup
+// and the click handler, so a single click paid it twice -- ~8ms of blocking
+// work per interaction, on a page where nothing of ours was open at all. That
+// is the lag reported on chatgpt.com.
+//
+// What it actually guards against is controls left in light DOM by a PREVIOUS
+// injection of this script: before #52 every control was appended to
+// document.body. Nothing in this version can create one -- mountControl puts
+// every control in the shadow layer -- so the only moment it can find anything
+// is startup. Running it once is not a weaker guarantee, it is the same
+// guarantee at the only time it could ever fire.
+function sweepLegacyLightDomControls() {
     document
         .querySelectorAll("#add-new-word, #add-new-sentence, #deleteWordBtn, .edit-translation-container")
         .forEach((control) => control.remove());
-
-    restoreHiddenTranslations();
 }
 
 // Closes whatever control is currently open. Safe to call when nothing is
@@ -2020,6 +2054,10 @@ chrome.runtime.onMessage.addListener((request) => {
 // ends in applySettings(), which triggers the first highlight pass, so the
 // state has to be known by then -- otherwise an excluded site paints once and
 // only un-paints when the broadcast happens to arrive. (#48)
+// Once, at the only moment it can find anything: controls left in light DOM by
+// a previous injection of this script. See sweepLegacyLightDomControls.
+sweepLegacyLightDomControls();
+
 checkInitialExtensionState().then(() => {
     loadInitialSettings();
 });

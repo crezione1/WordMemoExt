@@ -508,12 +508,27 @@ test("delete and add-word buttons keep #11's visibility guarantees inside the sh
     assert.match(actionButtonBlock, /color:\s*#ffffff;/);
     assert.match(actionButtonBlock, /cursor:\s*pointer;/);
 
-    const deleteButtonBlock = readRuleBlock(stylesheet, "#deleteWordBtn");
-    assert.match(deleteButtonBlock, /width:\s*32px;/);
-    assert.match(deleteButtonBlock, /height:\s*32px;/);
-    assert.match(deleteButtonBlock, /background-color:\s*#c4320a;/);
-    assert.match(deleteButtonBlock, /border:\s*2px solid #ffffff;/);
-    assert.match(deleteButtonBlock, /box-shadow:\s*0 2px 8px rgba\(0, 0, 0, 0\.28\);/);
+    // #11's dark red, white border and drop shadow are GONE, deliberately.
+    // They existed because every control was plain DOM in the host page, where
+    // a dense high-contrast results page could wash the delete button out. #52
+    // moved every control into a shadow root: no host selector reaches it and
+    // nothing it sits over changes how it renders, so the reason for the extra
+    // weight no longer exists. What was left was two of our own controls
+    // looking unrelated for a historical reason.
+    //
+    // The delete button now carries NO rule of its own -- it is styled entirely
+    // by .action-button, which is what makes "identical" structural rather than
+    // a pair of values that have to be kept in step.
+    assert.equal(
+        /#deleteWordBtn\s*\{/.test(stylesheet),
+        false,
+        "the delete button must not reintroduce styling of its own"
+    );
+    assert.equal(
+        stylesheet.includes("#c4320a"),
+        false,
+        "the delete button's old colour must not survive anywhere in the sheet"
+    );
 
     assert.equal(
         stylesheet.includes("!important"),
@@ -651,17 +666,19 @@ test("control sizes agree with the control stylesheet (#52, criterion 6)", async
     // The clamp maths uses these instead of measuring, so a drift between the
     // constant and the CSS would silently mis-place a control.
     assert.match(readRuleBlock(stylesheet, ".action-button"), new RegExp(`width:\\s*${readConstant("ACTION_BUTTON_SIZE")}px;`));
-    assert.match(readRuleBlock(stylesheet, "#deleteWordBtn"), new RegExp(`width:\\s*${readConstant("DELETE_BUTTON_SIZE")}px;`));
+    // No `#deleteWordBtn` block to check any more -- the delete button is
+    // styled entirely by `.action-button`, which the line above already pins
+    // to ACTION_BUTTON_SIZE.
     assert.match(readRuleBlock(stylesheet, ".edit-translation-input"), new RegExp(`width:\\s*${readConstant("EDIT_INPUT_WIDTH")}px;`));
 
-    // The 24px/32px difference is deliberate (#11 made the delete button
-    // bigger so it stays findable); criterion 6 asks for it to be justified
-    // rather than silently different.
-    assert.notEqual(readConstant("ACTION_BUTTON_SIZE"), readConstant("DELETE_BUTTON_SIZE"));
+    // Criterion 6 asked for the 24px/32px difference to be justified or
+    // unified. It is now unified, and unified in the strongest available way:
+    // DELETE_BUTTON_SIZE is DEFINED as ACTION_BUTTON_SIZE, so the clamp maths
+    // for the two controls cannot drift apart by editing one number.
     assert.match(
-        stylesheet,
-        /Deliberately larger than the other controls[\s\S]*?#11/,
-        "the delete button's larger size must carry the reason it is larger"
+        contentSource,
+        /const DELETE_BUTTON_SIZE = ACTION_BUTTON_SIZE;/,
+        "the delete size must be defined from the action size, not repeated"
     );
 });
 
@@ -1216,7 +1233,13 @@ test("one widget at a time: the shared dismiss runs each control's own teardown 
     // restored, rather than having its container blindly removed ------------
     const orphan = makeEditPair();
     orphan.container.attach();
-    const strayDelete = new FakeElement({ id: "deleteWordBtn" });
+    // The orphan has to be findable where unregistered controls actually are:
+    // inside the shadow layer. Every control goes through mountControl, and the
+    // only document.body.appendChild calls left in content.js are the two
+    // notifications and the fly-to-toolbar animation -- none of them controls.
+    // makeEditPair already gives the container the `lazylex-control` class, so
+    // mounting it is all that is needed.
+    context.mountControl(orphan.container, { left: 0, top: 0, width: 10, height: 10 });
     context.dismissActiveWidget();
     assert.equal(orphan.container.attached, false);
     assert.equal(
@@ -1224,7 +1247,23 @@ test("one widget at a time: the shared dismiss runs each control's own teardown 
         "",
         "the defensive sweep must restore a translation it un-hides, not orphan it"
     );
-    assert.equal(strayDelete.attached, false);
+
+    // Light-DOM debris is a different problem with a different lifetime: it can
+    // only come from a PREVIOUS injection of this script, since nothing in this
+    // version puts a control there. Sweeping for it on every gesture cost 3.8ms
+    // per call on a ~40k-element page -- paid twice per click, from both the
+    // mouseup and the click handler, while nothing of ours was open. That was
+    // the lag reported on chatgpt.com. It runs once, at the only moment it
+    // could ever find anything.
+    const strayDelete = new FakeElement({ id: "deleteWordBtn" });
+    context.dismissActiveWidget();
+    assert.equal(
+        strayDelete.attached,
+        true,
+        "the per-gesture dismiss must not pay for a document-wide query"
+    );
+    context.sweepLegacyLightDomControls();
+    assert.equal(strayDelete.attached, false, "startup must still clear it");
 
     // --- Scroll dismissal, with a short grace window so that focusing the
     // edit input cannot close the control it just opened (criterion 6) ------
