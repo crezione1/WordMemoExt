@@ -320,6 +320,45 @@ function mountControl(element, { left, top, width, height }) {
     return element;
 }
 
+// --- Control activation ------------------------------------------------------
+//
+// A control's action does NOT hang off its own click listener any more.
+//
+// Reported on a Google results page: the selection raises Google's own
+// "Translate" bubble in the same spot, and clicking our "+" over it did
+// nothing. A listener on the button is the last thing a click reaches --
+// capture runs window -> document -> ... -> target -- so any page that
+// registers a capture-phase click listener on `document` and calls
+// `stopPropagation()` (which UI that manages its own popups routinely does)
+// silences every control we own. Being in a shadow root does not help: the
+// event still descends through the page's light-DOM ancestors first.
+//
+// `window` in the capture phase is the earliest point in the entire dispatch,
+// before any listener on `document`, so an action registered here cannot be
+// intercepted by the page at all. This is not defensive styling like #52 --
+// it is the difference between the control working and not.
+const CONTROL_ACTIVATION = new WeakMap();
+
+function setControlActivation(element, handler) {
+    CONTROL_ACTIVATION.set(element, handler);
+    return element;
+}
+
+window.addEventListener(
+    "click",
+    (event) => {
+        const path = typeof event?.composedPath === "function" ? event.composedPath() : [event?.target];
+        for (const node of path) {
+            const handler = node && CONTROL_ACTIVATION.get(node);
+            if (handler) {
+                handler(event);
+                return;
+            }
+        }
+    },
+    true
+);
+
 // Widget ownership: one control on screen at a time (#51)
 //
 // LazyLex has three control surfaces -- the add-word/add-sentence button, the
@@ -1746,7 +1785,8 @@ document.addEventListener("mouseup", function (event) {
                 // gate is the trial, same as for words (#49, #62).
                 button.title = "Save sentence";
                 button.setAttribute("aria-label", "Save sentence");
-                button.addEventListener("click", function () {
+                setControlActivation(button, function (event) {
+                    event?.stopPropagation?.();
                     console.log('[LazyLexExt] sentence button clicked, length:', selectedText.length);
                     handleSentenceSelection(selectedText);
                     window.getSelection().empty();
@@ -1756,7 +1796,8 @@ document.addEventListener("mouseup", function (event) {
             } else {
                 button.id = "add-new-word";
                 button.innerText = "+";
-                button.addEventListener("click", function () {
+                setControlActivation(button, function (event) {
+                    event?.stopPropagation?.();
                     console.log('[LazyLexExt] + button clicked, selectedText:', selectedText);
                     runLogic(selectedText, rect);
                     window.getSelection().empty();
@@ -1856,8 +1897,8 @@ document.addEventListener("click", (e) => {
     const wrapperRect = wrapper.getBoundingClientRect();
 
     deleteButton.setAttribute("aria-label", "Delete saved word");
-    deleteButton.addEventListener("click", async (event) => {
-        event.stopPropagation();
+    setControlActivation(deleteButton, async (event) => {
+        event?.stopPropagation?.();
         deleteButton.disabled = true;
         try {
             await deleteWordFromStorage(wrapper.dataset.wordId);
@@ -1959,7 +2000,8 @@ function showEditUI(translationSpan, wordId) {
         }
     });
 
-    saveButton.addEventListener('click', async () => {
+    setControlActivation(saveButton, async (event) => {
+        event?.stopPropagation?.();
         const newTranslation = input.value.trim();
 
         if (newTranslation && wordId) {

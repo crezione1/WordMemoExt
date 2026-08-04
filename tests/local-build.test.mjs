@@ -2033,3 +2033,80 @@ test("the per-site switch turns translation OFF, and names the site", async () =
     assert.match(popupCss, /\.switch\.switch-unavailable \{[\s\S]*?opacity: 0\.55;/);
     assert.match(sync, /currentSiteNameLabel\.title = hostname \|\| "";/);
 });
+
+test("a control still fires when the page swallows clicks in the capture phase", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // Reported on a Google results page: selecting a word raises Google's own
+    // "Translate" bubble in the same spot, and clicking our "+" over it did
+    // nothing.
+    //
+    // A listener on the button is the LAST thing a click reaches -- dispatch
+    // runs window -> document -> ... -> target. Any page that registers a
+    // capture-phase click listener on `document` and calls stopPropagation()
+    // (UI that manages its own popups routinely does) silences every control
+    // we own. Being in a shadow root does not help: the event descends through
+    // the page's light-DOM ancestors first.
+    assert.match(contentSource, /window\.addEventListener\(\s*"click",[\s\S]*?true\s*\)/);
+
+    // No control may keep its own click listener, or it inherits the problem.
+    // Plain string checks: the point is that this exact call shape is absent.
+    for (const control of ["button", "deleteButton", "saveButton"]) {
+        assert.equal(
+            contentSource.includes(control + '.addEventListener("click"'),
+            false,
+            control + " must be activated through the capture-phase router, not its own listener"
+        );
+        assert.equal(
+            contentSource.includes(control + ".addEventListener('click'"),
+            false,
+            control + " must be activated through the capture-phase router, not its own listener"
+        );
+    }
+    assert.equal((contentSource.match(/setControlActivation\(/g) || []).length >= 5, true);
+
+    // Behaviour, not shape: run the real activation router against a page that
+    // kills clicks at document capture, exactly as the reported page does.
+    const routerSource = contentSource.match(
+        /const CONTROL_ACTIVATION = new WeakMap\(\);[\s\S]*?\n\);/
+    )?.[0];
+    assert.ok(routerSource, "expected the activation router");
+
+    const listeners = { window: [], document: [] };
+    const context = vm.createContext({
+        WeakMap,
+        console,
+        window: {
+            addEventListener: (type, handler, capture) =>
+                listeners.window.push({ type, handler, capture })
+        }
+    });
+    vm.runInContext(routerSource, context);
+
+    const button = { id: "add-new-word" };
+    let fired = 0;
+    context.setControlActivation(button, () => { fired += 1; });
+
+    const registration = listeners.window.find((l) => l.type === "click");
+    assert.ok(registration, "the router must listen for click");
+    assert.equal(registration.capture, true, "on window, in the capture phase -- the earliest point in dispatch");
+
+    // The page's own capture listener on `document` would run AFTER this one,
+    // so by the time it calls stopPropagation the action has already happened.
+    const hostBubble = { id: "google-translate-bubble" };
+    registration.handler({
+        composedPath: () => [button, hostBubble, "shadow-host", "documentElement", "window"]
+    });
+    assert.equal(fired, 1, "the control must act before the page can cancel the event");
+
+    // A click that misses every control activates nothing.
+    registration.handler({ composedPath: () => [hostBubble, "documentElement"] });
+    assert.equal(fired, 1);
+
+    // Only the innermost matching control acts, so a control nested in another
+    // cannot trigger two actions from one click.
+    const outer = { id: "outer" };
+    context.setControlActivation(outer, () => { fired += 10; });
+    registration.handler({ composedPath: () => [button, outer] });
+    assert.equal(fired, 2, "the first match in the path wins, and only it");
+});
