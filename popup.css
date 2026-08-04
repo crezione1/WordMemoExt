@@ -693,7 +693,7 @@ button:disabled {
     top: 6px;
 }
 
-/* Enable extension switch */
+/* Per-site translation switch */
 
 .switch {
     position: relative;
@@ -701,6 +701,38 @@ button:disabled {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+}
+
+.switch-label-text {
+    /* The hostname sits on its own line under the label. Keeping it inside the
+       same <span> means the whole thing stays one click target for the
+       checkbox it labels. */
+    display: block;
+    min-width: 0;
+}
+
+.switch-label-site {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: #667085;
+    /* Hostnames can be long and have no spaces to wrap at; truncating keeps
+       the switch from being pushed off the panel. The full value stays
+       readable through the title attribute. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* No hostname to show -- a chrome:// page, the new tab page, a local file.
+   The switch has nothing to act on, so it says so instead of looking usable. */
+.switch.switch-unavailable {
+    opacity: 0.55;
+}
+
+.switch.switch-unavailable .slider {
+    cursor: not-allowed;
 }
 
 .switch input {
