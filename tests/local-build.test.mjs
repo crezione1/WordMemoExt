@@ -1931,3 +1931,66 @@ test("exclusion entries are removed by data, not by the row's rendered text", as
     // storage entries while only one row disappears.
     assert.match(popupSource, /const alreadyExcluded = result\.excludedSites\.some\(/);
 });
+
+test("the per-site switch turns translation OFF, and names the site", async () => {
+    const popupHtml = await readFile(path.join(repositoryRoot, "popup.html"), "utf8");
+    const popupJs = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
+    const popupCss = await readFile(path.join(repositoryRoot, "popup.css"), "utf8");
+
+    assert.match(popupHtml, /Switch off translation for this site/);
+    assert.match(popupHtml, /<span class="switch-label-site" id="currentSiteName">/);
+    assert.match(popupHtml, /<input type="checkbox" id="disableTranslationForSite" \/>/);
+
+    // The id has to move with the meaning. An input called `enableExtension`
+    // whose checked state means "excluded" is the same read-it-from-the-wrong
+    // -place trap that broke removal in this panel.
+    const htmlCode = popupHtml.replace(/<!--[\s\S]*?-->/g, "");
+    assert.equal(
+        htmlCode.includes("enableExtension"),
+        false,
+        "the old id must not survive the inversion"
+    );
+    const jsCode = popupJs
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//"))
+        .join("\n");
+    assert.equal(jsCode.includes("enableExtensionCheckbox"), false);
+
+    // One place owns the inversion. Four call sites used to assign `.checked`
+    // by hand; each would now be a chance to forget the `!`.
+    const sync = popupJs.match(/function syncSiteSwitch\(\)[\s\S]*?\n\}/)?.[0];
+    assert.ok(sync, "expected syncSiteSwitch");
+    assert.match(sync, /disableTranslationCheckbox\.checked = !isEnabled;/);
+    const assignments = jsCode.match(/disableTranslationCheckbox\.checked\s*=/g) || [];
+    assert.equal(
+        assignments.length,
+        1,
+        "the checkbox state must only be set inside syncSiteSwitch"
+    );
+
+    // Checked now means "switch it off", so the branch that CLEARS exclusions
+    // is the unchecked one.
+    const toggle = popupJs.match(/async function toggleExtensionState\(\)[\s\S]*?\n\}/)?.[0];
+    assert.ok(toggle, "expected toggleExtensionState");
+    assert.match(toggle, /if \(!disableTranslationCheckbox\.checked\) \{/);
+    const clearIndex = toggle.indexOf("excludedSites.filter(");
+    const addIndex = toggle.indexOf("[...excludedSites, currentSiteHostname]");
+    assert.ok(clearIndex !== -1 && addIndex !== -1);
+    assert.ok(clearIndex < addIndex, "unchecked clears the exclusion, checked adds it");
+
+    // A chrome:// page or the new tab page has no hostname. Leaving the switch
+    // live would store an empty entry, which hostnameMatches then matches
+    // against nothing -- a toggle that appears to do nothing at all.
+    assert.match(sync, /const actionable = Boolean\(hostname\);/);
+    assert.match(sync, /disableTranslationCheckbox\.disabled = !actionable;/);
+    assert.match(sync, /classList\.toggle\("switch-unavailable", !actionable\)/);
+    assert.match(toggle, /if \(!currentSiteHostname\) \{\s*syncSiteSwitch\(\);\s*return;/);
+
+    // Hostnames have no spaces to wrap at, so an untruncated one would widen
+    // the panel. Verified by measurement: a 62-character host renders a 304px
+    // box over 323px of content and the body does not scroll horizontally.
+    assert.match(popupCss, /\.switch-label-site \{[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/);
+    assert.match(popupCss, /\.switch\.switch-unavailable \{[\s\S]*?opacity: 0\.55;/);
+    assert.match(sync, /currentSiteNameLabel\.title = hostname \|\| "";/);
+});

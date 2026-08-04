@@ -19,7 +19,12 @@ const notificationContainer = document.getElementById("notification");
 const messageContainer = document.getElementById("notificationMessage");
 const closeNotificationBtn = document.getElementById("closeNotificationBtn");
 const exclusionList = document.getElementById("exclusionList");
-const enableExtensionCheckbox = document.getElementById("enableExtension");
+// Checked means "translation is OFF here". The old input was named
+// `enableExtension` and meant the opposite of its own name once the exclusion
+// list was involved -- the same read-it-from-the-wrong-place mistake that
+// broke removal in this panel. The name now matches the state.
+const disableTranslationCheckbox = document.getElementById("disableTranslationForSite");
+const currentSiteNameLabel = document.getElementById("currentSiteName");
 const siteInput = document.getElementById("siteInput");
 const addSiteButton = document.getElementById("addSiteBtn");
 const changeTelegramBtn = document.getElementById("changeTelegramBtn");
@@ -655,8 +660,37 @@ function displayExclusionList(list) {
     });
 }
 
+// Single place that pushes `isEnabled` into the switch, so the two can never
+// disagree. Four call sites used to assign `checkbox.checked` by hand; each was
+// a chance to forget the inversion now that checked means "off".
+function syncSiteSwitch() {
+    const hostname = getSiteHostname(currentSite);
+    const container = disableTranslationCheckbox.closest(".switch");
+
+    disableTranslationCheckbox.checked = !isEnabled;
+
+    if (currentSiteNameLabel) {
+        currentSiteNameLabel.textContent = hostname || "No site to switch off";
+        currentSiteNameLabel.title = hostname || "";
+    }
+
+    // A chrome:// page, the new tab page or a local file has no hostname to
+    // exclude. Leaving the switch live would let a user flip it and store an
+    // empty entry -- which `hostnameMatches` then treats as matching nothing,
+    // so the toggle would appear to do nothing at all.
+    const actionable = Boolean(hostname);
+    disableTranslationCheckbox.disabled = !actionable;
+    if (container) {
+        container.classList.toggle("switch-unavailable", !actionable);
+    }
+}
+
 async function toggleExtensionState() {
     const currentSiteHostname = getSiteHostname(currentSite);
+    if (!currentSiteHostname) {
+        syncSiteSwitch();
+        return;
+    }
     const result = await chrome.storage.local.get({
         excludedSites: [],
     });
@@ -664,7 +698,7 @@ async function toggleExtensionState() {
 
     let updatedList;
 
-    if (enableExtensionCheckbox.checked) {
+    if (!disableTranslationCheckbox.checked) {
         // Removes every entry that covers this host, not only an exact string
         // match: `example.com` is what shadows `www.example.com`, and leaving
         // it behind would re-disable the site the moment the panel reloaded.
@@ -702,6 +736,9 @@ async function toggleExtensionState() {
     }
 
     await chrome.storage.local.set({excludedSites: updatedList});
+    // Keeps the switch honest if a branch above bailed early -- and keeps the
+    // hostname label in step with the state it describes.
+    syncSiteSwitch();
 }
 
 async function addSiteToExclusion() {
@@ -746,7 +783,7 @@ async function addSiteToExclusion() {
         const currentSiteHostname = getSiteHostname(currentSite);
 
         isEnabled = isEnabled ? site !== currentSiteHostname : false;
-        enableExtensionCheckbox.checked = isEnabled;
+        syncSiteSwitch();
     }
 }
 
@@ -785,7 +822,7 @@ async function removeSiteFromExclusion(e) {
     const currentSiteHostname = getSiteHostname(currentSite);
 
     isEnabled = hostnameMatches(currentSiteHostname, siteToRemove) || isEnabled;
-    enableExtensionCheckbox.checked = isEnabled;
+    syncSiteSwitch();
 }
 
 function showNotification(message) {
@@ -1007,7 +1044,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    enableExtensionCheckbox.addEventListener("change", toggleExtensionState);
+    disableTranslationCheckbox.addEventListener("change", toggleExtensionState);
 
     siteInput.addEventListener("input", () => toggleButton(addSiteButton, siteInput));
     addSiteButton.addEventListener("click", addSiteToExclusion);
@@ -1118,7 +1155,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     excludedSites = await getExcludedSites();
     currentSite = await getCurrentSite();
     isEnabled = checkIfCurrentSiteEnabled();
-    enableExtensionCheckbox.checked = isEnabled;
+    syncSiteSwitch();
     showTab("homeTab");
     displayExclusionList(excludedSites);
     await displayDictionary();
