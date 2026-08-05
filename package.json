@@ -6,7 +6,7 @@
     "build": "node scripts/build-extension.mjs",
     "build:local": "node scripts/build-extension.mjs --oauth-client-id=318380438947-fk505l37ves52tfv6pvklrcanh7fhq6b.apps.googleusercontent.com",
     "check": "node scripts/check-extension.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/"
   },
   "engines": {
     "node": ">=18.0.0"
