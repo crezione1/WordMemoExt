@@ -19,11 +19,12 @@ const notificationContainer = document.getElementById("notification");
 const messageContainer = document.getElementById("notificationMessage");
 const closeNotificationBtn = document.getElementById("closeNotificationBtn");
 const exclusionList = document.getElementById("exclusionList");
-// Checked means "translation is OFF here". The old input was named
+// Checked means "translation is ON here" -- the resting state of a site the
+// extension has never been told to leave alone. The old input was named
 // `enableExtension` and meant the opposite of its own name once the exclusion
 // list was involved -- the same read-it-from-the-wrong-place mistake that
-// broke removal in this panel. The name now matches the state.
-const disableTranslationCheckbox = document.getElementById("disableTranslationForSite");
+// broke removal in this panel. The name follows the state it now holds.
+const siteTranslationCheckbox = document.getElementById("translateThisSite");
 const currentSiteNameLabel = document.getElementById("currentSiteName");
 const siteInput = document.getElementById("siteInput");
 const addSiteButton = document.getElementById("addSiteBtn");
@@ -661,16 +662,18 @@ function displayExclusionList(list) {
 }
 
 // Single place that pushes `isEnabled` into the switch, so the two can never
-// disagree. Four call sites used to assign `checkbox.checked` by hand; each was
-// a chance to forget the inversion now that checked means "off".
+// disagree. Four call sites used to assign `checkbox.checked` by hand, and any
+// of them could have drifted from the rest.
 function syncSiteSwitch() {
     const hostname = getSiteHostname(currentSite);
-    const container = disableTranslationCheckbox.closest(".switch");
+    const container = siteTranslationCheckbox.closest(".switch");
 
-    disableTranslationCheckbox.checked = !isEnabled;
+    // No inversion left to get wrong: the switch shows exactly the state it is
+    // named after, so a site nobody has excluded opens with it already on.
+    siteTranslationCheckbox.checked = isEnabled;
 
     if (currentSiteNameLabel) {
-        currentSiteNameLabel.textContent = hostname || "No site to switch off";
+        currentSiteNameLabel.textContent = hostname || "No site to translate";
         currentSiteNameLabel.title = hostname || "";
     }
 
@@ -679,7 +682,7 @@ function syncSiteSwitch() {
     // empty entry -- which `hostnameMatches` then treats as matching nothing,
     // so the toggle would appear to do nothing at all.
     const actionable = Boolean(hostname);
-    disableTranslationCheckbox.disabled = !actionable;
+    siteTranslationCheckbox.disabled = !actionable;
     if (container) {
         container.classList.toggle("switch-unavailable", !actionable);
     }
@@ -698,7 +701,7 @@ async function toggleExtensionState() {
 
     let updatedList;
 
-    if (!disableTranslationCheckbox.checked) {
+    if (siteTranslationCheckbox.checked) {
         // Removes every entry that covers this host, not only an exact string
         // match: `example.com` is what shadows `www.example.com`, and leaving
         // it behind would re-disable the site the moment the panel reloaded.
@@ -1044,7 +1047,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    disableTranslationCheckbox.addEventListener("change", toggleExtensionState);
+    siteTranslationCheckbox.addEventListener("change", toggleExtensionState);
 
     siteInput.addEventListener("input", () => toggleButton(addSiteButton, siteInput));
     addSiteButton.addEventListener("click", addSiteToExclusion);

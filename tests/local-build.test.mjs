@@ -1971,58 +1971,96 @@ test("exclusion entries are removed by data, not by the row's rendered text", as
     assert.match(popupSource, /const alreadyExcluded = result\.excludedSites\.some\(/);
 });
 
-test("the per-site switch turns translation OFF, and names the site", async () => {
+test("the per-site switch rests ON, and names the site", async () => {
     const popupHtml = await readFile(path.join(repositoryRoot, "popup.html"), "utf8");
     const popupJs = await readFile(path.join(repositoryRoot, "popup.js"), "utf8");
     const popupCss = await readFile(path.join(repositoryRoot, "popup.css"), "utf8");
 
-    assert.match(popupHtml, /Switch off translation for this site/);
+    assert.match(popupHtml, /Translate this site/);
     assert.match(popupHtml, /<span class="switch-label-site" id="currentSiteName">/);
-    assert.match(popupHtml, /<input type="checkbox" id="disableTranslationForSite" \/>/);
+    assert.match(popupHtml, /<input type="checkbox" id="translateThisSite" \/>/);
 
-    // The id has to move with the meaning. An input called `enableExtension`
-    // whose checked state means "excluded" is the same read-it-from-the-wrong
-    // -place trap that broke removal in this panel.
+    // The id has to move with the meaning, every time the meaning moves. An
+    // input called `enableExtension` whose checked state meant "excluded" is
+    // the read-it-from-the-wrong-place trap that broke removal in this panel;
+    // `disableTranslationForSite` now reads backwards for the same reason.
     const htmlCode = popupHtml.replace(/<!--[\s\S]*?-->/g, "");
-    assert.equal(
-        htmlCode.includes("enableExtension"),
-        false,
-        "the old id must not survive the inversion"
-    );
     const jsCode = popupJs
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .split("\n")
         .filter((line) => !line.trim().startsWith("//"))
         .join("\n");
-    assert.equal(jsCode.includes("enableExtensionCheckbox"), false);
+    for (const stale of ["enableExtension", "disableTranslationForSite", "disableTranslationCheckbox"]) {
+        assert.equal(htmlCode.includes(stale), false, `${stale} must not survive in the markup`);
+        assert.equal(jsCode.includes(stale), false, `${stale} must not survive in the script`);
+    }
 
-    // One place owns the inversion. Four call sites used to assign `.checked`
-    // by hand; each would now be a chance to forget the `!`.
+    // One place owns the assignment. Four call sites used to set `.checked` by
+    // hand, and any of them could have drifted from the rest.
     const sync = popupJs.match(/function syncSiteSwitch\(\)[\s\S]*?\n\}/)?.[0];
     assert.ok(sync, "expected syncSiteSwitch");
-    assert.match(sync, /disableTranslationCheckbox\.checked = !isEnabled;/);
-    const assignments = jsCode.match(/disableTranslationCheckbox\.checked\s*=/g) || [];
+    const assignments = jsCode.match(/siteTranslationCheckbox\.checked\s*=/g) || [];
     assert.equal(
         assignments.length,
         1,
         "the checkbox state must only be set inside syncSiteSwitch"
     );
 
-    // Checked now means "switch it off", so the branch that CLEARS exclusions
-    // is the unchecked one.
+    // The reported behaviour, run rather than pattern-matched: open the panel
+    // on a site nobody has excluded and the switch is already on.
+    const context = vm.createContext({ URL });
+    vm.runInContext(
+        [
+            popupJs.match(/function getSiteHostname\(site\)[\s\S]*?\n\}/)[0],
+            popupJs.match(/function hostnameMatches\(hostname, excludedHostname\)[\s\S]*?\n\}/)[0],
+            popupJs.match(/function checkIfCurrentSiteEnabled\(\)[\s\S]*?\n\}/)[0],
+            sync,
+            `var currentSite, excludedSites, isEnabled;
+             var siteTranslationCheckbox = { checked: null, disabled: null, closest: () => null };
+             var currentSiteNameLabel = { textContent: "", title: "" };
+             function openPanelOn(url, list) {
+                 currentSite = url;
+                 excludedSites = list;
+                 isEnabled = checkIfCurrentSiteEnabled();
+                 syncSiteSwitch();
+                 return siteTranslationCheckbox;
+             }`
+        ].join("\n"),
+        context
+    );
+    const { openPanelOn, currentSiteNameLabel } = context;
+
+    assert.equal(
+        openPanelOn("https://www.linkedin.com/feed/", []).checked,
+        true,
+        "a site nobody excluded must open with translation showing as on"
+    );
+    assert.equal(currentSiteNameLabel.textContent, "www.linkedin.com");
+    assert.equal(
+        openPanelOn("https://www.linkedin.com/feed/", ["linkedin.com"]).checked,
+        false,
+        "an excluded site -- parent domain included -- must show as off"
+    );
+
+    // Checked now means "translation is on", so the branch that CLEARS
+    // exclusions is the checked one.
     const toggle = popupJs.match(/async function toggleExtensionState\(\)[\s\S]*?\n\}/)?.[0];
     assert.ok(toggle, "expected toggleExtensionState");
-    assert.match(toggle, /if \(!disableTranslationCheckbox\.checked\) \{/);
+    assert.match(toggle, /if \(siteTranslationCheckbox\.checked\) \{/);
     const clearIndex = toggle.indexOf("excludedSites.filter(");
     const addIndex = toggle.indexOf("[...excludedSites, currentSiteHostname]");
     assert.ok(clearIndex !== -1 && addIndex !== -1);
-    assert.ok(clearIndex < addIndex, "unchecked clears the exclusion, checked adds it");
+    assert.ok(clearIndex < addIndex, "checked clears the exclusion, unchecked adds it");
 
-    // A chrome:// page or the new tab page has no hostname. Leaving the switch
-    // live would store an empty entry, which hostnameMatches then matches
-    // against nothing -- a toggle that appears to do nothing at all.
-    assert.match(sync, /const actionable = Boolean\(hostname\);/);
-    assert.match(sync, /disableTranslationCheckbox\.disabled = !actionable;/);
+    // A local file or about:blank has no hostname. Leaving the switch live
+    // would store an empty entry, which hostnameMatches then matches against
+    // nothing -- a toggle that appears to do nothing at all.
+    //
+    // Note this does not cover chrome:// pages: `chrome` is a non-special
+    // scheme, so `new URL("chrome://extensions").hostname` is "extensions",
+    // and the switch there stays live and would store that as a host.
+    assert.equal(openPanelOn("about:blank", []).disabled, true);
+    assert.equal(currentSiteNameLabel.textContent, "No site to translate");
     assert.match(sync, /classList\.toggle\("switch-unavailable", !actionable\)/);
     assert.match(toggle, /if \(!currentSiteHostname\) \{\s*syncSiteSwitch\(\);\s*return;/);
 

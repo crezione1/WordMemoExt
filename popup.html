@@ -323,18 +323,22 @@
             </div>
 
             <!--
-              The control is the same exclusion state as before, stated the way
-              round the user acts on it: they come here to switch a site off,
-              not to confirm the default. The id says so too -- an input named
-              `enableExtension` whose checked state means "excluded" is the
-              kind of mismatch that produced the removal bugs in this panel.
+              A switch reads as its own state, not as the action it performs:
+              filled and to the right means the thing named is happening. So
+              the label names translation, and the resting position on a normal
+              site is ON -- the extension is working here. Flipping it off is
+              what writes the exclusion.
+
+              The id has to say the same thing. An input named `enableExtension`
+              whose checked state meant "excluded" is the kind of mismatch that
+              produced the removal bugs in this panel.
             -->
             <label class="switch">
                 <span class="switch-label-text">
-                    Switch off translation for this site
+                    Translate this site
                     <span class="switch-label-site" id="currentSiteName"></span>
                 </span>
-                <input type="checkbox" id="disableTranslationForSite" />
+                <input type="checkbox" id="translateThisSite" />
                 <span class="slider"></span>
             </label>
 
