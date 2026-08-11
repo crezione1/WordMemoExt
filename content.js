@@ -566,10 +566,44 @@ const SENTENCE_MAX_LENGTH = 500;
 // Pure, side-effect free so it can be unit tested directly (see
 // tests/local-build.test.mjs), matching this repo's existing no-DOM-
 // dependency test style for content.js logic.
+/*
+  What counts as vocabulary at all (#71).
+
+  Nothing used to check this: anything without a space that was not
+  sentence-shaped was classified as a word, translated -- a paid provider call
+  each time -- and written to the dictionary. `|`, `7`, `©`, an emoji and a
+  stray fragment from a half-finished double click all qualified, and the
+  reported symptom was a bare `a` sitting in the word list.
+
+  The rule is one line, and it is deliberately the weakest one that removes the
+  reported junk: THERE MUST BE A LETTER IN IT.
+
+  Rules considered and rejected, so nobody adds them back without the argument:
+
+    * "at least two characters" -- wrong for a product that promises any
+      language. `I` and `a` are English words, `я` and `і` are Ukrainian ones,
+      and single-character words are ordinary in Chinese and Japanese.
+    * "no digits" -- would catch `h1` and `x86`, but also `covid19`. Blocking a
+      real word the user wants is a worse failure than storing an odd one, and
+      a token that is ALL digits has no letter and is already refused.
+
+  URL and identifier shapes are refused separately: they contain letters, so
+  the letter rule alone would pass `https://example.com` and `user_name`, and
+  those are never vocabulary.
+*/
+const CONTAINS_LETTER = /\p{L}/u;
+const NON_WORD_SHAPE = /(:\/\/|@|_|\\|\p{L}\.\p{L})/u;
+
 function classifySelectionType(text) {
     const trimmed = String(text || "").trim();
     if (!trimmed) {
         return null;
+    }
+
+    // No letter anywhere: `|`, `7`, `©`, an emoji. Refused before anything
+    // else, because such a selection is not a short sentence either.
+    if (!CONTAINS_LETTER.test(trimmed)) {
+        return "not-a-word";
     }
 
     const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
@@ -580,6 +614,14 @@ function classifySelectionType(text) {
 
     if (isSentence) {
         return "sentence";
+    }
+
+    // Only the word/phrase path is held to this. A real sentence may well
+    // contain a URL or an address -- "Go to example.com for the rest." is
+    // ordinary prose, and refusing to translate it would be a new bug in
+    // place of the one being fixed.
+    if (NON_WORD_SHAPE.test(trimmed)) {
+        return "not-a-word";
     }
 
     return wordCount > 1 ? "phrase" : "word";
@@ -781,6 +823,16 @@ async function runLogic(selectedText, rect) {
     // Clean the selection to only get the original word, not the translation
     const originalWord = selectedText.split('[')[0].trim();
     if (!originalWord) return;
+
+    // The second half of #71's guard, and the one that actually protects the
+    // provider call. The mouseup handler declines to offer a control for a
+    // selection like this, but the Ctrl+Shift+S shortcut reaches here without
+    // passing through it -- and a refusal that costs a translation request and
+    // a slot of the daily spend guard is not a refusal.
+    if (classifySelectionType(originalWord) === "not-a-word") {
+        console.log('[LazyLexExt] Selection is not a word; ignoring:', originalWord);
+        return;
+    }
 
     console.log('[LazyLexExt] runLogic called with:', originalWord);
 
@@ -1212,14 +1264,26 @@ function showTemporaryHighlightWithLoader(text) {
     const lowerCaseText = text.toLowerCase();
     const replacements = [];
 
+    // Same boundary rule as the settled highlight (#72). This used to be a
+    // bare `includes` plus a boundary-free split, which is how a saved `a`
+    // ended up rendered inside `tya`.
+    const matcher = wordMatchExpression(text);
+    if (!matcher) {
+        return;
+    }
+
     textNodes.forEach(node => {
         if (node.parentNode.closest('.highlight-wrapper')) {
             return;
         }
 
-        if (node.nodeValue.toLowerCase().includes(lowerCaseText)) {
+        // `matcher` is global, so `.test` advances lastIndex and the next node
+        // would be searched from an offset that means nothing in it. Reset
+        // before each use; `.split` ignores lastIndex and needs no such care.
+        matcher.lastIndex = 0;
+        if (matcher.test(node.nodeValue)) {
             const fragment = document.createDocumentFragment();
-            const parts = node.nodeValue.split(new RegExp(`(${escapeRegExp(text)})`, 'gi'));
+            const parts = node.nodeValue.split(matcher);
 
             parts.forEach(part => {
                 if (part.toLowerCase() === lowerCaseText) {
@@ -1339,14 +1403,11 @@ function removeHighlightsForWord(word) {
 
 function replaceTextNode(node, targetWords, translations) {
     const fragment = document.createDocumentFragment();
-    const escapedWords = targetWords
-        .filter(Boolean)
-        .map(escapeRegExp)
-        .sort((left, right) => right.length - left.length);
-    if (escapedWords.length === 0) {
+    const matcher = wordMatchExpression(targetWords);
+    if (!matcher) {
         return;
     }
-    const parts = node.nodeValue.split(new RegExp(`\\b(${escapedWords.join('|')})\\b`, 'gi'));
+    const parts = node.nodeValue.split(matcher);
 
     if (parts.length <= 1) {
         return; // No matches
@@ -1390,6 +1451,48 @@ function replaceTextNode(node, targetWords, translations) {
 
 function escapeRegExp(value) {
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/*
+  One boundary rule, shared by every matcher that looks for a saved word in page
+  text (#72). There used to be three, and they disagreed:
+
+    * the in-flight highlight split on the bare word with NO boundary at all, so
+      a saved `a` lit up inside `tya`, `Max` and `Bely` -- the reported bug;
+    * the settled highlight and the encounter counter used `\b`.
+
+  `\b` is not the safe option it looks like. It is defined against
+  [A-Za-z0-9_], so every non-ASCII letter counts as a NON-word character to it.
+  For "це він тут", /\bвін\b/ finds nothing: the space before `в` is a non-word
+  character and so is `в`, so there is no boundary between them. Saved words in
+  Cyrillic, Greek and every accented script have therefore never highlighted at
+  all -- silently, because the only thing that ever worked was the Latin source
+  word an English learner saves.
+
+  A lookaround over the Unicode letter and number properties says what `\b` was
+  meant to say: the match must not be preceded or followed by another letter or
+  digit, in any script. Both lookbehind and \p{...} need Chrome 62+; the
+  manifest already requires far newer than that.
+*/
+const WORD_EDGE_BEFORE = "(?<![\\p{L}\\p{N}])";
+const WORD_EDGE_AFTER = "(?![\\p{L}\\p{N}])";
+
+function wordMatchExpression(words) {
+    const alternatives = (Array.isArray(words) ? words : [words])
+        .filter(Boolean)
+        .map(escapeRegExp)
+        // Longest first, so "New York" is not eaten by "New" when both are
+        // saved and both start at the same offset.
+        .sort((left, right) => right.length - left.length);
+
+    if (alternatives.length === 0) {
+        return null;
+    }
+
+    return new RegExp(
+        `${WORD_EDGE_BEFORE}(${alternatives.join("|")})${WORD_EDGE_AFTER}`,
+        "giu"
+    );
 }
 
 // Where LazyLex refuses to render (#50).
@@ -1538,7 +1641,13 @@ function applyFrequencyTier(highlightedSpan, word) {
 }
 
 function countWordOccurrences(textNodes, word) {
-    const expression = new RegExp(`\\b${escapeRegExp(word)}\\b`, "gi");
+    // Shares the boundary rule with both highlighters (#72): a counter that
+    // disagreed with them would inflate encounterCount from substrings, and
+    // encounterCount is what drives the frequency colouring.
+    const expression = wordMatchExpression(word);
+    if (!expression) {
+        return 0;
+    }
     return textNodes.reduce((count, node) => {
         const matches = node.nodeValue.match(expression);
         return count + (matches ? matches.length : 0);
@@ -1768,9 +1877,18 @@ document.addEventListener("mouseup", function (event) {
         const selection = window.getSelection();
         const selectedText = selection.toString().trim();
         if (selectedText) {
+            const selectionType = classifySelectionType(selectedText);
+
+            // Nothing is offered for a selection that would be refused (#71).
+            // A "+" that appears and then does nothing is worse than no "+":
+            // it reads as the extension being broken rather than as the
+            // selection being unsuitable.
+            if (selectionType === null || selectionType === "not-a-word") {
+                return;
+            }
+
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
-            const selectionType = classifySelectionType(selectedText);
 
             const button = document.createElement("button");
             button.type = "button";
