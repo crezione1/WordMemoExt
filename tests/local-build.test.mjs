@@ -309,7 +309,9 @@ test("sentence selections are classified distinctly and gated by the trial, not 
     // Pure classifier: extract and execute it directly (same no-DOM-
     // dependency style as the getChangedWords/YouTube-navigation tests).
     const classifierSource = contentSource.match(
-        /function classifySelectionType\(text\)[\s\S]*?\r?\n}\r?\n/
+        // The two shape constants #71 added come with it; the classifier reads
+        // them and cannot be executed alone any more.
+        /const CONTAINS_LETTER[\s\S]*?function classifySelectionType\(text\)[\s\S]*?\r?\n}\r?\n/
     )?.[0];
     assert.ok(classifierSource, "expected the selection classifier");
     const context = vm.createContext({});
@@ -2147,4 +2149,188 @@ test("a control still fires when the page swallows clicks in the capture phase",
     context.setControlActivation(outer, () => { fired += 10; });
     registration.handler({ composedPath: () => [button, outer] });
     assert.equal(fired, 2, "the first match in the path wins, and only it");
+});
+
+test("one boundary rule for every matcher, and it works outside ASCII (#72)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // Pure and DOM-free, so it is extracted and executed rather than
+    // pattern-matched -- same style as classifySelectionType above.
+    const helperSource = [
+        contentSource.match(/function escapeRegExp\(value\)[\s\S]*?\r?\n}\r?\n/)?.[0],
+        contentSource.match(/const WORD_EDGE_BEFORE[\s\S]*?function wordMatchExpression\(words\)[\s\S]*?\r?\n}\r?\n/)?.[0],
+    ];
+    assert.ok(helperSource[0] && helperSource[1], "expected the shared matcher");
+    const context = vm.createContext({});
+    vm.runInContext(helperSource.join("\n"), context);
+    const matches = (word, text) => {
+        const expression = context.wordMatchExpression(word);
+        expression.lastIndex = 0;
+        return expression.test(text);
+    };
+
+    // The reported bug: a saved `a` rendered inside unrelated words.
+    assert.equal(matches("a", "tya Bely"), false);
+    assert.equal(matches("a", "In a Max"), true);
+    assert.equal(matches("a", "Max"), false);
+
+    // Still matches where it should: sentence edges and next to punctuation
+    // are the cases a naive "surround with spaces" fix would break.
+    assert.equal(matches("dog", "dog runs"), true);
+    assert.equal(matches("dog", "the dog"), true);
+    assert.equal(matches("dog", "a dog, then"), true);
+    assert.equal(matches("dog", "(dog)"), true);
+    assert.equal(matches("dog", "dogs run"), false);
+    assert.equal(matches("dog", "hotdog"), false);
+
+    /*
+      The reason \b could not simply be kept. It is defined against
+      [A-Za-z0-9_], so a Cyrillic letter is a NON-word character to it and
+      /\bвін\b/ matches nothing at all in "це він тут" -- meaning saved words
+      in Cyrillic, Greek and accented scripts have never highlighted. Asserted
+      both ways: the old rule fails the case, the new one passes it.
+    */
+    assert.equal(/\bвін\b/giu.test("це він тут"), false, "this is what \b did");
+    assert.equal(matches("він", "це він тут"), true);
+    assert.equal(matches("він", "це вінтаж тут"), false);
+    assert.equal(matches("Ελλάδα", "στην Ελλάδα σήμερα"), true);
+    assert.equal(matches("café", "un café noir"), true);
+    assert.equal(matches("café", "deux cafés"), false);
+
+    // Digits are word characters for this purpose: `2` inside `2026` is not an
+    // occurrence of the saved word `2`.
+    assert.equal(matches("2", "in 2026"), false);
+    assert.equal(matches("2", "part 2 here"), true);
+
+    // Longest-first, or a saved "New" would consume the start of a saved
+    // "New York" that begins at the same offset.
+    assert.deepEqual(
+        // Spread into this realm's Array: the split is performed by the vm
+        // context's RegExp, so the array it builds has that realm's prototype
+        // and deepStrictEqual would reject it on identity alone.
+        [..."New York today".split(context.wordMatchExpression(["New", "New York"]))],
+        ["", "New York", " today"]
+    );
+
+    assert.equal(context.wordMatchExpression([]), null);
+    assert.equal(context.wordMatchExpression(""), null);
+
+    // Regex metacharacters in a saved word must not become syntax.
+    assert.equal(matches("c++", "learning c++ now"), true);
+    assert.equal(matches("c++", "learning cxx now"), false);
+
+    // All three call sites share it. Three matchers that each spelled out
+    // their own boundary is exactly how they drifted apart.
+    const code = contentSource
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//"))
+        .join("\n");
+    assert.equal(
+        code.includes("\\b"),
+        false,
+        "no matcher may spell out an ASCII word boundary any more"
+    );
+    for (const caller of [
+        /function replaceTextNode\(node, targetWords, translations\)[\s\S]*?wordMatchExpression\(targetWords\)/,
+        /function showTemporaryHighlightWithLoader\(text\)[\s\S]*?wordMatchExpression\(text\)/,
+        /function countWordOccurrences\(textNodes, word\)[\s\S]*?wordMatchExpression\(word\)/,
+    ]) {
+        assert.match(code, caller);
+    }
+
+    // A global regex reused across nodes carries lastIndex between calls; the
+    // in-flight highlighter tests it against every text node on the page.
+    const inFlight = contentSource.match(
+        /function showTemporaryHighlightWithLoader\(text\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(inFlight);
+    assert.match(inFlight, /matcher\.lastIndex = 0;/);
+});
+
+test("only things with a letter in them are treated as words (#71)", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    const classifierSource = contentSource.match(
+        /const CONTAINS_LETTER[\s\S]*?function classifySelectionType\(text\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(classifierSource, "expected the classifier");
+    const context = vm.createContext({});
+    vm.runInContext(classifierSource, context);
+    const classify = (text) => context.classifySelectionType(text);
+
+    // The reported junk. Each of these was translated -- a paid call -- and
+    // written to the dictionary.
+    for (const junk of ["|", "7", "2026", "©", "—", "🙂", "...", "$", "42%"]) {
+        assert.equal(classify(junk), "not-a-word", `${junk} must be refused`);
+    }
+
+    // URLs and identifiers have letters in them, so the letter rule alone
+    // would pass them.
+    const backslash = String.fromCharCode(92);
+    for (const shape of [
+        "https://example.com",
+        "user_name",
+        "example.com",
+        "a@b.com",
+        `C:${backslash}Users`,
+    ]) {
+        assert.equal(classify(shape), "not-a-word", `${shape} must be refused`);
+    }
+
+    // Real words still classify as before, INCLUDING single letters: `I` and
+    // `a` are English words, `я` and `і` Ukrainian ones, and one-character
+    // words are ordinary in CJK. A length rule would have broken all of them.
+    assert.equal(classify("dog"), "word");
+    assert.equal(classify("I"), "word");
+    assert.equal(classify("a"), "word");
+    assert.equal(classify("я"), "word");
+    assert.equal(classify("水"), "word");
+    assert.equal(classify("café"), "word");
+    assert.equal(classify("don't"), "word");
+    assert.equal(classify("well-known"), "word");
+    // Digits inside a real word are allowed: refusing `covid19` to catch `h1`
+    // blocks something a user wants in order to prevent something harmless.
+    assert.equal(classify("covid19"), "word");
+    assert.equal(classify("New York City"), "phrase");
+
+    // A sentence is not held to the URL rule -- prose containing an address is
+    // still prose, and refusing it would be a new bug in place of the old one.
+    assert.equal(
+        classify("Go to example.com for the rest of the story."),
+        "sentence"
+    );
+    assert.equal(
+        classify("This is a full sentence with several words in it."),
+        "sentence"
+    );
+
+    assert.equal(classify(""), null);
+    assert.equal(classify("   "), null);
+
+    const code = contentSource
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//"))
+        .join("\n");
+
+    // Refused before the control is built, so no "+" appears that would then
+    // do nothing.
+    const handler = code.match(/const selectionType = classifySelectionType\(selectedText\);[\s\S]*?const button = document\.createElement\("button"\);/)?.[0];
+    assert.ok(handler, "expected the mouseup control path");
+    assert.match(handler, /selectionType === "not-a-word"/);
+    assert.match(handler, /return;/);
+
+    // And refused again inside runLogic, which the keyboard shortcut reaches
+    // without passing the mouseup handler at all. This is the check that keeps
+    // a refusal from costing a provider call.
+    const runLogicSource = code.match(/async function runLogic\(selectedText, rect\)[\s\S]*?\r?\n}\r?\n/)?.[0];
+    assert.ok(runLogicSource, "expected runLogic");
+    const guardIndex = runLogicSource.indexOf('classifySelectionType(originalWord) === "not-a-word"');
+    const translateIndex = runLogicSource.indexOf("saveWordToDictionary(originalWord)");
+    assert.ok(guardIndex !== -1, "runLogic must refuse a non-word");
+    assert.ok(
+        guardIndex < translateIndex,
+        "the refusal must come before the call that costs a translation"
+    );
 });
