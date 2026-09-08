@@ -972,8 +972,23 @@ test("interactive UI is excluded from highlighting while prose links stay eligib
     // navigate. A bare `a` in this list would silently undo that.
     assert.doesNotMatch(selectorBlock, /(^|[[",\s])a(\s*[,"]|$)/m);
     assert.equal(selectorBlock.includes('[role~="link"]'), false);
-    // The focusable-widget catch-all explicitly carves plain links back out.
-    assert.match(selectorBlock, /\[tabindex\]:not\(\[tabindex="-1"\]\):not\(a\[href\]\)/);
+    // The focusable-widget catch-all explicitly carves plain links back out,
+    // and (#76) anything that declares a role. A scrollable region has to be
+    // focusable to be keyboard-reachable, so `tabindex="0"` on a content
+    // container is accessibility work, not a control -- BBC's live feed is
+    // `<ol role="list" tabindex="0">`, and because the selector is applied
+    // with closest(), that one attribute silently excluded the whole feed.
+    // Roled controls are matched on their role by the rules above, so
+    // trusting the role here costs nothing.
+    assert.match(
+        selectorBlock,
+        /\[tabindex\]:not\(\[tabindex="-1"\]\):not\(a\[href\]\):not\(\[role\]\)/
+    );
+    // The bare form must not come back: it is the whole of #76.
+    assert.doesNotMatch(
+        selectorBlock,
+        /\[tabindex\]:not\(\[tabindex="-1"\]\):not\(a\[href\]\)'/
+    );
     // role="tabpanel" is a content container, not a control: it must not be
     // swept up by a prefix match on "tab".
     assert.equal(selectorBlock.includes('[role^="tab"]'), false);

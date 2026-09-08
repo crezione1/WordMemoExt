@@ -1525,9 +1525,22 @@ function wordMatchExpression(words) {
 //   controls (e.g. `<a role="menuitem">`), which is correct.
 //
 // The last group catches bespoke focusable widgets that declare no role at
-// all: anything the author put in the tab order is a control. `a[href]` is
-// carved back out of it so a prose link that also carries an explicit
-// tabindex keeps working, per the policy above.
+// all: anything the author put in the tab order *and left unlabelled* is a
+// control. `a[href]` is carved back out of it so a prose link that also
+// carries an explicit tabindex keeps working, per the policy above.
+//   `:not([role])` is what keeps this honest, and #76 is why it is there.
+//   A scrollable region has to be focusable to be reachable by keyboard
+//   (WCAG 2.1.1), so `tabindex="0"` on a *content* container is ordinary
+//   accessibility work, not a control. BBC's live feed is
+//   `<ol role="list" tabindex="0">`; because this selector is applied with
+//   `closest()`, that one attribute excluded every text node in the feed
+//   while the sidebar right next to it highlighted normally.
+//   Nothing is lost by trusting the role: roled controls are enumerated
+//   above and are matched on their role, never on their tabindex. This is
+//   the same reasoning that keeps `role="tabpanel"` eligible.
+//   Still excluded, knowingly: a focusable container with no role at all.
+//   There is nothing there to tell a scroll pane apart from a custom
+//   widget, so this does not guess -- see the ancestry fallback below.
 //
 // Role values are a token list, so `~=` is used rather than `=`; a
 // `role="button link"` element is still a button. `menu*` and `tab*` are
@@ -1565,7 +1578,7 @@ const NON_PROSE_SELECTOR = [
     "[aria-haspopup]",
 
     // Bespoke focusable widgets with no role -- but never a plain prose link.
-    '[tabindex]:not([tabindex="-1"]):not(a[href])'
+    '[tabindex]:not([tabindex="-1"]):not(a[href]):not([role])'
 ].join(", ");
 
 function isEligibleTextNode(node) {
