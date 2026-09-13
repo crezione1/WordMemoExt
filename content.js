@@ -1477,22 +1477,74 @@ function escapeRegExp(value) {
 const WORD_EDGE_BEFORE = "(?<![\\p{L}\\p{N}])";
 const WORD_EDGE_AFTER = "(?![\\p{L}\\p{N}])";
 
+/*
+  ...and the half of the world that edge rule does not describe (#78).
+
+  The lookaround above asks "is the neighbouring character a letter?" and reads
+  a yes as "then the match is in the middle of some longer word". That question
+  only means anything in a script that separates its words with spaces. Chinese,
+  Japanese and Thai do not, so the neighbour is ALWAYS a letter and the edge
+  never holds: a saved `中文` matched nothing in `我喜欢学习中文课程`, the reported
+  case. Korean is affected too, despite using spaces, because its particles
+  attach directly to the noun -- `한국어` sits inside `한국어를`.
+
+  So #72 did not have one Latin-shaped assumption in it, it had two, and it only
+  removed the first. The fix is the same move again: ask the question only where
+  it has an answer. An edge is kept when the word's outermost letter comes from a
+  script that delimits with spaces, and dropped when it comes from one that does
+  not. Everything #72 established for Latin, Cyrillic, Greek and accented scripts
+  is reached by the unchanged branch.
+
+  Knowingly accepted: with both edges dropped, a saved `中文` also matches inside
+  `中文課程`. In an unspaced script that IS the word occurring, and telling the two
+  readings apart needs dictionary-driven segmentation (`Intl.Segmenter`), which
+  this hot path -- it runs per text node, see the 3.8ms note on
+  dismissActiveWidget -- should not pay for until something actually asks for it.
+
+  The decision is per SAVED WORD, and therefore per alternative rather than
+  around the whole alternation: one dictionary holds words from several scripts
+  at once, and a single edge wrapped around the group would have to be wrong for
+  one of them. Mind the capture group when editing -- lookarounds consume
+  nothing, so `(alt|alt)` still yields the matched word as group 1, and
+  `replaceTextNode` splits on exactly that.
+
+  Scanning for the outermost LETTER rather than taking the outermost character
+  keeps a quoted or bracketed word (`「日本」`) honest; a word with no letter in it
+  at all, like the saved `2`, has nothing to classify and keeps the edge.
+*/
+const UNSPACED_SCRIPT_LETTER = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+const ANY_LETTER = /\p{L}/u;
+
+function wordEdgeApplies(word, fromEnd) {
+    const characters = [...String(word)];
+    if (fromEnd) {
+        characters.reverse();
+    }
+
+    const outermostLetter = characters.find((character) => ANY_LETTER.test(character));
+    return !outermostLetter || !UNSPACED_SCRIPT_LETTER.test(outermostLetter);
+}
+
+function alternativeWithEdges(word) {
+    const before = wordEdgeApplies(word, false) ? WORD_EDGE_BEFORE : "";
+    const after = wordEdgeApplies(word, true) ? WORD_EDGE_AFTER : "";
+    return `${before}${escapeRegExp(word)}${after}`;
+}
+
 function wordMatchExpression(words) {
     const alternatives = (Array.isArray(words) ? words : [words])
         .filter(Boolean)
-        .map(escapeRegExp)
+        .map(String)
         // Longest first, so "New York" is not eaten by "New" when both are
         // saved and both start at the same offset.
-        .sort((left, right) => right.length - left.length);
+        .sort((left, right) => right.length - left.length)
+        .map(alternativeWithEdges);
 
     if (alternatives.length === 0) {
         return null;
     }
 
-    return new RegExp(
-        `${WORD_EDGE_BEFORE}(${alternatives.join("|")})${WORD_EDGE_AFTER}`,
-        "giu"
-    );
+    return new RegExp(`(${alternatives.join("|")})`, "giu");
 }
 
 // Where LazyLex refuses to render (#50).

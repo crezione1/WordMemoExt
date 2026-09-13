@@ -2166,7 +2166,7 @@ test("a control still fires when the page swallows clicks in the capture phase",
     assert.equal(fired, 2, "the first match in the path wins, and only it");
 });
 
-test("one boundary rule for every matcher, and it works outside ASCII (#72)", async () => {
+test("one boundary rule for every matcher, and it works outside ASCII and outside spaced scripts (#72, #78)", async () => {
     const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
 
     // Pure and DOM-free, so it is extracted and executed rather than
@@ -2211,6 +2211,40 @@ test("one boundary rule for every matcher, and it works outside ASCII (#72)", as
     assert.equal(matches("Ελλάδα", "στην Ελλάδα σήμερα"), true);
     assert.equal(matches("café", "un café noir"), true);
     assert.equal(matches("café", "deux cafés"), false);
+
+    /*
+      The other half of the same assumption (#78). The lookaround asks whether
+      the neighbouring character is a letter and reads yes as "mid-word", which
+      is only true of a script that separates words with spaces. In Chinese,
+      Japanese and Thai the neighbour is always a letter, so #72's rule matched
+      nothing at all in them -- the same silent, total failure it had just fixed
+      for Cyrillic. Korean is here too: it spaces its phrases, but particles
+      attach to the noun, so `한국어` really does sit inside `한국어를`.
+    */
+    assert.equal(matches("中文", "我喜欢学习中文课程"), true, "mid-sentence Chinese");
+    assert.equal(matches("日本語", "私は日本語を勉強しています"), true, "mid-sentence Japanese");
+    assert.equal(matches("日本語", "日本語は難しい"), true, "leading Japanese, trailing particle");
+    assert.equal(matches("한국어", "저는한국어를공부합니다"), true, "Korean with an attached particle");
+    assert.equal(matches("ภาษาไทย", "ฉันเรียนภาษาไทย"), true, "Thai");
+    assert.equal(matches("李灝宇", "李灝宇這場長打猛打賞"), true, "the reported Threads post");
+
+    // Dropping an edge is per saved word, not per expression: a dictionary
+    // holds several scripts at once and a spaced-script word in it must keep
+    // the #72 rule in full, even when matched alongside an unspaced one.
+    const mixed = context.wordMatchExpression(["中文", "dog"]);
+    assert.equal(mixed.test("学习中文课程"), true);
+    mixed.lastIndex = 0;
+    assert.equal(mixed.test("hotdog"), false, "the Latin word keeps its edges");
+
+    // A word carrying no letter at all has nothing to classify, so it keeps the
+    // edge -- this is what holds the `2` case below in place. A quoted word is
+    // classified by its outermost LETTER, not its outermost character.
+    assert.equal(matches("「日本」", "說「日本」的人"), true);
+
+    // Knowingly accepted, asserted so that it is a decision and not a surprise:
+    // with both edges dropped, a saved word also matches inside a longer
+    // compound. In an unspaced script that is the word occurring.
+    assert.equal(matches("中文", "中文課程"), true);
 
     // Digits are word characters for this purpose: `2` inside `2026` is not an
     // occurrence of the saved word `2`.
