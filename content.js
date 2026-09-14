@@ -1065,18 +1065,20 @@ function showTrialEndedNotification(serverMessage, entitlement) {
 
 function removeTemporaryHighlight(text) {
     const normalizedText = String(text || "").toLocaleLowerCase();
-    const parentsToNormalize = new Set();
-    document.querySelectorAll(".highlight-wrapper:not([data-word-id])").forEach((wrapper) => {
-        if (String(wrapper.dataset.originalText || "").toLocaleLowerCase() !== normalizedText) {
-            return;
-        }
-        const parent = wrapper.parentNode;
-        if (parent) {
-            parent.replaceChild(document.createTextNode(wrapper.dataset.originalText || ""), wrapper);
-            parentsToNormalize.add(parent);
-        }
+    withoutRemountObserver(() => {
+        const parentsToNormalize = new Set();
+        document.querySelectorAll(".highlight-wrapper:not([data-word-id])").forEach((wrapper) => {
+            if (String(wrapper.dataset.originalText || "").toLocaleLowerCase() !== normalizedText) {
+                return;
+            }
+            const parent = wrapper.parentNode;
+            if (parent) {
+                parent.replaceChild(document.createTextNode(wrapper.dataset.originalText || ""), wrapper);
+                parentsToNormalize.add(parent);
+            }
+        });
+        parentsToNormalize.forEach((parent) => parent.normalize());
     });
-    parentsToNormalize.forEach((parent) => parent.normalize());
 }
 
 function showContentNotification(message, type = "info") {
@@ -1227,19 +1229,27 @@ function clearHighlighting() {
     // resyncHighlightsForCurrentPage). It is a no-op when nothing is open.
     dismissActiveWidget();
 
-    const wrappers = document.querySelectorAll('span.highlight-wrapper');
-    const parentsToNormalize = new Set();
+    // Nothing is painted any more, so there is nothing for the repaint
+    // observer to put back. Every caller that means "clear, then show the
+    // current words" -- applySettings, the wordsChanged "reload" branch, the
+    // SPA resync -- runs highlightWords straight after, which sets it again.
+    highlightedWordList = [];
 
-    wrappers.forEach(wrapper => {
-        const parent = wrapper.parentNode;
-        if (parent) {
-            const originalText = wrapper.dataset.originalText || '';
-            parent.replaceChild(document.createTextNode(originalText), wrapper);
-            parentsToNormalize.add(parent);
-        }
+    withoutRemountObserver(() => {
+        const wrappers = document.querySelectorAll('span.highlight-wrapper');
+        const parentsToNormalize = new Set();
+
+        wrappers.forEach(wrapper => {
+            const parent = wrapper.parentNode;
+            if (parent) {
+                const originalText = wrapper.dataset.originalText || '';
+                parent.replaceChild(document.createTextNode(originalText), wrapper);
+                parentsToNormalize.add(parent);
+            }
+        });
+
+        parentsToNormalize.forEach(parent => parent.normalize());
     });
-
-    parentsToNormalize.forEach(parent => parent.normalize());
 }
 
 function disableHighlightingDisplay() {
@@ -1309,8 +1319,10 @@ function showTemporaryHighlightWithLoader(text) {
         }
     });
 
-    replacements.forEach(rep => {
-        rep.originalNode.parentNode.replaceChild(rep.newFragment, rep.originalNode);
+    withoutRemountObserver(() => {
+        replacements.forEach(rep => {
+            rep.originalNode.parentNode.replaceChild(rep.newFragment, rep.originalNode);
+        });
     });
 }
 
@@ -1324,6 +1336,13 @@ function addHighlightForWord(word) {
     if (word?.status === "learned" || word?.learned === true || Number(word?.encounterCount) > 200) {
         return;
     }
+
+    // A word saved after the last full pass has to reach content the page
+    // mounts from here on, so it joins the repaint list as well as the DOM.
+    highlightedWordList = [
+        ...highlightedWordList.filter((item) => Number(item.id) !== Number(word.id)),
+        word
+    ];
 
     // First, update any existing temporary highlight wrappers
     const existingWrappers = document.querySelectorAll('.highlight-wrapper');
@@ -1361,10 +1380,12 @@ function addHighlightForWord(word) {
         console.warn("Unable to record word encounters:", error?.message || error);
     });
 
-    textNodes.forEach((node) => {
-        if (node.nodeValue.toLowerCase().includes(targetWord) && !node.parentNode.closest('.highlight-wrapper')) {
-            replaceTextNode(node, [targetWord], translations);
-        }
+    withoutRemountObserver(() => {
+        textNodes.forEach((node) => {
+            if (node.nodeValue.toLowerCase().includes(targetWord) && !node.parentNode.closest('.highlight-wrapper')) {
+                replaceTextNode(node, [targetWord], translations);
+            }
+        });
     });
 
     if (!settings.highlightingEnabled) {
@@ -1373,6 +1394,12 @@ function addHighlightForWord(word) {
 }
 
 function updateHighlightsForWord(word) {
+    // An edited translation has to follow the word into content mounted later,
+    // or a re-mounted post would come back showing the pre-edit text.
+    highlightedWordList = highlightedWordList.map(
+        (item) => (Number(item.id) === Number(word.id) ? word : item)
+    );
+
     const wrappers = document.querySelectorAll(`.highlight-wrapper[data-word-id="${word.id}"]`);
     wrappers.forEach(wrapper => {
         const translationSpan = wrapper.querySelector('.translation');
@@ -1388,17 +1415,26 @@ function removeHighlightsForWord(word) {
     // learned). Any control anchored to one of its wrappers goes with it (#51).
     dismissActiveWidget();
 
-    const wrappers = document.querySelectorAll(`.highlight-wrapper[data-word-id="${word.id}"]`);
-    const parentsToNormalize = new Set();
-    wrappers.forEach(wrapper => {
-        const parent = wrapper.parentNode;
-        if (parent) {
-            const originalText = wrapper.dataset.originalText || '';
-            parent.replaceChild(document.createTextNode(originalText), wrapper);
-            parentsToNormalize.add(parent);
-        }
+    // Off the page and off the repaint list together. Leaving it on the list
+    // would have the observer paint a deleted word back into the next subtree
+    // the page mounts.
+    highlightedWordList = highlightedWordList.filter(
+        (item) => Number(item.id) !== Number(word.id)
+    );
+
+    withoutRemountObserver(() => {
+        const wrappers = document.querySelectorAll(`.highlight-wrapper[data-word-id="${word.id}"]`);
+        const parentsToNormalize = new Set();
+        wrappers.forEach(wrapper => {
+            const parent = wrapper.parentNode;
+            if (parent) {
+                const originalText = wrapper.dataset.originalText || '';
+                parent.replaceChild(document.createTextNode(originalText), wrapper);
+                parentsToNormalize.add(parent);
+            }
+        });
+        parentsToNormalize.forEach(parent => parent.normalize());
     });
-    parentsToNormalize.forEach(parent => parent.normalize());
 }
 
 function replaceTextNode(node, targetWords, translations) {
@@ -1777,6 +1813,11 @@ async function highlightWords(words) {
         && word.learned !== true
         && Number(word.encounterCount || 0) <= 200
     ));
+    // The repaint observer works from the same list this pass used, so a
+    // subtree the page mounts later is painted with exactly what the rest of
+    // the page is already showing. See startRemountObserver.
+    highlightedWordList = visibleWords;
+
     const targetWords = visibleWords.map((t) => t.word.toLowerCase());
     const textNodes = findTextNodes(document.body);
 
@@ -1788,11 +1829,178 @@ async function highlightWords(words) {
 
     await recordEncounterCounts(visibleWords, textNodes);
 
-    textNodes.forEach((node) => {
-        if (targetWords.some((targetWord) => node.nodeValue.toLowerCase().includes(targetWord))) {
-            replaceTextNode(node, targetWords, translations);
+    withoutRemountObserver(() => {
+        textNodes.forEach((node) => {
+            if (targetWords.some((targetWord) => node.nodeValue.toLowerCase().includes(targetWord))) {
+                replaceTextNode(node, targetWords, translations);
+            }
+        });
+    });
+}
+
+// Repainting content the page re-mounts
+//
+// Every highlight pass above is a one-shot: the bootstrap pass, the
+// wordsChanged broadcasts, the YouTube SPA resync. That is enough for a
+// document whose text is written once and then left alone, and wrong for
+// every feed that recycles its DOM.
+//
+// Measured on threads.com: a post's subtree is unmounted wholesale when it
+// scrolls out of view, and a fresh one -- rebuilt from the original text,
+// with no wrappers in it -- is mounted when it scrolls back. Nothing of ours
+// is "removed" in any way we could notice from the wrapper's side; the node
+// we painted into is simply detached, thirteen levels up, and replaced. What
+// the user sees is the translation appearing, then vanishing on the next
+// scroll and never coming back. Instagram, X and Facebook virtualise their
+// timelines the same way, and an infinite-scroll feed appends new posts by
+// the same mechanism -- those have never been highlighted at all, because the
+// only pass that could have painted them ran before they existed.
+//
+// So the pass has to become continuous: watch for subtrees the page adds, and
+// paint the saved words inside them through the same replaceTextNode the
+// full-page pass uses.
+
+// What the last full pass painted. highlightWords owns it; the wordsChanged
+// surfaces keep it in step, so a word saved, edited or deleted after that pass
+// is reflected in everything mounted afterwards.
+let highlightedWordList = [];
+
+let remountObserver = null;
+let remountObserverSuppressed = 0;
+
+// Our own writes arrive as the same childList mutations we are listening for.
+// Recognising them after the fact is not reliable: replaceTextNode inserts a
+// fragment holding the wrappers AND the plain remainder text around them, and
+// only the wrappers carry a class of ours. So every LazyLex write to page text
+// runs inside this guard instead, and the records it produced are dropped
+// before the observer is re-armed.
+function withoutRemountObserver(write) {
+    remountObserverSuppressed++;
+    try {
+        return write();
+    } finally {
+        // takeRecords() drains what the write just queued. Without it those
+        // records survive the guard and are delivered the moment it lifts,
+        // which is the feedback loop this exists to prevent.
+        remountObserver?.takeRecords();
+        remountObserverSuppressed--;
+    }
+}
+
+// Roots added since the last flush. Batched rather than painted per record,
+// because one scroll through a feed produces mutations in long bursts and
+// painting each would run the walker dozens of times over subtrees the page
+// is still assembling.
+const pendingRemountRoots = new Set();
+let remountFlushTimer = null;
+const REMOUNT_FLUSH_DELAY_MS = 100;
+
+// An added node can be a text node itself, which a TreeWalker rooted at it
+// would never visit -- nextNode() descends into children, it does not return
+// the root. findTextNodes alone would therefore silently skip exactly the
+// case a re-render produces most often: one replaced text node.
+function collectRemountTextNodes(root) {
+    if (root.nodeType === Node.TEXT_NODE) {
+        return isEligibleTextNode(root) ? [root] : [];
+    }
+    if (root.nodeType !== Node.ELEMENT_NODE) {
+        return [];
+    }
+    return findTextNodes(root);
+}
+
+function paintRemountedRoots(roots) {
+    const visibleWords = highlightedWordList;
+    if (!visibleWords.length) {
+        return;
+    }
+
+    const targetWords = visibleWords.map((item) => item.word.toLowerCase());
+    const translations = visibleWords.reduce((result, item) => {
+        result[item.word.toLowerCase()] = item;
+        return result;
+    }, {});
+
+    // Deliberately no recordEncounterCounts here. A re-mounted post is text
+    // the user has already been shown; counting it again would inflate
+    // encounterCount on every scroll and march words to "learned" through
+    // nothing but a virtualised list. countedWordIdsOnPage happens to absorb
+    // it today, but only for as long as the page does not navigate.
+    withoutRemountObserver(() => {
+        roots.forEach((root) => {
+            // Detached again before the flush ran. A fast scroll does this
+            // constantly; painting it would be work thrown straight away.
+            if (!root.isConnected) {
+                return;
+            }
+
+            collectRemountTextNodes(root).forEach((node) => {
+                // replaceTextNode detaches the node it is given, so a node
+                // reached twice -- nested roots in one batch -- is already
+                // gone by the second visit.
+                if (!node.isConnected) {
+                    return;
+                }
+                if (targetWords.some((targetWord) => node.nodeValue.toLowerCase().includes(targetWord))) {
+                    replaceTextNode(node, targetWords, translations);
+                }
+            });
+        });
+    });
+
+    if (!settings.highlightingEnabled) {
+        // The full pass ends the same way. Without it, content mounted while
+        // highlighting is switched off would come back visibly painted.
+        disableHighlightingDisplay();
+    }
+}
+
+function flushRemountedRoots() {
+    remountFlushTimer = null;
+    const roots = Array.from(pendingRemountRoots);
+    pendingRemountRoots.clear();
+
+    // The site may have been excluded between the mutation and this flush.
+    if (!extensionEnabledForSite) {
+        return;
+    }
+
+    paintRemountedRoots(roots);
+}
+
+function startRemountObserver() {
+    if (remountObserver || typeof MutationObserver !== "function" || !document.body) {
+        return;
+    }
+
+    remountObserver = new MutationObserver((records) => {
+        // This runs on every DOM change the host page makes, and a feed makes
+        // a great many, so it has to stay cheap. The guards are ordered so the
+        // common "nothing of ours to do" case costs three boolean reads and no
+        // DOM access at all -- the lag #68 fixed on chatgpt.com came from a
+        // document-wide query on a hot path, and this is a hotter one.
+        if (remountObserverSuppressed || !extensionEnabledForSite || !highlightedWordList.length) {
+            return;
+        }
+
+        for (const record of records) {
+            for (const node of record.addedNodes) {
+                if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
+                    pendingRemountRoots.add(node);
+                }
+            }
+        }
+
+        if (pendingRemountRoots.size && remountFlushTimer === null) {
+            // setTimeout, not requestAnimationFrame, for the reason spelled
+            // out at WIDGET_SCROLL_GRACE_MS: rAF does not run in a hidden or
+            // throttled tab. A background tab still mounts content, and it
+            // has to be painted before the user switches back to it.
+            remountFlushTimer = setTimeout(flushRemountedRoots, REMOUNT_FLUSH_DELAY_MS);
         }
     });
+
+    remountObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 function handleExtensionStateChange(enabled) {
@@ -2285,6 +2493,9 @@ sweepLegacyLightDomControls();
 
 checkInitialExtensionState().then(() => {
     loadInitialSettings();
+    // Armed once the exclusion state is known, so the observer can never paint
+    // into a site the user has switched LazyLex off for.
+    startRemountObserver();
 });
 
 console.log('[LazyLexExt] Content script loaded');
