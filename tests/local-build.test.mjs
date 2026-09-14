@@ -1003,7 +1003,20 @@ test("interactive UI is excluded from highlighting while prose links stay eligib
     // the same rule on the next pass. There is no separate DOM-scanning
     // path that could bypass it.
     const replaceCallers = [...contentSource.matchAll(/^\s*replaceTextNode\(/gm)];
-    assert.equal(replaceCallers.length, 2, "expected exactly two replaceTextNode call sites");
+    assert.equal(replaceCallers.length, 3, "expected exactly three replaceTextNode call sites");
+
+    // The third caller is the repaint observer. A mutation record hands over
+    // either an element or a bare text node, so it sources its nodes through
+    // collectRemountTextNodes -- findTextNodes() for the first shape,
+    // isEligibleTextNode() for the second. Both ends of that fork apply the
+    // same rule as the full-page pass, which is what keeps this guarantee
+    // true for content that only exists after the page re-renders.
+    const collectBlock = contentSource.match(
+        /function collectRemountTextNodes\(root\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(collectBlock, "expected collectRemountTextNodes");
+    assert.match(collectBlock, /isEligibleTextNode\(root\)/);
+    assert.match(collectBlock, /findTextNodes\(root\)/);
     assert.equal(
         [...contentSource.matchAll(/findTextNodes\(document\.body\)/g)].length,
         3,
@@ -2382,4 +2395,214 @@ test("only things with a letter in them are treated as words (#71)", async () =>
         guardIndex < translateIndex,
         "the refusal must come before the call that costs a translation"
     );
+});
+
+// A feed that recycles its DOM -- threads.com unmounts a post's whole subtree
+// when it scrolls out of view and mounts a fresh one, built from the original
+// text, when it scrolls back. The one-shot highlight passes painted such a
+// post once and never again, so the translation appeared and then vanished on
+// the next scroll. The repaint observer is what makes the pass continuous.
+//
+// The block is self-contained apart from a handful of collaborators, so it is
+// extracted and executed for real rather than pattern-matched -- same style as
+// classifySelectionType and wordMatchExpression above.
+function createRemountHarness(blockSource) {
+    const painted = [];
+    const timers = [];
+    const observations = [];
+    const queuedRecords = [];
+    let observerCallback = null;
+    let disableCalls = 0;
+
+    function textNode(value, overrides = {}) {
+        return { nodeType: 3, isConnected: true, nodeValue: value, ...overrides };
+    }
+    function elementNode(textNodes, overrides = {}) {
+        return { nodeType: 1, isConnected: true, textNodes, ...overrides };
+    }
+
+    class FakeMutationObserver {
+        constructor(callback) {
+            observerCallback = callback;
+        }
+        observe(target, options) {
+            observations.push({ target, options });
+        }
+        takeRecords() {
+            return queuedRecords.splice(0);
+        }
+    }
+
+    const context = vm.createContext({
+        Node: { ELEMENT_NODE: 1, TEXT_NODE: 3 },
+        MutationObserver: FakeMutationObserver,
+        document: { body: { tag: "body" } },
+        settings: { highlightingEnabled: true },
+        extensionEnabledForSite: true,
+        setTimeout: (fn) => timers.push(fn),
+        findTextNodes: (root) => root.textNodes || [],
+        isEligibleTextNode: (node) => node.eligible !== false,
+        disableHighlightingDisplay: () => {
+            disableCalls++;
+        },
+        replaceTextNode: (node, targetWords) => {
+            painted.push({ text: node.nodeValue, targetWords: [...targetWords] });
+            // A real replaceTextNode rewrites page text, which queues exactly
+            // the kind of record this observer listens for. Modelling that is
+            // the whole point: it is the feedback loop the guard must swallow.
+            queuedRecords.push({ addedNodes: [textNode("recursion bait")] });
+        }
+    });
+    vm.runInContext(
+        `${blockSource}\nglobalThis.__remount = {
+            startRemountObserver,
+            withoutRemountObserver,
+            setWords(words) { highlightedWordList = words; }
+        };`,
+        context
+    );
+
+    return {
+        context,
+        api: context.__remount,
+        painted,
+        observations,
+        disableCalls: () => disableCalls,
+        pendingTimers: () => timers.length,
+        textNode,
+        elementNode,
+        // What the browser does when the guard is not holding the records back.
+        deliverQueuedRecords() {
+            if (queuedRecords.length) {
+                observerCallback(queuedRecords.splice(0));
+            }
+        },
+        deliver(records) {
+            observerCallback(records);
+        },
+        runTimers() {
+            timers.splice(0).forEach((fn) => fn());
+        }
+    };
+}
+
+test("content the page re-mounts is painted again, without the observer chasing its own writes", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const blockSource = contentSource.match(
+        /let highlightedWordList = \[\];[\s\S]*?function startRemountObserver\(\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(blockSource, "expected the remount-repaint block");
+
+    const harness = createRemountHarness(blockSource);
+    harness.api.startRemountObserver();
+
+    // Subtree of the whole document: a virtualised feed re-mounts posts
+    // anywhere in it, so nothing narrower would see them.
+    assert.equal(harness.observations.length, 1);
+    // Read field by field: the options object was built inside the vm realm,
+    // so it is structurally equal to a literal here but not deep-equal to it.
+    assert.equal(harness.observations[0].options.childList, true);
+    assert.equal(harness.observations[0].options.subtree, true);
+    assert.equal(harness.observations[0].target.tag, "body");
+
+    // Before any word is saved the callback must not even schedule work: it
+    // runs on every DOM change the host page makes.
+    harness.deliver([{ addedNodes: [harness.elementNode([harness.textNode("the dog runs")])] }]);
+    assert.equal(harness.pendingTimers(), 0);
+    assert.equal(harness.painted.length, 0);
+
+    harness.api.setWords([{ id: 1, word: "dog", translation: "пес" }]);
+
+    // A post scrolls back into view. Painting is batched, not done per record:
+    // one scroll produces mutations in bursts.
+    const remounted = harness.elementNode([harness.textNode("the dog runs")]);
+    harness.deliver([{ addedNodes: [remounted] }]);
+    assert.equal(harness.painted.length, 0, "painting must wait for the batch");
+    assert.equal(harness.pendingTimers(), 1);
+
+    harness.runTimers();
+    assert.deepEqual(harness.painted, [{ text: "the dog runs", targetWords: ["dog"] }]);
+
+    // The guard swallowed the records our own painting produced. Without it
+    // the observer would be handed its own writes and paint forever.
+    harness.deliverQueuedRecords();
+    assert.equal(harness.pendingTimers(), 0, "our own writes must not schedule another flush");
+    assert.equal(harness.painted.length, 1);
+
+    // A bare text node is the shape a re-render produces most often, and a
+    // TreeWalker rooted at one would never visit it.
+    harness.deliver([{ addedNodes: [harness.textNode("a dog again")] }]);
+    harness.runTimers();
+    assert.deepEqual(harness.painted.at(-1), { text: "a dog again", targetWords: ["dog"] });
+
+    // Ineligible text (a button label, a script) stays ineligible here too.
+    harness.deliver([{ addedNodes: [harness.textNode("dog", { eligible: false })] }]);
+    harness.runTimers();
+    assert.equal(harness.painted.length, 2);
+
+    // Detached again before the flush ran -- a fast scroll does this
+    // constantly, and painting it would be work thrown straight away.
+    harness.deliver([
+        { addedNodes: [harness.elementNode([harness.textNode("dog gone")], { isConnected: false })] }
+    ]);
+    harness.runTimers();
+    assert.equal(harness.painted.length, 2);
+
+    // Highlighting switched off: content mounted afterwards must not come
+    // back visibly painted, exactly as the full pass ends.
+    harness.context.settings.highlightingEnabled = false;
+    harness.deliver([{ addedNodes: [harness.elementNode([harness.textNode("one more dog")])] }]);
+    harness.runTimers();
+    assert.equal(harness.painted.length, 3);
+    assert.equal(harness.disableCalls(), 1);
+    harness.context.settings.highlightingEnabled = true;
+
+    // Excluded between the mutation and the flush: LazyLex is absent from the
+    // site from that moment, including work already queued. (#48)
+    harness.deliver([{ addedNodes: [harness.elementNode([harness.textNode("dog here")])] }]);
+    harness.context.extensionEnabledForSite = false;
+    harness.runTimers();
+    assert.equal(harness.painted.length, 3, "an excluded site must not be repainted");
+});
+
+test("every LazyLex write to page text runs inside the repaint guard", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // The guard is the only thing standing between our writes and our own
+    // observer, so it has to cover every function that rewrites page text --
+    // a new one added outside it would loop.
+    for (const [name, pattern] of [
+        ["clearHighlighting", /function clearHighlighting\(\)[\s\S]*?\r?\n}\r?\n/],
+        ["removeTemporaryHighlight", /function removeTemporaryHighlight\(text\)[\s\S]*?\r?\n}\r?\n/],
+        [
+            "showTemporaryHighlightWithLoader",
+            /function showTemporaryHighlightWithLoader\(text\)[\s\S]*?\r?\n}\r?\n/
+        ],
+        ["addHighlightForWord", /function addHighlightForWord\(word\)[\s\S]*?\r?\n}\r?\n/],
+        ["removeHighlightsForWord", /function removeHighlightsForWord\(word\)[\s\S]*?\r?\n}\r?\n/],
+        ["highlightWords", /async function highlightWords\(words\)[\s\S]*?\r?\n}\r?\n/]
+    ]) {
+        const block = contentSource.match(pattern)?.[0];
+        assert.ok(block, `expected ${name}`);
+        assert.match(block, /withoutRemountObserver\(/, `expected ${name} to write inside the guard`);
+    }
+
+    // Draining the queue is what makes the guard work; re-arming without it
+    // just delays the delivery of our own writes by one turn.
+    assert.match(contentSource, /remountObserver\?\.takeRecords\(\);/);
+
+    // The repaint list has to track what is actually on the page, or the
+    // observer paints a deleted word back into the next subtree the page
+    // mounts, or misses one saved after the last full pass.
+    assert.match(contentSource, /highlightedWordList = visibleWords;/);
+    assert.match(contentSource, /highlightedWordList = \[\];/);
+    assert.match(contentSource, /highlightedWordList = highlightedWordList\.filter\(/);
+    assert.match(contentSource, /highlightedWordList = highlightedWordList\.map\(/);
+
+    // Re-mounted text is text the user has already been shown. Counting it
+    // again would march words to "learned" through nothing but scrolling.
+    const paintBlock = contentSource.match(/function paintRemountedRoots\(roots\)[\s\S]*?\r?\n}\r?\n/)?.[0];
+    assert.ok(paintBlock, "expected paintRemountedRoots");
+    // The comment explaining why names it, so match a call, not a mention.
+    assert.doesNotMatch(paintBlock, /^\s*(await )?recordEncounterCounts\(/m);
 });
