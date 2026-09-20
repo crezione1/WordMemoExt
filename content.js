@@ -206,6 +206,47 @@ const CONTROL_STYLESHEET = `
  * control looks different" complaint (#52).
  */
 
+/*
+ * A clicked highlight raises more than one control now -- hear the word, or
+ * delete it -- so they are mounted together as ONE absolutely positioned
+ * element rather than as two controls competing for the same anchor.
+ *
+ * One element is also one teardown, which is what keeps #51 intact: "one
+ * control at a time" still has exactly one thing to dismiss, and neither
+ * button can be left behind when the other closes.
+ */
+.control-cluster {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/*
+ * The speaker is drawn, not typed.
+ *
+ * Every other control here is an ASCII glyph ("+", "-", "S+") which takes the
+ * button's "color: #ffffff" and renders crisp white on the orange fill. There
+ * is no ASCII speaker, and the obvious substitute -- the emoji -- does not
+ * behave like text: Windows renders it from a monochrome symbol font in its
+ * own grey, ignoring the color property entirely, so it came out low-contrast grey-on-
+ * orange next to a bright white "-". Colour emoji presentation elsewhere
+ * would be just as wrong in the other direction.
+ *
+ * An inline SVG inherits currentColor, so it is white on every platform and
+ * matches the glyph beside it exactly.
+ */
+.action-button svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    flex: none;
+    fill: currentColor;
+    /* Clicks belong to the button. The activation router walks composedPath
+       so it would find the button anyway; this keeps the event target from
+       being an implementation detail of the icon. */
+    pointer-events: none;
+}
+
 .edit-translation-container {
     display: flex;
     align-items: center;
@@ -247,6 +288,13 @@ const ACTION_BUTTON_SIZE = 24;
 // call site still reads as "the delete button's size" -- if the two ever need
 // to diverge again, this is the one line to change.
 const DELETE_BUTTON_SIZE = ACTION_BUTTON_SIZE;
+// The cluster is two buttons plus the gap between them. Declared for the same
+// reason as the sizes above: mountControl clamps from declared geometry rather
+// than measuring, so a cluster reporting one button's width would be clamped as
+// if it were half its size -- which pushes its right-hand button off screen at
+// the right edge of the viewport.
+const CONTROL_CLUSTER_GAP = 4;
+const CONTROL_CLUSTER_WIDTH = ACTION_BUTTON_SIZE * 2 + CONTROL_CLUSTER_GAP;
 const EDIT_INPUT_WIDTH = 180;
 const EDIT_CONTAINER_HEIGHT = 26;
 
@@ -1134,6 +1182,72 @@ function notifySiteExcluded() {
         + `Open LazyLex and remove it there to translate on this page.`,
         "info"
     );
+}
+
+// The speaker icon, built as nodes rather than markup.
+//
+// `innerHTML` would be shorter, but this is a content script that runs on
+// pages we do not control, and a page enforcing Trusted Types makes any
+// innerHTML assignment throw. createElementNS cannot be refused.
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const SPEAKER_ICON_PATHS = [
+    // The cone.
+    "M3 9v6h4l5 5V4L7 9H3z",
+    // The waves, as one arc pair.
+    "M16.5 12a4.5 4.5 0 0 0-2.5-4.03v8.06A4.5 4.5 0 0 0 16.5 12z"
+];
+
+function createSpeakerIcon() {
+    const svg = document.createElementNS(SVG_NAMESPACE, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    // aria-hidden: the button already carries the accessible name, and an
+    // unlabelled graphic inside it would be announced as a second thing.
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    SPEAKER_ICON_PATHS.forEach((d) => {
+        const path = document.createElementNS(SVG_NAMESPACE, "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "currentColor");
+        svg.appendChild(path);
+    });
+    return svg;
+}
+
+// Speaking a highlighted word
+//
+// The popup's dictionary has been able to do this for a while
+// (`playWordPronunciation`), but the word on the PAGE could not be heard at
+// all -- and the page is where the user actually meets the word while
+// reading. That is the gap this closes.
+//
+// `speechSynthesis` is a page API and a content script shares the page's
+// window, so this is the same call the popup makes, from the other side of
+// the extension.
+//
+// `cancel()` before `speak()` because the utterance queue is global to the
+// tab: clicking three highlighted words in a row would otherwise queue three
+// utterances and read them out one after another, long after the user has
+// moved on. The word just clicked is the one they want to hear.
+//
+// The language is 'en-US' -- the same hardcoded value the popup uses. LazyLex
+// translates INTO the user's language, so the original text on this side is
+// English in every flow that reaches here. The popup already carries a TODO
+// to turn this into a setting; deliberately not inventing a second source of
+// truth for it ahead of that.
+//
+// Returns whether it spoke, so the caller can say something rather than
+// appear inert on a browser without the API.
+function speakWord(text) {
+    const spoken = String(text || "").trim();
+    if (!spoken || typeof speechSynthesis === "undefined") {
+        return false;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(spoken);
+    utterance.lang = "en-US";
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+    return true;
 }
 
 // Sentence selection (issues #28, #49)
@@ -2320,13 +2434,42 @@ document.addEventListener("click", (e) => {
     // This logic shows the delete button when a highlighted word is clicked
     if (!wrapper) return;
 
+    const wrapperRect = wrapper.getBoundingClientRect();
+
+    // Hear it, or delete it. Both act on the word that was just clicked, so
+    // they open together instead of making the user discover which gesture
+    // raises which control.
+    const cluster = document.createElement("div");
+    cluster.className = "control-cluster";
+
+    // Speaks the ORIGINAL word, never the translation. `originalText` is the
+    // page's own casing of the word, captured when the highlight was built.
+    // The `.translation` span beside it holds the other language, and reading
+    // that out with an en-US voice would be nonsense.
+    const speakButton = document.createElement("button");
+    speakButton.type = "button";
+    speakButton.appendChild(createSpeakerIcon());
+    speakButton.id = "speakWordBtn";
+    speakButton.className = "action-button";
+    speakButton.title = "Play pronunciation";
+    speakButton.setAttribute("aria-label", "Play pronunciation");
+    setControlActivation(speakButton, (event) => {
+        event?.stopPropagation?.();
+        // Deliberately does NOT dismiss. Hearing a word and then hearing it
+        // again is one gesture repeated, and closing the cluster on the first
+        // press would turn the second press into a click on the page --
+        // which dismisses, so the word would never be replayable.
+        if (!speakWord(wrapper.dataset.originalText)) {
+            showContentNotification("This browser cannot speak the word.", "error");
+        }
+    });
+
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.textContent = "-";
     deleteButton.id = "deleteWordBtn";
     deleteButton.className = "action-button";
     deleteButton.title = "Delete saved word";
-    const wrapperRect = wrapper.getBoundingClientRect();
 
     deleteButton.setAttribute("aria-label", "Delete saved word");
     setControlActivation(deleteButton, async (event) => {
@@ -2341,22 +2484,29 @@ document.addEventListener("click", (e) => {
         }
     });
 
-    // Registered before it is attached (see setActiveWidget): opening the
-    // delete control closes an open edit field or add button first.
+    cluster.append(speakButton, deleteButton);
+
+    // Registered before it is attached (see setActiveWidget): opening these
+    // closes an open edit field or add button first.
+    //
+    // The type is "word-actions" rather than "delete": the widget is no
+    // longer only the delete button, and a name that says otherwise is the
+    // read-it-from-the-wrong-place trap this codebase has been bitten by
+    // before.
     setActiveWidget({
-        type: "delete",
+        type: "word-actions",
         target: wrapper,
-        dismiss: () => deleteButton.remove()
+        dismiss: () => cluster.remove()
     });
 
     // Mounted into the shadow layer, so a clipped or overflow-hidden container
-    // around the word cannot hide the control -- and no host `button {}` rule
-    // can reach it (#52).
-    mountControl(deleteButton, {
+    // around the word cannot hide the controls -- and no host `button {}` rule
+    // can reach them (#52).
+    mountControl(cluster, {
         left: wrapperRect.right + 4,
-        top: wrapperRect.top - DELETE_BUTTON_SIZE - 4,
-        width: DELETE_BUTTON_SIZE,
-        height: DELETE_BUTTON_SIZE
+        top: wrapperRect.top - ACTION_BUTTON_SIZE - 4,
+        width: CONTROL_CLUSTER_WIDTH,
+        height: ACTION_BUTTON_SIZE
     });
 });
 

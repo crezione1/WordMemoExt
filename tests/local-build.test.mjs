@@ -1457,7 +1457,11 @@ test("every control path opens through the shared dismiss, including the SPA res
     assert.ok(clickHandler, "expected the click-delegate handler");
     assert.match(clickHandler, /if \(isWidgetControlEvent\(e\)\) \{/);
     assert.match(clickHandler, /dismissActiveWidget\(\);/);
-    assert.match(clickHandler, /setActiveWidget\(\{\s*\r?\n\s*type: "delete"/);
+    // "word-actions", not "delete": clicking a highlight now raises the
+    // speaker and the delete button together as one cluster, and a widget
+    // named after half of what it holds is the mismatch this codebase keeps
+    // being bitten by.
+    assert.match(clickHandler, /setActiveWidget\(\{\s*\r?\n\s*type: "word-actions"/);
     assert.equal(clickHandler.includes('const existingDeleteButton = document.getElementById("deleteWordBtn")'), false);
 
     const editUiSource = contentSource.match(
@@ -2200,6 +2204,146 @@ test("an excluded site says why it refused, and only when asked", async () => {
             `${name} is page-triggered and must refuse silently`
         );
     }
+});
+
+test("a clicked highlight can be heard, and it speaks the word rather than the translation", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const stylesheet = await readControlStylesheet();
+
+    // The popup could already speak a saved word; the word on the PAGE could
+    // not be heard at all, which is where the user actually meets it.
+    const speak = contentSource.match(/function speakWord\(text\)[\s\S]*?\n\}/)?.[0];
+    assert.ok(speak, "expected speakWord");
+
+    // Run it. The queue is global to the tab, so three clicks in a row must
+    // not read out three words one after another long after the user moved
+    // on -- cancel() before speak() is the whole of that guarantee.
+    const calls = [];
+    const context = vm.createContext({
+        SpeechSynthesisUtterance: class {
+            constructor(text) {
+                this.text = text;
+                calls.push({ op: "utterance", text });
+            }
+        },
+        speechSynthesis: {
+            cancel: () => calls.push({ op: "cancel" }),
+            speak: (u) => calls.push({ op: "speak", text: u.text, lang: u.lang })
+        },
+        calls
+    });
+    vm.runInContext(speak, context);
+
+    assert.equal(context.speakWord("intrinsic"), true);
+    assert.deepEqual(
+        calls.map((c) => c.op),
+        ["utterance", "cancel", "speak"],
+        "cancel() must come before speak(), or utterances queue up"
+    );
+    assert.equal(calls[2].text, "intrinsic");
+    assert.equal(calls[2].lang, "en-US");
+
+    // Nothing to say, nothing said -- and no utterance constructed either.
+    calls.length = 0;
+    assert.equal(context.speakWord("   "), false);
+    assert.equal(context.speakWord(""), false);
+    assert.equal(context.speakWord(null), false);
+    assert.equal(context.speakWord(undefined), false);
+    assert.equal(calls.length, 0, "an empty word must not reach the speech API at all");
+
+    // A browser without the API must report failure rather than throw, so the
+    // caller can say something instead of the control appearing inert.
+    const bare = vm.createContext({});
+    vm.runInContext(speak, bare);
+    assert.equal(bare.speakWord("intrinsic"), false);
+
+    // THE bug this guards: the highlight holds the original word and the
+    // translation side by side. Speaking `.translation` with an en-US voice
+    // would read Ukrainian text in an English voice. The source has to read
+    // the word, and only the word.
+    const clickHandler = contentSource.match(
+        /document\.addEventListener\("click", \(e\) => \{[\s\S]*?\r?\n\}\);/
+    )?.[0];
+    assert.ok(clickHandler, "expected the click-delegate handler");
+    assert.match(clickHandler, /speakWord\(wrapper\.dataset\.originalText\)/);
+    assert.equal(
+        /speakWord\([^)]*translation/i.test(clickHandler),
+        false,
+        "the speaker must never be handed the translation"
+    );
+
+    // Activation goes through the capture-phase router like every other
+    // control: a page that swallows clicks on `document` would otherwise
+    // silence it (see the capture-phase test).
+    assert.match(clickHandler, /setControlActivation\(speakButton,/);
+    assert.equal(
+        clickHandler.includes('speakButton.addEventListener("click"'),
+        false,
+        "the speaker must be activated through the router, not its own listener"
+    );
+
+    // Replayable. Dismissing on the first press would make the second press a
+    // click on the page -- which dismisses -- so the word could never be
+    // heard twice.
+    const activation = clickHandler.match(
+        /setControlActivation\(speakButton,[\s\S]*?\n    \}\);/
+    )?.[0];
+    assert.ok(activation, "expected the speaker's activation handler");
+    assert.equal(
+        activation.includes("dismissActiveWidget()"),
+        false,
+        "pressing the speaker must not close the cluster, or replay is impossible"
+    );
+
+    // One cluster, one teardown. Two controls each registering their own
+    // dismiss is how #51 gets broken from the inside.
+    assert.match(clickHandler, /cluster\.append\(speakButton, deleteButton\)/);
+    assert.match(clickHandler, /dismiss: \(\) => cluster\.remove\(\)/);
+    assert.match(clickHandler, /mountControl\(cluster, \{/);
+
+    // The speaker is DRAWN, not typed. Every other control here is an ASCII
+    // glyph that takes the button's white `color`; there is no ASCII speaker,
+    // and the emoji substitute does not behave like text -- Windows renders
+    // U+1F50A from a monochrome symbol font in its own grey and ignores
+    // `color`, so it came out low-contrast grey-on-orange beside a bright
+    // white "-". Measured, not guessed: that is what the first build looked
+    // like. An inline SVG inherits currentColor and matches on every
+    // platform.
+    assert.match(clickHandler, /speakButton\.appendChild\(createSpeakerIcon\(\)\)/);
+    assert.equal(
+        /speakButton\.textContent/.test(clickHandler),
+        false,
+        "a text glyph cannot be kept white across platforms -- use the SVG"
+    );
+    assert.match(readRuleBlock(stylesheet, ".action-button svg"), /fill:\s*currentColor;/);
+
+    // Built as nodes, never as markup: this is a content script on pages we do
+    // not control, and a page enforcing Trusted Types makes any innerHTML
+    // assignment throw outright.
+    const iconBuilder = contentSource.match(/function createSpeakerIcon\(\)[\s\S]*?\n\}/)?.[0];
+    assert.ok(iconBuilder, "expected createSpeakerIcon");
+    assert.match(iconBuilder, /createElementNS\(SVG_NAMESPACE, "svg"\)/);
+    assert.equal(
+        iconBuilder.includes("innerHTML"),
+        false,
+        "innerHTML throws under Trusted Types -- build the icon as nodes"
+    );
+    // The graphic must not be announced: the button already carries the name.
+    assert.match(iconBuilder, /setAttribute\("aria-hidden", "true"\)/);
+
+    // The clamp works from declared geometry rather than measuring, so a
+    // cluster reporting one button's width would be clamped as if it were
+    // half its size and its right-hand button would sit off screen at the
+    // right edge of the viewport.
+    const gap = Number(contentSource.match(/const CONTROL_CLUSTER_GAP = (\d+);/)?.[1]);
+    assert.ok(Number.isInteger(gap), "expected CONTROL_CLUSTER_GAP");
+    assert.match(readRuleBlock(stylesheet, ".control-cluster"), new RegExp(`gap:\\s*${gap}px;`));
+    assert.match(
+        contentSource,
+        /const CONTROL_CLUSTER_WIDTH = ACTION_BUTTON_SIZE \* 2 \+ CONTROL_CLUSTER_GAP;/,
+        "the cluster width must be derived from the button size, not repeated"
+    );
+    assert.match(clickHandler, /width: CONTROL_CLUSTER_WIDTH,/);
 });
 
 test("a control still fires when the page swallows clicks in the capture phase", async () => {
