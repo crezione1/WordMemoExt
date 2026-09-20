@@ -536,28 +536,16 @@ button:disabled {
     text-align: left;
 }
 
-.add-exclusion {
-    position: relative;
-    width: 100%;
-    margin-top: 8px;
-    padding-inline: 10px;
-}
-
-.add-exclusion-input {
-    padding: 16px 48px 16px 24px;
-}
-
-.add-exclusion-btn {
-    position: absolute;
-    top: 4px;
-    right: 14px;
-    width: 40px;
-    height: 40px;
-    background-color: var(--accent-color);
-}
-
+/* A fixed box, not one that grows with the list: the switch and the account
+   rows below it have to stay where they are however many sites are excluded,
+   and the panel is too short to absorb a list that keeps growing. */
 .exclusion-list {
     margin-top: 10px;
+    /* 3.5 rows at the 48px a row measures: the half row is the only thing
+       telling a user there is more below, since the box has no other edge. */
+    height: 168px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .exclusion-list li {

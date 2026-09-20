@@ -26,8 +26,6 @@ const exclusionList = document.getElementById("exclusionList");
 // broke removal in this panel. The name follows the state it now holds.
 const siteTranslationCheckbox = document.getElementById("translateThisSite");
 const currentSiteNameLabel = document.getElementById("currentSiteName");
-const siteInput = document.getElementById("siteInput");
-const addSiteButton = document.getElementById("addSiteBtn");
 const changeTelegramBtn = document.getElementById("changeTelegramBtn");
 const telegramContainer = document.getElementById("telegramContainer");
 const openEnglishLevelBtn = document.getElementById("englishLevelBtn");
@@ -721,9 +719,8 @@ async function toggleExtensionState() {
 
         isEnabled = true;
     } else {
-        // Same duplicate guard as addSiteToExclusion: this toggle and the
-        // input are two ways to add the same host, and the panel can be
-        // reopened between them.
+        // The panel can be reopened between flips, and a parent domain may
+        // already cover this host, so adding is guarded rather than assumed.
         const alreadyExcluded = excludedSites.some(
             (site) => hostnameMatches(currentSiteHostname, site)
         );
@@ -742,52 +739,6 @@ async function toggleExtensionState() {
     // Keeps the switch honest if a branch above bailed early -- and keeps the
     // hostname label in step with the state it describes.
     syncSiteSwitch();
-}
-
-async function addSiteToExclusion() {
-    const siteInputValue = siteInput.value.trim();
-    let site;
-
-    try {
-        const urlObject = new URL(siteInputValue);
-        site = urlObject.hostname;
-    } catch (e) {
-        if (e instanceof TypeError) {
-            site = siteInputValue;
-        }
-    }
-
-    if (site) {
-        const result = await chrome.storage.local.get({
-            excludedSites: [],
-        });
-
-        // Adding the same site twice used to store it twice and render two
-        // rows. Removal matches on the normalised host, so one click would
-        // clear both entries from storage while only one row disappeared --
-        // leaving a row that refuses to remove because it is no longer there.
-        const normalizedSite = normalizeExcludedSite(site);
-        const alreadyExcluded = result.excludedSites.some(
-            (existing) => normalizeExcludedSite(existing) === normalizedSite
-        );
-        if (alreadyExcluded) {
-            siteInput.value = "";
-            showNotification(`${site} is already excluded.`);
-            return;
-        }
-
-        const updatedList = [...result.excludedSites, site];
-        await chrome.storage.local.set({excludedSites: updatedList});
-
-        const listItem = generateExclusionListItem(site);
-        exclusionList.prepend(listItem);
-        siteInput.value = "";
-
-        const currentSiteHostname = getSiteHostname(currentSite);
-
-        isEnabled = isEnabled ? site !== currentSiteHostname : false;
-        syncSiteSwitch();
-    }
 }
 
 async function removeSiteFromExclusion(e) {
@@ -1048,9 +999,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     siteTranslationCheckbox.addEventListener("change", toggleExtensionState);
-
-    siteInput.addEventListener("input", () => toggleButton(addSiteButton, siteInput));
-    addSiteButton.addEventListener("click", addSiteToExclusion);
 
     exclusionList.addEventListener("click", async (e) => removeSiteFromExclusion(e));
 
