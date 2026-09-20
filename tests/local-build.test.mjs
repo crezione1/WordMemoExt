@@ -1997,8 +1997,10 @@ test("exclusion entries are removed by data, not by the row's rendered text", as
     assert.deepEqual(enableFilter(["example.com", "other.com"], "www.example.com"), ["other.com"]);
 
     // Duplicates would defeat the normalised removal: one click clears both
-    // storage entries while only one row disappears.
-    assert.match(popupSource, /const alreadyExcluded = result\.excludedSites\.some\(/);
+    // storage entries while only one row disappears. The switch is now the
+    // only way in, and the panel can be reopened between flips, so it guards
+    // the add against an entry -- parent domain included -- already there.
+    assert.match(popupSource, /const alreadyExcluded = excludedSites\.some\(/);
 });
 
 test("the per-site switch rests ON, and names the site", async () => {
