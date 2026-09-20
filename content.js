@@ -817,6 +817,9 @@ async function runLogic(selectedText, rect) {
     // nothing happened while a billable translation call had already been made.
     if (!extensionEnabledForSite) {
         console.log('[LazyLexExt] Site is excluded; ignoring the add request.');
+        // Ctrl+Shift+S is as deliberate an ask as clicking "+", so it gets the
+        // same explanation rather than appearing to do nothing.
+        notifySiteExcluded();
         return;
     }
 
@@ -1106,6 +1109,31 @@ function showContentNotification(message, type = "info") {
     notification.textContent = String(message || "LazyLex operation failed.");
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 5000);
+}
+
+// A refusal on an excluded site is no longer silent (#48 follow-up)
+//
+// #48's rule is that LazyLex is ABSENT from an excluded site, and every path
+// that renders or offers was gated to honour it. Absent turned out to be
+// indistinguishable from broken: a user who selects a word and gets nothing
+// back -- no "+", no translation, no reason -- reads it as the extension
+// having died, not as a setting they themselves turned on, possibly months
+// ago on a site they have since forgotten about.
+//
+// So the gates stay exactly where they are, and the user-initiated ones say
+// why they refused. The message names the host, because the exclusion may
+// have been written by the parent domain (`example.com` covers
+// `www.example.com`), and points at the one place that undoes it.
+//
+// Only paths the USER triggers may call this. Anything the page triggers --
+// a repaint, a mutation flush, a settings broadcast -- must stay silent, or
+// an excluded page raises toasts on its own.
+function notifySiteExcluded() {
+    showContentNotification(
+        `LazyLex is off on ${location.hostname} -- the site is on your exclusion list. `
+        + `Open LazyLex and remove it there to translate on this page.`,
+        "info"
+    );
 }
 
 // Sentence selection (issues #28, #49)
@@ -2143,6 +2171,19 @@ document.addEventListener("mouseup", function (event) {
     // Placed after dismissActiveWidget() deliberately: a control already open
     // when the site is excluded must still be torn down.
     if (!extensionEnabledForSite) {
+        // Silent for a plain click, explicit for a real ask. mouseup fires on
+        // every click on the page, so notifying unconditionally here would
+        // turn an excluded site into one that raises a toast whenever it is
+        // touched. The selection is classified with the same function the
+        // enabled path uses, so the user is told why there is no "+" in
+        // exactly the cases where one would otherwise have appeared -- and a
+        // selection that would have been refused anyway (#71) still says
+        // nothing, because the exclusion is not why it was refused.
+        const selectedText = window.getSelection().toString().trim();
+        const selectionType = selectedText ? classifySelectionType(selectedText) : null;
+        if (selectionType !== null && selectionType !== "not-a-word") {
+            notifySiteExcluded();
+        }
         return;
     }
 

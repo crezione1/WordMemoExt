@@ -2104,6 +2104,104 @@ test("the per-site switch rests ON, and names the site", async () => {
     assert.match(sync, /currentSiteNameLabel\.title = hostname \|\| "";/);
 });
 
+test("an excluded site says why it refused, and only when asked", async () => {
+    const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+
+    // #48 made LazyLex absent from an excluded site. Absent is
+    // indistinguishable from broken: selecting a word returned no "+", no
+    // translation and no reason, so the report reads as "the extension
+    // stopped working" rather than "I turned this site off". The gates stay;
+    // the user-initiated ones now explain themselves.
+    const notify = contentSource.match(/function notifySiteExcluded\(\)[\s\S]*?\n\}/)?.[0];
+    assert.ok(notify, "expected notifySiteExcluded");
+
+    // The host has to be in the message: an exclusion written as
+    // `example.com` silently covers `www.example.com`, so a user hunting for
+    // the entry that stopped this page needs to be told which name to look
+    // for. Run rather than pattern-matched.
+    const context = vm.createContext({
+        location: { hostname: "www.linkedin.com" },
+        shown: []
+    });
+    context.showContentNotification = (message, type) => context.shown.push({ message, type });
+    vm.runInContext(notify + "\nnotifySiteExcluded();", context);
+    assert.equal(context.shown.length, 1);
+    assert.match(context.shown[0].message, /www\.linkedin\.com/);
+    assert.match(context.shown[0].message, /exclusion list/i);
+    // It has to say what to do about it, or it is only a politer dead end.
+    assert.match(context.shown[0].message, /remove/i);
+
+    // Both paths a USER can take are covered. The keyboard shortcut never
+    // passes through mouseup, which is why it needs its own call.
+    const runLogic = contentSource.match(/async function runLogic\([\s\S]*?\n\}/)?.[0];
+    assert.ok(runLogic?.includes("notifySiteExcluded()"), "the shortcut path must explain itself");
+
+    // mouseup fires on EVERY click. Notifying unconditionally in its gate
+    // would make an excluded page raise a toast whenever it is touched, which
+    // is a worse bug than the silence it replaces. The call has to sit behind
+    // the selection classification -- executed here, not eyeballed.
+    const mouseupHandler = contentSource.match(
+        /document\.addEventListener\("mouseup",[\s\S]*?\n\}\);/
+    )?.[0];
+    assert.ok(mouseupHandler, "expected the mouseup handler");
+    const gate = mouseupHandler.match(/if \(!extensionEnabledForSite\) \{[\s\S]*?\n    \}/)?.[0];
+    assert.ok(gate?.includes("notifySiteExcluded()"), "the selection path must explain itself");
+
+    const gateContext = vm.createContext({ notified: 0 });
+    vm.runInContext(
+        [
+            "var extensionEnabledForSite, selectionText, classification;",
+            "function notifySiteExcluded() { notified++; }",
+            "function classifySelectionType() { return classification; }",
+            "var window = { getSelection: () => ({ toString: () => selectionText }) };",
+            "function runGate(text, type) {",
+            "    extensionEnabledForSite = false;",
+            "    selectionText = text;",
+            "    classification = type;",
+            gate,
+            "}"
+        ].join("\n"),
+        gateContext
+    );
+    const { runGate } = gateContext;
+
+    runGate("", null);
+    assert.equal(gateContext.notified, 0, "a plain click must stay silent");
+    runGate("   ", null);
+    assert.equal(gateContext.notified, 0, "whitespace is not an ask");
+    runGate("42", "not-a-word");
+    assert.equal(
+        gateContext.notified,
+        0,
+        "a selection #71 would refuse anyway stays silent -- the exclusion is not why"
+    );
+    runGate("serendipity", "word");
+    assert.equal(gateContext.notified, 1, "selecting a word must explain the silence");
+    runGate("The quick brown fox jumps.", "sentence");
+    assert.equal(gateContext.notified, 2, "a sentence selection is the same ask");
+
+    // Nothing the PAGE triggers may speak. A repaint, a mutation flush or a
+    // settings broadcast raising a toast would turn an excluded site into one
+    // that nags on its own, with no user action behind it.
+    for (const [name, pattern] of [
+        ["highlightWords", /async function highlightWords\(words\)[\s\S]*?\r?\n}\r?\n/],
+        ["addHighlightForWord", /function addHighlightForWord\(word\)[\s\S]*?\r?\n}\r?\n/],
+        [
+            "showTemporaryHighlightWithLoader",
+            /function showTemporaryHighlightWithLoader\(text\)[\s\S]*?\r?\n}\r?\n/
+        ],
+        ["applySettings", /function applySettings\(newSettings\)[\s\S]*?\r?\n}\r?\n/]
+    ]) {
+        const body = contentSource.match(pattern)?.[0];
+        assert.ok(body, `expected ${name}`);
+        assert.equal(
+            body.includes("notifySiteExcluded"),
+            false,
+            `${name} is page-triggered and must refuse silently`
+        );
+    }
+});
+
 test("a control still fires when the page swallows clicks in the capture phase", async () => {
     const contentSource = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
 
