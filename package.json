@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Chrome extension for learning English vocabulary",
   "scripts": {
-    "build": "node scripts/build-extension.mjs",
-    "build:local": "node scripts/build-extension.mjs --oauth-client-id=318380438947-fk505l37ves52tfv6pvklrcanh7fhq6b.apps.googleusercontent.com",
+    "build": "node scripts/build-extension.mjs --oauth-client-id=318380438947-fk505l37ves52tfv6pvklrcanh7fhq6b.apps.googleusercontent.com",
+    "build:local": "npm run build --",
     "check": "node scripts/check-extension.mjs",
     "test": "node --test tests/"
   },
