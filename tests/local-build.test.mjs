@@ -23,6 +23,43 @@ test("manifest grants only the deployed integration hosts", async () => {
     assert.equal(manifest.oauth2.scopes.includes("https://www.googleapis.com/auth/datastore"), false);
 });
 
+test("unspaced scripts use word segmentation for sentence detection (#79)", async () => {
+    const source = await readFile(path.join(repositoryRoot, "content.js"), "utf8");
+    const classifierSource = source.match(
+        /const CONTAINS_LETTER[\s\S]*?function classifySelectionType\(text\)[\s\S]*?\r?\n}\r?\n/
+    )?.[0];
+    assert.ok(classifierSource);
+    const context = vm.createContext({});
+    vm.runInContext(classifierSource, context);
+
+    for (const text of [
+        "休賽季可不可以找黃忠義補習一下⋯⋯",
+        "季賽還有十多場，希望數字更漂亮些。",
+        "今日は天気が良いので公園に散歩に行きます",
+        "วันนี้อากาศดีมากเราไปเดินเล่นที่สวนสาธารณะ"
+    ]) {
+        assert.equal(context.classifySelectionType(text), "sentence", text);
+    }
+    for (const text of ["中文", "李灝宇", "日本語", "dog", "я", "café"]) {
+        assert.equal(context.classifySelectionType(text), "word", text);
+    }
+    for (const mark of [".", "!", "?", "。", "！", "？", "؟"]) {
+        assert.equal(context.classifySelectionType("one two three" + mark), "sentence", mark);
+        assert.equal(context.classifySelectionType("one two three" + mark + "”"), "sentence", mark);
+    }
+    assert.equal(context.classifySelectionType("New York City"), "phrase");
+    assert.equal(context.classifySelectionType("don't"), "word");
+    assert.equal(context.classifySelectionType("well-known"), "word");
+
+    // Older engines retain the previous whitespace-based behaviour.
+    const fallback = vm.createContext({ Intl: {} });
+    vm.runInContext(classifierSource, fallback);
+    assert.equal(fallback.classifySelectionType("dog"), "word");
+    assert.equal(fallback.classifySelectionType("one two three。"), "sentence");
+    assert.equal(fallback.classifySelectionType("中文"), "word");
+});
+
+
 test("content scripts cannot import page-provided authentication tokens", async () => {
     const contentSource = await readFile(
         path.join(repositoryRoot, "content.js"),
@@ -2850,3 +2887,4 @@ test("every LazyLex write to page text runs inside the repaint guard", async () 
     // The comment explaining why names it, so match a call, not a mention.
     assert.doesNotMatch(paintBlock, /^\s*(await )?recordEncounterCounts\(/m);
 });
+
