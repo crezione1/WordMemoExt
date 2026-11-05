@@ -655,10 +655,21 @@ function classifySelectionType(text) {
     }
 
     const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-    const endsWithSentencePunctuation = /[.!?]["'’”)\]]?$/.test(trimmed);
-    const isSentence = wordCount >= 6
+    // Spaces do not delimit words in these scripts. Segment only for the
+    // sentence heuristic: short names can have multiple dictionary segments
+    // and must still be saved as one vocabulary entry. Keep spaced-script
+    // behaviour (including contractions and hyphenated words) unchanged.
+    let sentenceWordCount = wordCount;
+    if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Khmer}]/u.test(trimmed)
+        && typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+        const segmenter = new Intl.Segmenter(undefined, { granularity: "word" });
+        sentenceWordCount = Array.from(segmenter.segment(trimmed))
+            .filter((segment) => segment.isWordLike).length;
+    }
+    const endsWithSentencePunctuation = /[.!?。！？؟]["'’”)\]]?$/.test(trimmed);
+    const isSentence = sentenceWordCount >= 6
         || trimmed.length > 120
-        || (wordCount >= 3 && endsWithSentencePunctuation);
+        || (sentenceWordCount >= 3 && endsWithSentencePunctuation);
 
     if (isSentence) {
         return "sentence";
@@ -2690,3 +2701,4 @@ checkInitialExtensionState().then(() => {
 });
 
 console.log('[LazyLexExt] Content script loaded');
+
