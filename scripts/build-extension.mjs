@@ -35,7 +35,7 @@ const runtimeDirectories = [
 
 function readArgument(name) {
     const prefix = `--${name}=`;
-    const argument = process.argv.find((value) => value.startsWith(prefix));
+    const argument = process.argv.filter((value) => value.startsWith(prefix)).pop();
     return argument ? argument.slice(prefix.length).trim() : null;
 }
 
