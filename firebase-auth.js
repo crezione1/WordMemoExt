@@ -11,9 +11,9 @@ function getReadableAuthError(error) {
     if (
         normalizedMessage.includes("bad client id") ||
         normalizedMessage.includes("invalid oauth") ||
-        normalizedMessage.includes("oauth2 request failed") ||
         normalizedMessage.includes("redirect_uri_mismatch") ||
-        normalizedMessage.includes("unauthorized_client")
+        normalizedMessage.includes("unauthorized_client") ||
+        normalizedMessage.includes("invalid_client")
     ) {
         return `Google sign-in is not configured for this local extension (${extensionId}). Rebuild with an OAuth client registered for this extension ID.`;
     }
@@ -38,7 +38,11 @@ function getReadableAuthError(error) {
         return "Google sign-in is disabled for this Firebase project.";
     }
 
-    return "Google sign-in failed. Inspect the extension popup for details and try again.";
+    if (normalizedMessage.includes("access_denied")) {
+        return "Google sign-in access was denied. Check that your Google account is allowed to use LazyLex and try again.";
+    }
+
+    return "Google sign-in failed. Inspect the extension popup for the original error before changing OAuth configuration.";
 }
 
 function getGoogleAuthToken(interactive) {
